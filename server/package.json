@@ -5,15 +5,15 @@
   "type": "module",
   "main": "src/app.js",
   "scripts": {
-    "dev": "node --watch --env-file-if-exists=../.env src/index.js",
-    "dev:mock": "node --watch --env-file-if-exists=../.env src/index.js --mock",
-    "start": "node --env-file-if-exists=../.env src/index.js",
+    "dev": "node --watch src/index.js",
+    "dev:mock": "node --watch src/index.js --mock",
+    "start": "node src/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "db:init": "node --env-file-if-exists=../.env scripts/init-database.js",
-    "admin:create": "node --env-file-if-exists=../.env scripts/create-admin.js",
-    "sync:run": "node --env-file-if-exists=../.env scripts/run-sync-jobs.js"
+    "db:init": "node scripts/init-database.js",
+    "admin:create": "node scripts/create-admin.js",
+    "sync:run": "node scripts/run-sync-jobs.js"
   },
   "dependencies": {
     "argon2": "^0.45.1",

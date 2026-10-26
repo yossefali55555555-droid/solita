@@ -5,6 +5,7 @@
  * as the Vercel Cron endpoint). Useful for manual operations or an external
  * scheduler.
  */
+import '../src/config/loadEnv.js';
 import { getConfig } from '../src/config/env.js';
 import { connectDb, disconnectDb } from '../src/db/connect.js';
 import { processBackgroundWork } from '../src/jobs/processBackgroundWork.js';

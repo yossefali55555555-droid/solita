@@ -6,6 +6,7 @@
  * Safe to run any number of times: it never drops collections, documents or
  * indexes.
  */
+import '../src/config/loadEnv.js';
 import { ConfigError, getConfig } from '../src/config/env.js';
 import { connectDb, disconnectDb } from '../src/db/connect.js';
 import { initDatabase } from '../src/db/initDatabase.js';

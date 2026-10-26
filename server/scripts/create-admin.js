@@ -11,6 +11,7 @@
  *  - An existing courier account is NEVER promoted to administrator.
  *  - An existing admin is left untouched unless --reset-password is given.
  */
+import '../src/config/loadEnv.js';
 import readline from 'node:readline';
 import { z } from 'zod';
 import { ConfigError, getConfig } from '../src/config/env.js';

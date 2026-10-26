@@ -84,6 +84,10 @@ export async function apiRequest(method, path, { body, query, retryCsrf = true }
     return apiRequest(method, path, { body, query, retryCsrf: false });
   }
   if (res.status === 401 && !path.startsWith('/auth/login')) listeners.forEach((fn) => fn());
+  // No JSON body on a 5xx means the API itself is not running (e.g. the dev proxy got no answer).
+  if (!data && res.status >= 500) {
+    throw new ApiError(res.status, 'SERVER_UNAVAILABLE', 'الخادم لا يستجيب. تأكد أن خادم الـ API يعمل ثم حاول مرة أخرى.');
+  }
   throw new ApiError(res.status, error.code || 'ERROR', error.message || 'حدث خطأ غير متوقع', error.details);
 }
 

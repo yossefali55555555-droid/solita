@@ -1,4 +1,5 @@
 // Local development server. On Vercel, api/index.js is used instead.
+import './config/loadEnv.js';
 import { ConfigError, getConfig } from './config/env.js';
 import { connectDb } from './db/connect.js';
 import { initDatabase } from './db/initDatabase.js';
