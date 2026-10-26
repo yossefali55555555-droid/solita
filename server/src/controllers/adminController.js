@@ -28,7 +28,7 @@ export async function listCouriers(req, res) {
 }
 
 export async function listCouriersBrief(_req, res) {
-  res.json({ items: await couriers.listActiveCouriersBrief() });
+  res.json({ items: await couriers.listCouriersBrief() });
 }
 
 export async function getCourier(req, res) {

@@ -155,7 +155,8 @@ export async function resetCourierPassword(admin, id, newPassword) {
   return publicUser(courier);
 }
 
-export async function listActiveCouriersBrief() {
-  const users = await User.find({ role: 'courier', isActive: true }).sort({ name: 1 }).select('name phone').lean();
-  return users.map((u) => ({ id: String(u._id), name: u.name, phone: u.phone }));
+/** Compact list for selects (active couriers first; inactive ones still matter for cash records). */
+export async function listCouriersBrief() {
+  const users = await User.find({ role: 'courier' }).sort({ isActive: -1, name: 1 }).select('name phone isActive').lean();
+  return users.map((u) => ({ id: String(u._id), name: u.name, phone: u.phone, isActive: u.isActive }));
 }
