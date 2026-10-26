@@ -1,0 +1,36 @@
+{
+  "name": "@solita/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/app.js",
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=../.env src/index.js",
+    "dev:mock": "node --watch --env-file-if-exists=../.env src/index.js --mock",
+    "start": "node --env-file-if-exists=../.env src/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "db:init": "node --env-file-if-exists=../.env scripts/init-database.js",
+    "admin:create": "node --env-file-if-exists=../.env scripts/create-admin.js",
+    "sync:run": "node --env-file-if-exists=../.env scripts/run-sync-jobs.js"
+  },
+  "dependencies": {
+    "argon2": "^0.45.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
+    "mongoose": "^9.11.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "mongodb-memory-server": "^11.3.0",
+    "supertest": "^7.3.1",
+    "vitest": "^5.0.5"
+  }
+}

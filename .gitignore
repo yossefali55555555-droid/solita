@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Builds
+client/dist/
+dist/
+coverage/
+
+# Environment files (never commit secrets)
+.env
+.env.*
+!.env.example
+server/.env
+client/.env
+client/.env.local
+
+# Vercel
+.vercel/
+
+# Logs and OS files
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
