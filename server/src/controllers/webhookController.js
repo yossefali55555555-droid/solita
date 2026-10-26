@@ -3,7 +3,7 @@ import { receiveWebhook } from '../services/webhookService.js';
 import { processBackgroundWork } from '../jobs/processBackgroundWork.js';
 import { safeEqual } from '../utils/sanitize.js';
 import { logger } from '../utils/logger.js';
-
+ 
 /**
  * Webhook authentication uses the documented `secret` header that EasyOrders
  * sends with every webhook request. No signature scheme is invented.
@@ -19,12 +19,12 @@ function authenticate(req, kind) {
   }
   return { ok: true };
 }
-
+ 
 function handler(kind) {
   return async (req, res) => {
     const auth = authenticate(req, kind);
     if (!auth.ok) {
-      logger.warn('Rejected webhook', { kind, code: auth.code, ip: req.ip });
+      logger.warn('Rejected webhook', { route: req.path, status: auth.status, code: auth.code, secretHeaderPresent: Boolean(req.get('secret')) });
       return res.status(auth.status).json({ error: { code: auth.code, message: 'Unauthorized webhook' } });
     }
     if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
@@ -33,13 +33,21 @@ function handler(kind) {
     // Both endpoints accept both documented payload shapes, so a single
     // EasyOrders webhook URL also works; the payload decides the handler.
     const result = await receiveWebhook(req.body);
+    // Visible in Vercel → Logs. Only top-level key names are logged, never values.
+    logger.info('Webhook received', {
+      route: req.path,
+      orderId: req.body.order_id ?? req.body.id,
+      httpStatus: result.httpStatus,
+      outcome: result.body.outcome || (result.body.ignored ? 'ignored_unrecognized_payload' : result.body.duplicate ? 'duplicate' : undefined),
+      payloadKeys: result.body.ignored ? Object.keys(req.body).slice(0, 30) : undefined,
+    });
     res.status(result.httpStatus).json(result.body);
   };
 }
-
+ 
 export const ordersWebhook = handler('orders');
 export const statusWebhook = handler('status');
-
+ 
 /** Vercel Cron entry point (Authorization: Bearer <CRON_SECRET>). */
 export async function cronProcess(req, res) {
   const secret = getConfig().cronSecret;
@@ -50,3 +58,4 @@ export async function cronProcess(req, res) {
   }
   res.json(await processBackgroundWork({ timeBudgetMs: 22_000 }));
 }
+ 
