@@ -318,7 +318,7 @@ export async function listSyncProblems({ skip = 0, limit = 20 } = {}) {
       .sort({ updatedAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('order', 'easyOrdersId customer.name deliveryStatus sourceStatus')
+      .populate('order', 'easyOrdersId easyOrdersShortId customer.name deliveryStatus sourceStatus')
       .populate('requestedBy', 'name role')
       .lean(),
     SyncOperation.countDocuments(filter),

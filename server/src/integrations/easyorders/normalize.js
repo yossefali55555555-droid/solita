@@ -98,11 +98,18 @@ export function normalizeEasyOrdersOrder(payload) {
     discount,
     totalAmount,
     paymentMethod,
+    shortId: parseShortId(payload.short_id),
     sourceStatus: has(payload, 'status') ? optStr(payload.status, 60) : undefined,
     sourceCreatedAt: parseDate(payload.created_at),
     sourceUpdatedAt: parseDate(payload.updated_at),
     isCod: paymentMethod !== undefined ? isCashOnDelivery(paymentMethod) : undefined,
   };
+}
+
+/** `short_id` is the documented numeric order number; anything else is ignored. */
+export function parseShortId(value) {
+  const n = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value.trim()) : value;
+  return Number.isSafeInteger(n) && n > 0 ? n : undefined;
 }
 
 /** A payload is "complete" when it carries everything needed to create an order. */

@@ -7,7 +7,7 @@ import { Timeline } from '../../components/Timeline.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
-import { formatDateTime, formatMoney, toAsciiDigits } from '../../utils/format.js';
+import { formatDateTime, formatMoney, toAsciiDigits, orderNumber } from '../../utils/format.js';
 
 export function CourierDetailPage() {
   const { id } = useParams();
@@ -121,7 +121,7 @@ export function CourierDetailPage() {
               <tbody>
                 {activeOrders.map((o) => (
                   <tr key={o._id}>
-                    <td><Link className="link mono" to={`/admin/orders/${o._id}`}>{o.easyOrdersId}</Link></td>
+                    <td><Link className="link mono" to={`/admin/orders/${o._id}`}>{orderNumber(o)}</Link></td>
                     <td>{o.customer?.name} <span className="muted small">{o.customer?.government}</span></td>
                     <td className="nowrap">{formatMoney(o.totalAmount)}</td>
                     <td><div className="badge-stack"><DeliveryStatusBadge status={o.deliveryStatus} /><SourceStatusBadge status={o.sourceStatus} /></div></td>
@@ -143,7 +143,7 @@ export function CourierDetailPage() {
               <li key={r._id}>
                 <div className="badge-row">
                   <ReviewStatusBadge status={r.status} />
-                  <Link className="link mono" to={`/admin/reviews/${r._id}`}>{r.order?.easyOrdersId}</Link>
+                  <Link className="link mono" to={`/admin/reviews/${r._id}`}>{orderNumber(r.order)}</Link>
                   <span className="muted small">{formatDateTime(r.submittedAt)}</span>
                 </div>
                 {r.rejectionReason && <p className="small">سبب الرفض: {r.rejectionReason}</p>}

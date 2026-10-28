@@ -7,6 +7,7 @@ import { RateLimitCounter } from '../../models/index.js';
  * Verified against https://public-api-docs.easy-orders.net/ :
  *  - Authentication header:  Api-Key: <key>
  *  - GET   /api/v1/external-apps/orders/:order_id          (permission orders:read)
+ *  - GET   /api/v1/external-apps/orders/short/:short_id    (permission orders:read)
  *  - PATCH /api/v1/external-apps/orders/:order_id/status   (permission orders:update)
  *          body: { "status": "<one of the documented statuses>" }
  *  - Rate limit: 40 requests/minute, HTTP 429 when exceeded.
@@ -156,14 +157,24 @@ function orderPath(orderId) {
   return `/api/v1/external-apps/orders/${encodeURIComponent(String(orderId))}`;
 }
 
-/** Fetch the full order. Returns the raw order object. */
-export async function getOrder(orderId) {
-  const { data } = await request('GET', orderPath(orderId));
+function orderFromResponse(data) {
   const order = data && typeof data === 'object' && data.id === undefined && data.data ? data.data : data;
   if (!order || typeof order !== 'object' || order.id === undefined || order.id === null) {
     throw new EasyOrdersError('invalid_response', 'EasyOrders returned an order response without an id');
   }
   return order;
+}
+
+/** Fetch the full order. Returns the raw order object. */
+export async function getOrder(orderId) {
+  const { data } = await request('GET', orderPath(orderId));
+  return orderFromResponse(data);
+}
+
+/** Fetch the full order by its numeric order number (`short_id`). */
+export async function getOrderByShortId(shortId) {
+  const { data } = await request('GET', `/api/v1/external-apps/orders/short/${encodeURIComponent(String(shortId))}`);
+  return orderFromResponse(data);
 }
 
 /** Update the order status. Resolves only when EasyOrders answered with 2xx. */

@@ -71,6 +71,13 @@ describe('configuration', () => {
     expect(ok.cookieSecure).toBe(true);
     expect(ok.databaseName).toBe('solita');
     expect(ok.easyOrders.apiConfigured).toBe(false);
+    expect(ok.mongodbDnsServers).toEqual([]);
+  });
+
+  it('parses optional MONGODB_DNS_SERVERS as IP addresses only', () => {
+    const base = { NODE_ENV: 'development', MONGODB_URI: 'mongodb+srv://x' };
+    expect(loadConfig({ ...base, MONGODB_DNS_SERVERS: ' 8.8.8.8, 1.1.1.1 ' }).mongodbDnsServers).toEqual(['8.8.8.8', '1.1.1.1']);
+    expect(() => loadConfig({ ...base, MONGODB_DNS_SERVERS: 'dns.google' })).toThrow(/MONGODB_DNS_SERVERS/);
   });
 });
 
@@ -81,5 +88,15 @@ describe('delivery state machine', () => {
     expect(canTransition('out_for_delivery', 'delivered')).toBe(false);
     expect(canTransition('pending_delivery_review', 'delivered')).toBe(true);
     expect(canTransition('delivered', 'cancelled')).toBe(false);
+  });
+});
+
+describe('database error mapping', () => {
+  it('treats Mongoose server selection, SRV and auth failures as database unavailable', async () => {
+    const { isDatabaseUnavailable } = await import('../src/middleware/errorHandler.js');
+    expect(isDatabaseUnavailable({ name: 'MongooseServerSelectionError', message: 'connect ECONNREFUSED' })).toBe(true);
+    expect(isDatabaseUnavailable({ name: 'Error', message: 'querySrv ECONNREFUSED _mongodb._tcp.x' })).toBe(true);
+    expect(isDatabaseUnavailable({ name: 'MongoServerError', code: 18, message: 'bad auth' })).toBe(true);
+    expect(isDatabaseUnavailable({ name: 'TypeError', message: 'x is undefined' })).toBe(false);
   });
 });

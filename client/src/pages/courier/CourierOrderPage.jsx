@@ -7,7 +7,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { FAILURE_REASON_LABELS, PAYMENT_STATUS_LABELS, label } from '../../utils/labels.js';
-import { formatDateTime, formatMoney, isValidMoneyInput, minorToInput, toAsciiDigits } from '../../utils/format.js';
+import { formatDateTime, formatMoney, isValidMoneyInput, minorToInput, toAsciiDigits, orderNumber } from '../../utils/format.js';
 
 export function CourierOrderPage() {
   const { id } = useParams();
@@ -78,7 +78,7 @@ export function CourierOrderPage() {
     <div className="courier-order">
       <Link to="/courier" className="page-header__back">→ طلباتي</Link>
       <div className="courier-order__head">
-        <h1 className="mono">#{order.easyOrdersId}</h1>
+        <h1 className="mono">{orderNumber(order)}</h1>
         <DemoBadge show={order.isDemo} />
       </div>
       <div className="badge-stack">

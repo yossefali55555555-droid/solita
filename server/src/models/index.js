@@ -8,6 +8,7 @@ import { CashRemittance } from './CashRemittance.js';
 import { SyncOperation } from './SyncOperation.js';
 import { Notification } from './Notification.js';
 import { RateLimitCounter } from './RateLimitCounter.js';
+import { IntegrationState } from './IntegrationState.js';
 
 export {
   publicUser,
@@ -21,6 +22,7 @@ export {
   SyncOperation,
   Notification,
   RateLimitCounter,
+  IntegrationState,
 };
 
 export const allModels = [
@@ -34,4 +36,5 @@ export const allModels = [
   SyncOperation,
   Notification,
   RateLimitCounter,
+  IntegrationState,
 ];

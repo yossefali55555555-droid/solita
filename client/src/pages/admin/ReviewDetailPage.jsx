@@ -15,7 +15,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { label, SOURCE_STATUS_LABELS, SYNC_OP_LABELS } from '../../utils/labels.js';
-import { formatDateTime, formatMoney } from '../../utils/format.js';
+import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
 
 export function ReviewDetailPage() {
   const { id } = useParams();
@@ -87,7 +87,7 @@ export function ReviewDetailPage() {
     <>
       <PageHeader
         back="/admin/reviews"
-        title={<>مراجعة تسليم الطلب <span className="mono">{order?.easyOrdersId}</span> <DemoBadge show={order?.isDemo} /></>}
+        title={<>مراجعة تسليم الطلب <span className="mono">{orderNumber(order)}</span> <DemoBadge show={order?.isDemo} /></>}
         subtitle={`أرسله ${review.courier?.name} في ${formatDateTime(review.submittedAt)}`}
         actions={<Link className="btn btn--secondary" to={`/admin/orders/${order?._id}`}>صفحة الطلب</Link>}
       />

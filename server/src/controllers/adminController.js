@@ -1,11 +1,12 @@
 import { paginated, paginationParams } from '../utils/pagination.js';
-import { listOrderEvents } from '../services/auditService.js';
+import { listOrderEvents, userActor } from '../services/auditService.js';
 import * as couriers from '../services/courierService.js';
 import * as orders from '../services/orderService.js';
 import * as delivery from '../services/deliveryService.js';
 import * as sync from '../services/syncService.js';
 import * as webhooks from '../services/webhookService.js';
 import * as cash from '../services/cashService.js';
+import * as poll from '../services/pollService.js';
 import { getOverview, getSystemStatus } from '../services/statsService.js';
 import { processBackgroundWork } from '../jobs/processBackgroundWork.js';
 import { notFound } from '../utils/errors.js';
@@ -116,6 +117,19 @@ export async function retryWebhook(req, res) {
   const event = await webhooks.retryWebhookEvent(req.valid.params.id);
   if (!event) throw notFound('لا يوجد حدث فاشل بهذا المعرّف');
   res.json({ event });
+}
+
+export async function pollStatus(_req, res) {
+  res.json(await poll.getPollStatus());
+}
+
+export async function pollNow(_req, res) {
+  res.json({ result: await poll.pollEasyOrders(), status: await poll.getPollStatus() });
+}
+
+export async function importEasyOrdersOrder(req, res) {
+  const { order, outcome } = await poll.importOrder(req.valid.body, userActor(req.user));
+  res.status(outcome === 'created' ? 201 : 200).json({ order, outcome });
 }
 
 export async function processDue(_req, res) {

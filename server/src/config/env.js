@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import net from 'node:net';
 import { z } from 'zod';
- 
+
 /**
  * Central, validated configuration.
  *
@@ -9,19 +9,19 @@ import { z } from 'zod';
  * prepare process.env before anything reads it. Call resetConfig() after
  * changing process.env in tests.
  */
- 
+
 export const DATABASE_NAME = 'solita';
- 
+
 const booleanString = z
   .enum(['true', 'false', '1', '0', ''])
   .optional()
   .transform((v) => v === 'true' || v === '1');
- 
+
 const optionalString = z
   .string()
   .optional()
   .transform((v) => (v && v.trim() ? v.trim() : undefined));
- 
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   VERCEL: optionalString,
@@ -42,7 +42,7 @@ const envSchema = z.object({
   CRON_SECRET: optionalString,
   MOCK_MODE: booleanString,
 });
- 
+
 export class ConfigError extends Error {
   constructor(problems) {
     super(`Invalid server configuration:\n - ${problems.join('\n - ')}`);
@@ -50,10 +50,10 @@ export class ConfigError extends Error {
     this.problems = problems;
   }
 }
- 
+
 let cached = null;
 let ephemeralSecret = null;
- 
+
 export function loadConfig(env = process.env, { forceMock } = {}) {
   const parsed = envSchema.safeParse(env);
   if (!parsed.success) {
@@ -61,18 +61,18 @@ export function loadConfig(env = process.env, { forceMock } = {}) {
   }
   const e = parsed.data;
   const problems = [];
- 
+
   const onVercel = Boolean(e.VERCEL) || Boolean(e.VERCEL_ENV);
   const isProduction = e.NODE_ENV === 'production' || onVercel;
   const isTest = e.NODE_ENV === 'test' && !onVercel;
   const mockMode = Boolean(forceMock || e.MOCK_MODE);
- 
+
   if (mockMode && isProduction) {
     problems.push(
       'MOCK_MODE cannot be enabled in production or on Vercel. Remove MOCK_MODE or set it to false.',
     );
   }
- 
+
   if (!e.MONGODB_URI && !mockMode && !isTest) {
     problems.push(
       'MONGODB_URI is required. Add your MongoDB Atlas connection string, or run `npm run dev:mock` for local demo mode.',
@@ -87,7 +87,7 @@ export function loadConfig(env = process.env, { forceMock } = {}) {
   if (mongodbDnsServers.some((ip) => net.isIP(ip) === 0)) {
     problems.push('MONGODB_DNS_SERVERS must be a comma-separated list of IP addresses, e.g. 8.8.8.8,1.1.1.1');
   }
- 
+
   let sessionSecret = e.SESSION_SECRET;
   if (!sessionSecret || sessionSecret.length < 32) {
     if (isProduction) {
@@ -99,7 +99,7 @@ export function loadConfig(env = process.env, { forceMock } = {}) {
       sessionSecret = ephemeralSecret;
     }
   }
- 
+
   const clientOrigins = e.CLIENT_ORIGIN.split(',')
     .map((o) => o.trim().replace(/\/+$/, ''))
     .filter(Boolean);
@@ -108,9 +108,9 @@ export function loadConfig(env = process.env, { forceMock } = {}) {
       problems.push(`CLIENT_ORIGIN contains an invalid origin: "${origin}"`);
     }
   }
- 
+
   if (problems.length) throw new ConfigError(problems);
- 
+
   return Object.freeze({
     nodeEnv: e.NODE_ENV,
     isProduction,
@@ -139,13 +139,12 @@ export function loadConfig(env = process.env, { forceMock } = {}) {
     }),
   });
 }
- 
+
 export function getConfig() {
   if (!cached) cached = loadConfig(process.env, { forceMock: process.argv.includes('--mock') });
   return cached;
 }
- 
+
 export function resetConfig() {
   cached = null;
 }
- 

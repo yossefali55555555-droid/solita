@@ -29,7 +29,7 @@ const ELIGIBLE = (courierId) => ({
 export async function listEligibleOrders(courierId) {
   return Order.find(ELIGIBLE(courierId))
     .sort({ deliveredAt: 1 })
-    .select('easyOrdersId customer.name totalAmount cod deliveredAt isDemo')
+    .select('easyOrdersId easyOrdersShortId customer.name totalAmount cod deliveredAt isDemo')
     .lean();
 }
 
@@ -206,7 +206,7 @@ export async function getRemittance(id, { courierId } = {}) {
   const remittance = await CashRemittance.findOne(query)
     .populate('courier', 'name phone')
     .populate('createdBy receivedBy verifiedBy cancelledBy', 'name role')
-    .populate('orders', 'easyOrdersId customer.name totalAmount cod.expectedAmount cod.declaredAmount deliveredAt')
+    .populate('orders', 'easyOrdersId easyOrdersShortId customer.name totalAmount cod.expectedAmount cod.declaredAmount deliveredAt')
     .lean();
   if (!remittance) throw notFound('سجل التسوية غير موجود');
   return remittance;

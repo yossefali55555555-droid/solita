@@ -57,6 +57,8 @@ const deliveryAttemptSchema = new mongoose.Schema(
 const orderSchema = new mongoose.Schema(
   {
     easyOrdersId: { type: String, required: true, trim: true, maxlength: 100 },
+    // EasyOrders `short_id`: the numeric order number shown to the merchant.
+    easyOrdersShortId: { type: Number, default: null },
     storeId: { type: String, maxlength: 100 },
 
     customer: { type: customerSchema, default: () => ({}) },
@@ -126,6 +128,7 @@ const orderSchema = new mongoose.Schema(
 );
 
 orderSchema.index({ easyOrdersId: 1 }, { unique: true });
+orderSchema.index({ easyOrdersShortId: -1 });
 orderSchema.index({ deliveryStatus: 1, createdAt: -1 });
 orderSchema.index({ sourceStatus: 1, createdAt: -1 });
 orderSchema.index({ assignedTo: 1, deliveryStatus: 1 });

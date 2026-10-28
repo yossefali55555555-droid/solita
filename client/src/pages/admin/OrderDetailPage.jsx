@@ -16,7 +16,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { FAILURE_REASON_LABELS, PAYMENT_STATUS_LABELS, SOURCE_STATUS_LABELS, label } from '../../utils/labels.js';
-import { formatDateTime, formatMoney } from '../../utils/format.js';
+import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
 
 const ASSIGNABLE = ['new', 'assigned', 'out_for_delivery', 'failed'];
 const CANCELLABLE = ['new', 'assigned', 'out_for_delivery', 'failed'];
@@ -101,7 +101,7 @@ export function OrderDetailPage() {
         back="/admin/orders"
         title={
           <>
-            طلب <span className="mono">{order.easyOrdersId}</span> <DemoBadge show={order.isDemo} />
+            طلب <span className="mono">{orderNumber(order)}</span> <DemoBadge show={order.isDemo} />
           </>
         }
         subtitle={`تاريخ الطلب: ${formatDateTime(order.sourceCreatedAt || order.createdAt)}`}

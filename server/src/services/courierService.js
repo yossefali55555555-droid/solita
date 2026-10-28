@@ -86,13 +86,13 @@ export async function getCourierDetail(id) {
   const [activeOrders, recentReviews, cash] = await Promise.all([
     Order.find({ assignedTo: cid, deliveryStatus: { $in: ['assigned', 'out_for_delivery', 'pending_delivery_review', 'failed'] } })
       .sort({ assignedAt: 1 })
-      .select('easyOrdersId customer.name customer.government totalAmount deliveryStatus sourceStatus assignedAt')
+      .select('easyOrdersId easyOrdersShortId customer.name customer.government totalAmount deliveryStatus sourceStatus assignedAt')
       .limit(200)
       .lean(),
     DeliveryReview.find({ courier: cid })
       .sort({ submittedAt: -1 })
       .limit(50)
-      .populate('order', 'easyOrdersId customer.name totalAmount')
+      .populate('order', 'easyOrdersId easyOrdersShortId customer.name totalAmount')
       .populate('reviewer', 'name')
       .lean(),
     courierCashSummary(cid),
