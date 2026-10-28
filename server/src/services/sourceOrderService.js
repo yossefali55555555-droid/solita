@@ -27,6 +27,7 @@ function buildSourceSet(n, now) {
     if (value !== undefined) set[key] = value;
   };
   assign('storeId', n.storeId);
+  assign('easyOrdersShortId', n.shortId);
   for (const [k, v] of Object.entries(n.customer || {})) assign(`customer.${k}`, v);
   assign('items', n.items);
   assign('subtotal', n.subtotal);

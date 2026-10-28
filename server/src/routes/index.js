@@ -63,6 +63,9 @@ export function buildRouter() {
 
   a.get('/sync/failures', validate({ query: s.listSyncFailuresQuery }), admin.syncFailures);
   a.post('/sync/process-due', admin.processDue);
+  a.get('/easyorders/poll', admin.pollStatus);
+  a.post('/easyorders/poll', admin.pollNow);
+  a.post('/easyorders/import', validate({ body: s.importOrderBody }), admin.importEasyOrdersOrder);
   a.post('/sync/webhooks/:id/retry', id, admin.retryWebhook);
   a.post('/sync/:id/retry', id, admin.retrySync);
 

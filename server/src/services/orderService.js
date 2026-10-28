@@ -22,6 +22,8 @@ export async function listOrders(filters, { skip, limit }) {
     const phone = normalizePhone(q);
     if (phone.length >= 4) or.push({ 'customer.phoneNormalized': new RegExp(escapeRegex(phone)) });
     if (mongoose.isValidObjectId(q)) or.push({ _id: q });
+    const number = q.replace(/^#/, '');
+    if (/^\d{1,12}$/.test(number)) or.push({ easyOrdersShortId: Number(number) });
     query.$or = or;
   }
   if (filters.sourceStatus) query.sourceStatus = filters.sourceStatus;

@@ -3,7 +3,7 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/States.js
 import { DeliveryStatusBadge, DemoBadge } from '../../components/StatusBadges.jsx';
 import { useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
-import { formatMoney } from '../../utils/format.js';
+import { formatMoney, orderNumber } from '../../utils/format.js';
 
 const TABS = [
   { value: 'active', label: 'للتوصيل' },
@@ -49,7 +49,7 @@ export function CourierOrdersPage() {
             <li key={o._id}>
               <Link to={`/courier/orders/${o._id}`} className="order-card">
                 <div className="order-card__top">
-                  <span className="mono order-card__id">#{o.easyOrdersId}</span>
+                  <span className="mono order-card__id">{orderNumber(o)}</span>
                   <DeliveryStatusBadge status={o.deliveryStatus} compact />
                 </div>
                 <div className="order-card__name">{o.customer?.name}</div>

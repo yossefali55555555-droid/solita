@@ -10,7 +10,7 @@ import {
 } from '../../components/StatusBadges.jsx';
 import { useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
-import { formatDateTime, formatMoney } from '../../utils/format.js';
+import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
 
 const TABS = [
   { value: 'pending', label: 'بانتظار المراجعة' },
@@ -72,7 +72,7 @@ export function ReviewsPage() {
                 {data.items.map((r) => (
                   <tr key={r._id}>
                     <td className="mono">
-                      {r.order?.easyOrdersId} <DemoBadge show={r.order?.isDemo} />
+                      {orderNumber(r.order)} <DemoBadge show={r.order?.isDemo} />
                     </td>
                     <td>
                       <div>{r.order?.customer?.name}</div>

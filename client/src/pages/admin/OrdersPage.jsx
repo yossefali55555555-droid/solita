@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, PageHeader, Pagination } from '../../components/ui.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
+import { EasyOrdersSync } from '../../components/EasyOrdersSync.jsx';
 import { DeliveryStatusBadge, DemoBadge, OrderSyncBadge, SourceStatusBadge } from '../../components/StatusBadges.jsx';
 import { useAsync, useDebouncedValue } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { DELIVERY_STATUS_LABELS, SOURCE_STATUS_LABELS } from '../../utils/labels.js';
-import { formatDateTime, formatMoney } from '../../utils/format.js';
+import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
 
 const FILTER_KEYS = ['q', 'sourceStatus', 'deliveryStatus', 'courier', 'syncState', 'from', 'to', 'page'];
 
@@ -37,7 +38,11 @@ export function OrdersPage() {
 
   return (
     <>
-      <PageHeader title="الطلبات" subtitle="طلبات المتجر المستوردة من EasyOrders" />
+      <PageHeader
+        title="الطلبات"
+        subtitle="طلبات المتجر المستوردة من EasyOrders"
+        actions={<EasyOrdersSync onChange={() => reload({ silent: true })} />}
+      />
       <Card>
         <div className="filters">
           <input
@@ -113,7 +118,7 @@ export function OrdersPage() {
                   <tr key={o._id}>
                     <td>
                       <Link to={`/admin/orders/${o._id}`} className="link mono">
-                        {o.easyOrdersId}
+                        {orderNumber(o)}
                       </Link>
                       <DemoBadge show={o.isDemo} />
                     </td>

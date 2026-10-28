@@ -8,7 +8,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { REMITTANCE_STATUS_LABELS } from '../../utils/labels.js';
-import { formatDateTime, formatMoney, isValidMoneyInput, minorToInput, toAsciiDigits } from '../../utils/format.js';
+import { formatDateTime, formatMoney, isValidMoneyInput, minorToInput, toAsciiDigits, orderNumber } from '../../utils/format.js';
 
 function MoneyInput({ id, value, onChange }) {
   return (
@@ -102,7 +102,7 @@ function CreateRemittanceModal({ open, onClose, onCreated, couriers }) {
                   checked={selected.includes(o._id)}
                   onChange={(e) => setSelected((s) => (e.target.checked ? [...s, o._id] : s.filter((x) => x !== o._id)))}
                 />
-                <span className="mono">{o.easyOrdersId}</span>
+                <span className="mono">{orderNumber(o)}</span>
                 <span>{o.customer?.name}</span>
                 <span className="muted">{formatMoney(o.cod.expectedAmount)}</span>
                 {o.cod.declaredAmount !== null && o.cod.declaredAmount !== undefined && o.cod.declaredAmount !== o.cod.expectedAmount && (
@@ -179,7 +179,7 @@ function RemittanceModal({ remittanceId, onClose, onChanged }) {
           <ul className="simple-list">
             {r.orders.map((o) => (
               <li key={o._id}>
-                <Link className="link mono" to={`/admin/orders/${o._id}`}>{o.easyOrdersId}</Link> — {o.customer?.name} — {formatMoney(o.cod?.expectedAmount)}
+                <Link className="link mono" to={`/admin/orders/${o._id}`}>{orderNumber(o)}</Link> — {o.customer?.name} — {formatMoney(o.cod?.expectedAmount)}
               </li>
             ))}
           </ul>

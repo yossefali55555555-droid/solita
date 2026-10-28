@@ -5,7 +5,7 @@ import { RemittanceStatusBadge } from '../../components/StatusBadges.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
-import { formatDateTime, formatMoney, isValidMoneyInput, minorToInput, toAsciiDigits } from '../../utils/format.js';
+import { formatDateTime, formatMoney, isValidMoneyInput, minorToInput, toAsciiDigits, orderNumber } from '../../utils/format.js';
 
 export function CourierCashPage() {
   const toast = useToast();
@@ -89,7 +89,7 @@ export function CourierCashPage() {
         <p>الطلبات المشمولة ({eligibleOrders.length}):</p>
         <ul className="simple-list small">
           {eligibleOrders.map((o) => (
-            <li key={o._id}><span className="mono">#{o.easyOrdersId}</span> — {formatMoney(o.cod.expectedAmount)}</li>
+            <li key={o._id}><span className="mono">{orderNumber(o)}</span> — {formatMoney(o.cod.expectedAmount)}</li>
           ))}
         </ul>
         <Field label="المبلغ الذي ستسلمه (ج.م)" required hint={`المتوقع: ${formatMoney(summary.unremittedExpected)}`}>

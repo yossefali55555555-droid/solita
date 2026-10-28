@@ -27,6 +27,15 @@ async function main() {
     console.warn(`Demo admin:   ${summary.admin.phone}  /  ${summary.password}`);
     console.warn(`Demo courier: ${summary.courier.phone}  /  ${summary.password}`);
     console.warn('=======================================================\n');
+  } else {
+    // Connect up front so a bad MONGODB_URI shows here, not only on the first login.
+    try {
+      await connectDb();
+      console.log('Connected to MongoDB (database "solita").');
+    } catch (err) {
+      console.error(`\nCould not connect to MongoDB: ${err.message}`);
+      console.error('Check MONGODB_URI in .env and Network Access in Atlas. The server keeps running and retries on each request.\n');
+    }
   }
   if (config.sessionSecretIsEphemeral) {
     console.warn('SESSION_SECRET is not set: using a temporary development secret.');

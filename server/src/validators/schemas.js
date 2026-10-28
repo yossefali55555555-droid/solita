@@ -155,3 +155,12 @@ export const listRemittancesQuery = z.object({
 });
 
 export const eligibleOrdersQuery = z.object({ courier: objectId });
+
+// ---------- EasyOrders pull sync (admin) ----------
+// Either the numeric order number (short_id) or the EasyOrders order id.
+export const importOrderBody = z
+  .strictObject({
+    shortId: z.coerce.number().int('رقم الطلب يجب أن يكون رقماً صحيحاً').positive('رقم الطلب غير صالح').max(1e12).optional(),
+    orderId: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9-]+$/, 'معرّف الطلب غير صالح').optional(),
+  })
+  .refine((v) => Boolean(v.shortId) !== Boolean(v.orderId), { message: 'أدخل رقم الطلب', path: ['shortId'] });

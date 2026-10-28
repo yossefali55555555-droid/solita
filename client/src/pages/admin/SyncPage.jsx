@@ -7,7 +7,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { SOURCE_STATUS_LABELS, label } from '../../utils/labels.js';
-import { formatDateTime } from '../../utils/format.js';
+import { formatDateTime, orderNumber } from '../../utils/format.js';
 
 const TRIGGER_LABELS = {
   delivery_approved: 'موافقة على التسليم',
@@ -93,7 +93,7 @@ export function SyncPage() {
                 {data.items.map((op) => (
                   <tr key={op._id}>
                     <td>
-                      {op.order ? <Link className="link mono" to={`/admin/orders/${op.order._id}`}>{op.order.easyOrdersId}</Link> : op.easyOrdersId}
+                      {op.order ? <Link className="link mono" to={`/admin/orders/${op.order._id}`}>{orderNumber(op.order)}</Link> : op.easyOrdersId}
                     </td>
                     <td>{label(SOURCE_STATUS_LABELS, op.targetStatus)}</td>
                     <td>{TRIGGER_LABELS[op.trigger] || op.trigger}</td>

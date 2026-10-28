@@ -88,6 +88,7 @@ npm run dev
 | المتغير | مطلوب | الوصف |
 |---|---|---|
 | `MONGODB_URI` | نعم | رابط الاتصال بـ MongoDB Atlas. اسم قاعدة البيانات ثابت: `solita` |
+| `MONGODB_DNS_SERVERS` | اختياري (محلياً فقط) | خوادم DNS بديلة مثل `8.8.8.8,1.1.1.1` عند ظهور خطأ `querySrv ECONNREFUSED` |
 | `SESSION_SECRET` | نعم في الإنتاج | نص عشوائي ≥ 32 حرفاً (لتوقيع رموز CSRF) |
 | `CLIENT_ORIGIN` | نعم | رابط الواجهة، مثل `https://solita-courier.vercel.app` (يمكن وضع أكثر من رابط مفصولة بفاصلة) |
 | `EASYORDERS_API_KEY` | للمزامنة | مفتاح EasyOrders API بصلاحيات `orders:read` و `orders:update` |
@@ -233,6 +234,20 @@ https://<نطاقك>/api/webhooks/easyorders/status
 curl -i -X POST https://<نطاقك>/api/webhooks/easyorders/orders -H "Content-Type: application/json" -d '{}'
 ```
 
+## 14 ب. سحب الطلبات من EasyOrders (بديل الـ Webhook)
+
+لو الـ Webhook مش بيوصل، النظام يقدر يسحب الطلبات بنفسه من EasyOrders API. توثيق EasyOrders مافيهوش endpoint لعرض كل الطلبات، فالنظام بيعتمد على **رقم الطلب** (`short_id`) لأنه متسلسل: بيسأل عن الأرقام اللي بعد آخر رقم يعرفه، ولو لقى 3 أرقام ورا بعض مش موجودة بيوقف لحد المرة الجاية. ومع كل سحب بيحدّث حالة عدد بسيط من الطلبات المفتوحة، عشان أي تغيير في EasyOrders (زي الإلغاء) يظهر.
+
+- **أول مرة:** من صفحة "الطلبات" اضغط **استيراد طلب برقمه** واكتب رقم آخر طلب في EasyOrders، وبعدها السحب يكمل لوحده من بعده.
+- **مزامنة يدوية:** زرار **مزامنة مع EasyOrders الآن** في صفحة "الطلبات".
+- **مزامنة تلقائية كل 3 دقايق:** Cron في Vercel على خطة Hobby بيشتغل مرة في اليوم بس، فاستخدم خدمة Cron خارجية مجانية زي cron-job.org:
+  - الرابط: `https://<نطاقك>/api/cron/process`
+  - الطريقة: `GET`، كل 3 دقايق
+  - Header: `Authorization: Bearer <CRON_SECRET>` (نفس القيمة اللي في Vercel)
+- الطلب اللي بيوصل بالـ Webhook وبالسحب في نفس الوقت بيتسجل مرة واحدة بس، لأنه بيتعرف بمعرّف EasyOrders.
+- السحب بيستخدم بحد أقصى حوالي 13 طلب API في المرة، عشان يفضل مكان لإرسال حالة "تم التسليم" جوه حد الـ 40 طلب في الدقيقة.
+- لازم المفتاح يكون عنده صلاحية `orders:read`.
+
 ## 15. الربط مع موقع سوليتا الحالي
 
 - يستمر العملاء في الشراء من `https://solita.myeasyorders.com/` بنفس صفحة الدفع الحالية. **لا يتم إنشاء أي طلب من هذا النظام**، لذلك لا يوجد خطر تكرار الطلبات.
@@ -245,6 +260,7 @@ curl -i -X POST https://<نطاقك>/api/webhooks/easyorders/orders -H "Content-
 |---|---|
 | `MONGODB_URI is required` | أضف الرابط في `.env` أو استخدم `npm run dev:mock` |
 | `CONFIG_ERROR` على Vercel | متغير ناقص أو `SESSION_SECRET` أقصر من 32 حرفاً؛ راجع Runtime Logs |
+| `querySrv ECONNREFUSED _mongodb._tcp...` | شبكتك (غالباً الراوتر على Windows) ترفض استعلام DNS الخاص بروابط `mongodb+srv://`. الحل: أضف `MONGODB_DNS_SERVERS=8.8.8.8,1.1.1.1` في `.env`، أو غيّر DNS الجهاز إلى 8.8.8.8 / 1.1.1.1، أو استخدم رابط الاتصال العادي `mongodb://` من Atlas (Connect ← Drivers ← اختر إصدار Node قديم مثل 2.2.12) |
 | `DATABASE_UNAVAILABLE` | تحقق من Network Access في Atlas (اسمح بـ `0.0.0.0/0`) ومن اسم المستخدم/كلمة المرور |
 | "انتهت صلاحية الجلسة الأمنية" | حدّث الصفحة (رمز CSRF جديد). تأكد أن `CLIENT_ORIGIN` يطابق نطاق الواجهة |
 | Webhook يرجع 401 | قيمة `EASYORDERS_WEBHOOK_SECRET` لا تطابق السر في EasyOrders |
@@ -299,7 +315,7 @@ client/public/favicon.svg             (نسخة مطابقة لأيقونة ال
 
 المصادقة: `POST /api/auth/login` · `POST /api/auth/logout` · `GET /api/auth/me` · `GET /api/auth/csrf` · `POST /api/auth/change-password` · `GET /api/auth/notifications`
 
-المشرف: `/api/admin/overview` · `/api/admin/couriers` (POST/GET) · `/api/admin/couriers/:id` (GET/PATCH) · `/api/admin/couriers/:id/active` · `/api/admin/couriers/:id/password` · `/api/admin/orders` · `/api/admin/orders/:id` · `/api/admin/orders/:id/assignment` · `/api/admin/orders/:id/status` · `/api/admin/orders/:id/events` · `/api/admin/delivery-reviews` · `/api/admin/delivery-reviews/:id` · `/approve` · `/reject` · `/api/admin/sync/failures` · `/api/admin/sync/:id/retry` · `/api/admin/sync/process-due` · `/api/admin/cash/overview` · `/api/admin/cash/eligible-orders` · `/api/admin/cash/remittances` (+ `/:id/receive` `/:id/verify` `/:id/cancel`)
+المشرف: `/api/admin/easyorders/poll` (GET/POST) · `/api/admin/easyorders/import` · `/api/admin/overview` · `/api/admin/couriers` (POST/GET) · `/api/admin/couriers/:id` (GET/PATCH) · `/api/admin/couriers/:id/active` · `/api/admin/couriers/:id/password` · `/api/admin/orders` · `/api/admin/orders/:id` · `/api/admin/orders/:id/assignment` · `/api/admin/orders/:id/status` · `/api/admin/orders/:id/events` · `/api/admin/delivery-reviews` · `/api/admin/delivery-reviews/:id` · `/approve` · `/reject` · `/api/admin/sync/failures` · `/api/admin/sync/:id/retry` · `/api/admin/sync/process-due` · `/api/admin/cash/overview` · `/api/admin/cash/eligible-orders` · `/api/admin/cash/remittances` (+ `/:id/receive` `/:id/verify` `/:id/cancel`)
 
 المندوب: `GET /api/courier/orders` · `GET /api/courier/orders/:id` · `PATCH /api/courier/orders/:id/status` · `POST /api/courier/orders/:id/delivery-report` · `GET /api/courier/cash` · `POST /api/courier/cash/remittances`
 

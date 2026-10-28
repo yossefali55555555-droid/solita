@@ -47,3 +47,9 @@ export function isValidMoneyInput(value) {
 export function toAsciiDigits(value) {
   return String(value ?? '').replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
 }
+
+/** The merchant-facing order number (EasyOrders short_id) when known, else the EasyOrders id. */
+export function orderNumber(order) {
+  if (!order) return '';
+  return order.easyOrdersShortId ? `#${order.easyOrdersShortId}` : order.easyOrdersId || '';
+}

@@ -5,8 +5,9 @@
   "type": "module",
   "main": "src/app.js",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "dev:mock": "node --watch src/index.js --mock",
+    "dev": "node src/index.js",
+    "dev:mock": "node src/index.js --mock",
+    "dev:watch": "node --watch src/index.js",
     "start": "node src/index.js",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -3,7 +3,7 @@ import { receiveWebhook } from '../services/webhookService.js';
 import { processBackgroundWork } from '../jobs/processBackgroundWork.js';
 import { safeEqual } from '../utils/sanitize.js';
 import { logger } from '../utils/logger.js';
- 
+
 /**
  * Webhook authentication uses the documented `secret` header that EasyOrders
  * sends with every webhook request. No signature scheme is invented.
@@ -19,7 +19,7 @@ function authenticate(req, kind) {
   }
   return { ok: true };
 }
- 
+
 function handler(kind) {
   return async (req, res) => {
     const auth = authenticate(req, kind);
@@ -44,10 +44,10 @@ function handler(kind) {
     res.status(result.httpStatus).json(result.body);
   };
 }
- 
+
 export const ordersWebhook = handler('orders');
 export const statusWebhook = handler('status');
- 
+
 /** Vercel Cron entry point (Authorization: Bearer <CRON_SECRET>). */
 export async function cronProcess(req, res) {
   const secret = getConfig().cronSecret;
@@ -58,4 +58,3 @@ export async function cronProcess(req, res) {
   }
   res.json(await processBackgroundWork({ timeBudgetMs: 22_000 }));
 }
- 

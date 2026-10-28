@@ -18,6 +18,7 @@ const NO_IN_DELIVERY_PUSH = ['in_delivery', 'delivered', 'canceled', 'refunded',
 
 const COURIER_ORDER_FIELDS = [
   'easyOrdersId',
+  'easyOrdersShortId',
   'customer',
   'items',
   'subtotal',
@@ -250,7 +251,7 @@ export async function listReviews({ status, courier }, { skip, limit }) {
       .limit(limit)
       .populate('courier', 'name phone')
       .populate('reviewer', 'name')
-      .populate('order', 'easyOrdersId customer totalAmount currency paymentMethod sourceStatus deliveryStatus cod sourceConflict isDemo')
+      .populate('order', 'easyOrdersId easyOrdersShortId customer totalAmount currency paymentMethod sourceStatus deliveryStatus cod sourceConflict isDemo')
       .lean(),
     DeliveryReview.countDocuments(query),
   ]);
