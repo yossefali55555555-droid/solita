@@ -30,8 +30,11 @@ const FINAL_SOURCE = ['delivered', 'canceled', 'refunded'];
 // that outbound status updates (e.g. "delivered") also rely on.
 export const POLL_DEFAULTS = Object.freeze({ maxNewLookups: 10, missTolerance: 3, refreshLimit: 3 });
 
+// EasyOrders answers an unknown short_id with HTTP 400 "record not found"
+// rather than 404, so both count as "no such order".
 function isNotFound(err) {
-  return err instanceof EasyOrdersError && err.kind === 'client' && err.status === 404;
+  if (!(err instanceof EasyOrdersError) || err.kind !== 'client') return false;
+  return err.status === 404 || (err.status === 400 && /record not found/i.test(err.message));
 }
 
 async function storeFromSource(raw, via) {

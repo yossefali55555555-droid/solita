@@ -4,14 +4,14 @@ import { pollEasyOrders } from '../src/services/pollService.js';
 import { createOrder, createUser, enableEasyOrdersApi, loginAs, mockEasyOrders, orderPayload, postWebhook } from './helpers.js';
 
 /** Fake EasyOrders store: orders keyed by short_id, also readable by id. */
-function fakeStore(orders) {
+function fakeStore(orders, { missing = { status: 404, body: { message: 'not found' } } } = {}) {
   const byShort = new Map(orders.map((o) => [o.short_id, o]));
   const byId = new Map(orders.map((o) => [o.id, o]));
   const calls = mockEasyOrders((call) => {
     const short = call.url.match(/\/orders\/short\/(\d+)$/);
     if (short) {
       const o = byShort.get(Number(short[1]));
-      return o ? { status: 200, body: o } : { status: 404, body: { message: 'not found' } };
+      return o ? { status: 200, body: o } : missing;
     }
     const byIdMatch = call.url.match(/\/orders\/([^/]+)$/);
     const o = byIdMatch && byId.get(decodeURIComponent(byIdMatch[1]));
@@ -58,6 +58,28 @@ describe('EasyOrders pull sync (polling)', () => {
     const again = await pollEasyOrders({ refreshLimit: 0 });
     expect(again.created).toBe(1);
     expect(again.lastShortId).toBe(46);
+  });
+
+  it('treats HTTP 400 "record not found" as a missing order number, like EasyOrders does', async () => {
+    enableEasyOrdersApi();
+    await createOrder({ id: 'uuid-54', short_id: 54 });
+    fakeStore([orderPayload({ id: 'uuid-54', short_id: 54 })], {
+      missing: { status: 400, body: { message: 'record not found' } },
+    });
+    const result = await pollEasyOrders({ refreshLimit: 0 });
+    expect(result.status).toBe('ok');
+    expect(result.errors).toEqual([]);
+    expect(result.lastShortId).toBe(54);
+    expect(result.checkedNumbers[0]).toBe(55);
+  });
+
+  it('still stops on other HTTP 400 errors', async () => {
+    enableEasyOrdersApi();
+    await createOrder({ id: 'uuid-54', short_id: 54 });
+    fakeStore([], { missing: { status: 400, body: { message: 'invalid store' } } });
+    const result = await pollEasyOrders({ refreshLimit: 0 });
+    expect(result.status).toBe('partial');
+    expect(result.errors[0].message).toMatch(/HTTP 400/);
   });
 
   it('does not duplicate an order that already arrived by webhook', async () => {
