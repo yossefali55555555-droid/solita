@@ -7,6 +7,9 @@ import * as sync from '../services/syncService.js';
 import * as webhooks from '../services/webhookService.js';
 import * as cash from '../services/cashService.js';
 import * as poll from '../services/pollService.js';
+import * as returns from '../services/returnService.js';
+import * as customers from '../services/customerService.js';
+import * as finance from '../services/financeService.js';
 import { getOverview, getSystemStatus } from '../services/statsService.js';
 import { processBackgroundWork } from '../jobs/processBackgroundWork.js';
 import { notFound } from '../utils/errors.js';
@@ -174,4 +177,49 @@ export async function cancelRemittance(req, res) {
 export async function remittanceEvents(req, res) {
   const items = await OrderEvent.find({ remittance: req.valid.params.id }).sort({ createdAt: -1 }).limit(100).lean();
   res.json({ items });
+}
+
+// ---------- Returns review ----------
+export async function listReturns(req, res) {
+  const page = paginationParams(req.valid.query);
+  const { items, total } = await returns.listReturns(req.valid.query, page);
+  res.json(paginated(items, total, page));
+}
+
+export async function confirmReturn(req, res) {
+  res.json(await returns.confirmReturn(req.user, req.valid.params.id, req.valid.body));
+}
+
+// ---------- Customers ----------
+export async function listCustomers(req, res) {
+  const page = paginationParams(req.valid.query);
+  const { items, total } = await customers.listCustomers(req.valid.query, page);
+  res.json(paginated(items, total, page));
+}
+
+export async function getCustomer(req, res) {
+  res.json(await customers.getCustomer(req.valid.params.key));
+}
+
+// ---------- Expenses & profit ----------
+export async function listExpenses(req, res) {
+  const page = paginationParams(req.valid.query);
+  const { items, total, totalAmount } = await finance.listExpenses(req.valid.query, page);
+  res.json({ ...paginated(items, total, page), totalAmount });
+}
+
+export async function createExpense(req, res) {
+  res.status(201).json({ expense: await finance.createExpense(req.user, req.valid.body) });
+}
+
+export async function updateExpense(req, res) {
+  res.json({ expense: await finance.updateExpense(req.user, req.valid.params.id, req.valid.body) });
+}
+
+export async function deleteExpense(req, res) {
+  res.json({ expense: await finance.deleteExpense(req.user, req.valid.params.id, req.valid.body) });
+}
+
+export async function profitSummary(req, res) {
+  res.json(await finance.getProfitSummary(req.valid.query));
 }

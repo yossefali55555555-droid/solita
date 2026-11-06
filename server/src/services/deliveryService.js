@@ -52,7 +52,7 @@ async function findOwnedOrder(courier, orderId) {
 const SCOPES = {
   active: ['assigned', 'out_for_delivery', 'failed'],
   review: ['pending_delivery_review'],
-  completed: ['delivered', 'cancelled'],
+  completed: ['delivered', 'cancelled', 'returned'],
 };
 
 export async function listCourierOrders(courier, { scope = 'active', skip = 0, limit = 50 }) {

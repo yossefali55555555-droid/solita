@@ -23,7 +23,7 @@ import { logger } from '../utils/logger.js';
 
 const STATE_KEY = 'easyorders_poll';
 const LEASE_MS = 60_000;
-const FINAL_DELIVERY = ['delivered', 'cancelled'];
+const FINAL_DELIVERY = ['delivered', 'cancelled', 'returned'];
 const FINAL_SOURCE = ['delivered', 'canceled', 'refunded'];
 
 // Kept small so a poll never uses more than ~13 of the 35 requests/minute budget

@@ -26,6 +26,7 @@ export const DELIVERY_STATUS_LABELS = {
   delivered: 'تم التسليم (معتمد)',
   failed: 'محاولة فاشلة',
   cancelled: 'ملغي',
+  returned: 'مرتجع (معتمد)',
 };
 
 export const REVIEW_STATUS_LABELS = {
@@ -62,6 +63,7 @@ export const FAILURE_REASON_LABELS = {
   reschedule_requested: 'العميل طلب تأجيل الموعد',
   address_not_found: 'تعذر الوصول للعنوان',
   customer_refused: 'العميل رفض الاستلام',
+  payment_refused: 'العميل لم يدفع / رفض الدفع',
   other: 'سبب آخر',
 };
 
@@ -100,6 +102,7 @@ export const EVENT_LABELS = {
   sync_retry_requested: 'إعادة محاولة المزامنة يدوياً',
   order_cancelled: 'إلغاء الطلب',
   order_reopened: 'إعادة فتح الطلب',
+  return_confirmed: 'اعتمد المشرف الطلب كمرتجع',
   source_conflict_acknowledged: 'تم الاطلاع على التعارض',
   remittance_linked: 'إضافة الطلب لتسوية نقدية',
   remittance_released: 'إزالة الطلب من تسوية ملغاة',
@@ -126,6 +129,7 @@ export const DELIVERY_TONES = {
   delivered: 'success',
   failed: 'danger',
   cancelled: 'muted',
+  returned: 'warning',
 };
 
 export const SOURCE_TONES = {
@@ -163,4 +167,22 @@ export const REMITTANCE_TONES = {
   reconciled: 'success',
   discrepancy: 'danger',
   cancelled: 'muted',
+};
+
+// Statuses an administrator can push to EasyOrders after confirming a return.
+export const RETURN_SYNC_OPTIONS = [
+  { value: 'returning_from_delivery', label: 'مرتجع من التوصيل (returning_from_delivery)' },
+  { value: 'canceled', label: 'ملغي (canceled)' },
+  { value: 'none', label: 'لا تغيّر حالة EasyOrders' },
+];
+
+export const EXPENSE_CATEGORY_LABELS = {
+  purchases: 'بضاعة / مشتريات',
+  shipping: 'شحن',
+  ads: 'إعلانات',
+  salaries: 'رواتب',
+  rent: 'إيجار',
+  packaging: 'تغليف',
+  utilities: 'كهرباء / إنترنت / مرافق',
+  other: 'أخرى',
 };

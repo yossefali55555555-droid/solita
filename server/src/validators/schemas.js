@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import {
   DELIVERY_STATUSES,
+  EXPENSE_CATEGORIES,
   FAILURE_REASONS,
+  RETURN_SYNC_STATUSES,
   REMITTANCE_STATUSES,
   REVIEW_STATUSES,
 } from '../constants/statuses.js';
@@ -164,3 +166,73 @@ export const importOrderBody = z
     orderId: z.string().trim().min(1).max(100).regex(/^[A-Za-z0-9-]+$/, 'معرّف الطلب غير صالح').optional(),
   })
   .refine((v) => Boolean(v.shortId) !== Boolean(v.orderId), { message: 'أدخل رقم الطلب', path: ['shortId'] });
+
+// ---------- Returns review (admin) ----------
+export const listReturnsQuery = z.object({
+  status: z.enum(['pending', 'returned']).default('pending'),
+  ...pageQuery,
+});
+
+export const confirmReturnBody = z.strictObject({
+  reason: trimmed(1000).optional(),
+  easyOrdersStatus: z.enum([...RETURN_SYNC_STATUSES, 'none']).default('returning_from_delivery'),
+});
+
+// ---------- Customers (admin) ----------
+export const listCustomersQuery = z.object({
+  q: trimmed(100).optional(),
+  sort: z.enum(['recent', 'orders', 'spent', 'returns']).default('recent'),
+  ...pageQuery,
+});
+
+export const customerKeyParams = z.object({ key: z.string().trim().min(1).max(260) });
+
+// ---------- Expenses & profit (admin) ----------
+// A calendar day (YYYY-MM-DD), stored at 12:00 UTC so it never shifts a day.
+const calendarDay = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'التاريخ غير صالح')
+  .refine((v) => !Number.isNaN(Date.parse(`${v}T12:00:00Z`)), 'التاريخ غير صالح')
+  .transform((v) => new Date(`${v}T12:00:00Z`));
+
+const expenseFields = {
+  date: calendarDay,
+  amount: moneyInput.refine((v) => v > 0, 'المبلغ يجب أن يكون أكبر من صفر'),
+  category: z.enum(EXPENSE_CATEGORIES, { message: 'اختر نوع المصروف' }),
+  description: trimmed(1000).optional(),
+  invoiceNumber: trimmed(100).optional(),
+  vendor: trimmed(200).optional(),
+};
+
+export const createExpenseBody = z
+  .strictObject(expenseFields)
+  .refine((v) => v.category !== 'other' || (v.description && v.description.length >= 2), {
+    message: 'اكتب وصفاً للمصروف عند اختيار "أخرى"',
+    path: ['description'],
+  });
+
+export const updateExpenseBody = z
+  .strictObject({
+    date: expenseFields.date.optional(),
+    amount: expenseFields.amount.optional(),
+    category: expenseFields.category.optional(),
+    description: expenseFields.description,
+    invoiceNumber: expenseFields.invoiceNumber,
+    vendor: expenseFields.vendor,
+  })
+  .refine((v) => Object.keys(v).length > 0, 'لا توجد بيانات للتحديث');
+
+export const deleteExpenseBody = z.strictObject({ reason: trimmed(500).optional() });
+
+export const listExpensesQuery = z.object({
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+  category: z.enum(EXPENSE_CATEGORIES).optional(),
+  ...pageQuery,
+});
+
+export const profitQuery = z.object({
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+});

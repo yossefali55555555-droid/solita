@@ -25,6 +25,7 @@ export async function getOverview() {
       delivered: d.delivered || 0,
       failed: d.failed || 0,
       cancelled: d.cancelled || 0,
+      returned: d.returned || 0,
     },
     pendingReviews,
     sync: { failures: syncFailures, webhookFailures },

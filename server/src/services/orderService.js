@@ -194,12 +194,15 @@ export async function adminChangeStatus(admin, orderId, body) {
   }
 
   // Reopen
-  if (!['failed', 'cancelled'].includes(order.deliveryStatus)) {
-    throw unprocessable('يمكن إعادة فتح الطلبات الفاشلة أو الملغاة فقط', 'INVALID_TRANSITION');
+  if (!['failed', 'cancelled', 'returned'].includes(order.deliveryStatus)) {
+    throw unprocessable('يمكن إعادة فتح الطلبات الفاشلة أو الملغاة أو المرتجعة فقط', 'INVALID_TRANSITION');
   }
   const updated = await Order.findOneAndUpdate(
     { _id: orderId, deliveryStatus: order.deliveryStatus },
-    { $set: { deliveryStatus: 'new', assignedTo: null, assignedBy: null, assignedAt: null } },
+    {
+      $set: { deliveryStatus: 'new', assignedTo: null, assignedBy: null, assignedAt: null },
+      ...(order.deliveryStatus === 'returned' ? { $unset: { returnInfo: 1 } } : {}),
+    },
     { returnDocument: 'after' },
   ).lean();
   if (!updated) throw conflict();

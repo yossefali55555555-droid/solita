@@ -96,6 +96,13 @@ const orderSchema = new mongoose.Schema(
       at: { type: Date },
       source: { type: String, enum: ['admin', 'easyorders'] },
     },
+    // Set when an administrator confirms a failed delivery as a return.
+    returnInfo: {
+      at: { type: Date },
+      by: { type: ObjectId, ref: 'User' },
+      reason: { type: String, maxlength: 1000 },
+      easyOrdersStatus: { type: String, maxlength: 60 },
+    },
     sourceConflict: {
       active: { type: Boolean, default: false },
       message: { type: String, maxlength: 500 },
@@ -133,6 +140,7 @@ orderSchema.index({ deliveryStatus: 1, createdAt: -1 });
 orderSchema.index({ sourceStatus: 1, createdAt: -1 });
 orderSchema.index({ assignedTo: 1, deliveryStatus: 1 });
 orderSchema.index({ 'customer.phoneNormalized': 1 });
+orderSchema.index({ deliveryStatus: 1, deliveredAt: -1 });
 orderSchema.index({ sourceCreatedAt: -1 });
 orderSchema.index({ 'cod.remittance': 1, assignedTo: 1 });
 
