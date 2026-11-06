@@ -12,6 +12,7 @@ import {
   SyncOperationBadge,
 } from '../../components/StatusBadges.jsx';
 import { Timeline } from '../../components/Timeline.jsx';
+import { ConfirmReturnModal } from '../../components/ConfirmReturnModal.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
@@ -32,6 +33,7 @@ export function OrderDetailPage() {
   const [confirmAssign, setConfirmAssign] = useState(null); // { courierId, label }
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reopenOpen, setReopenOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [syncCancel, setSyncCancel] = useState(false);
   const [formError, setFormError] = useState('');
@@ -238,7 +240,12 @@ export function OrderDetailPage() {
                 إلغاء الطلب
               </Button>
             )}
-            {['failed', 'cancelled'].includes(order.deliveryStatus) && (
+            {order.deliveryStatus === 'failed' && (
+              <Button variant="danger" onClick={() => setReturnOpen(true)}>
+                تأكيد المرتجع (وتحديث EasyOrders)
+              </Button>
+            )}
+            {['failed', 'cancelled', 'returned'].includes(order.deliveryStatus) && (
               <Button variant="secondary" onClick={() => { setFormError(''); setReopenOpen(true); }}>
                 إعادة فتح الطلب
               </Button>
@@ -249,6 +256,13 @@ export function OrderDetailPage() {
               </Link>
             )}
           </div>
+          {order.deliveryStatus === 'returned' && order.returnInfo?.at && (
+            <p className="muted">
+              مرتجع معتمد في {formatDateTime(order.returnInfo.at)}
+              {order.returnInfo.reason ? ` — ${order.returnInfo.reason}` : ''}
+              {order.returnInfo.easyOrdersStatus ? ` (EasyOrders: ${order.returnInfo.easyOrdersStatus})` : ''}
+            </p>
+          )}
           {order.cancellation?.reason && (
             <p className="muted">
               سبب الإلغاء: {order.cancellation.reason} ({order.cancellation.source === 'easyorders' ? 'من EasyOrders' : order.cancellation.by?.name || 'مشرف'})
@@ -373,6 +387,18 @@ export function OrderDetailPage() {
           <span>تحديث حالة الطلب في EasyOrders إلى "ملغي" أيضاً</span>
         </label>
       </Modal>
+
+      {returnOpen && (
+        <ConfirmReturnModal
+          order={order}
+          lastAttempt={order.deliveryAttempts?.at(-1)}
+          onClose={() => setReturnOpen(false)}
+          onDone={() => {
+            setReturnOpen(false);
+            refresh();
+          }}
+        />
+      )}
 
       <Modal
         open={reopenOpen}

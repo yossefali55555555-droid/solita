@@ -9,6 +9,7 @@ import { SyncOperation } from './SyncOperation.js';
 import { Notification } from './Notification.js';
 import { RateLimitCounter } from './RateLimitCounter.js';
 import { IntegrationState } from './IntegrationState.js';
+import { Expense } from './Expense.js';
 
 export {
   publicUser,
@@ -23,6 +24,7 @@ export {
   Notification,
   RateLimitCounter,
   IntegrationState,
+  Expense,
 };
 
 export const allModels = [
@@ -37,4 +39,5 @@ export const allModels = [
   Notification,
   RateLimitCounter,
   IntegrationState,
+  Expense,
 ];

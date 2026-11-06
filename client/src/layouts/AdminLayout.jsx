@@ -7,8 +7,11 @@ const NAV = [
   { to: '/admin', label: 'نظرة عامة', end: true },
   { to: '/admin/orders', label: 'الطلبات' },
   { to: '/admin/reviews', label: 'طلبات التسليم بانتظار المراجعة' },
+  { to: '/admin/returns', label: 'مراجعة الرفض والمرتجعات' },
+  { to: '/admin/customers', label: 'العملاء' },
   { to: '/admin/couriers', label: 'المندوبون' },
   { to: '/admin/cash', label: 'النقدية والتسويات' },
+  { to: '/admin/finance', label: 'الأرباح والمصروفات' },
   { to: '/admin/sync', label: 'المزامنة مع EasyOrders' },
 ];
 

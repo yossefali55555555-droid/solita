@@ -16,6 +16,10 @@ import { CouriersPage } from './pages/admin/CouriersPage.jsx';
 import { CourierDetailPage } from './pages/admin/CourierDetailPage.jsx';
 import { CashPage } from './pages/admin/CashPage.jsx';
 import { SyncPage } from './pages/admin/SyncPage.jsx';
+import { ReturnsPage } from './pages/admin/ReturnsPage.jsx';
+import { CustomersPage } from './pages/admin/CustomersPage.jsx';
+import { CustomerDetailPage } from './pages/admin/CustomerDetailPage.jsx';
+import { FinancePage } from './pages/admin/FinancePage.jsx';
 import { CourierOrdersPage } from './pages/courier/CourierOrdersPage.jsx';
 import { CourierOrderPage } from './pages/courier/CourierOrderPage.jsx';
 import { CourierCashPage } from './pages/courier/CourierCashPage.jsx';
@@ -57,6 +61,10 @@ export function App() {
         <Route path="couriers/:id" element={<CourierDetailPage />} />
         <Route path="cash" element={<CashPage />} />
         <Route path="sync" element={<SyncPage />} />
+        <Route path="returns" element={<ReturnsPage />} />
+        <Route path="customers" element={<CustomersPage />} />
+        <Route path="customers/:key" element={<CustomerDetailPage />} />
+        <Route path="finance" element={<FinancePage />} />
       </Route>
       <Route
         path="/courier"

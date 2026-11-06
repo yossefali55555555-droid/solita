@@ -96,6 +96,9 @@ export function CourierOrderPage() {
       {order.deliveryStatus === 'delivered' && (
         <div className="alert alert--success">تمت موافقة المشرف على التسليم.</div>
       )}
+      {order.deliveryStatus === 'returned' && (
+        <div className="alert alert--warning">اعتمد المشرف هذا الطلب كمرتجع. أعد المنتج للإدارة.</div>
+      )}
       {order.deliveryStatus === 'cancelled' && (
         <div className="alert alert--danger">تم إلغاء هذا الطلب. لا تقم بتسليمه.{order.cancellation?.reason ? ` (${order.cancellation.reason})` : ''}</div>
       )}

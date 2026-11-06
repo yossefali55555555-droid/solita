@@ -36,6 +36,8 @@ export const DELIVERY_STATUSES = Object.freeze([
   'delivered',
   'failed',
   'cancelled',
+  // Admin confirmed a failed/refused delivery as a return (مرتجع).
+  'returned',
 ]);
 
 /**
@@ -47,10 +49,19 @@ export const DELIVERY_TRANSITIONS = Object.freeze({
   assigned: ['assigned', 'new', 'out_for_delivery', 'failed', 'cancelled'],
   out_for_delivery: ['assigned', 'new', 'pending_delivery_review', 'failed', 'cancelled'],
   pending_delivery_review: ['delivered', 'out_for_delivery', 'cancelled'],
-  failed: ['assigned', 'new', 'out_for_delivery', 'cancelled'],
+  failed: ['assigned', 'new', 'out_for_delivery', 'cancelled', 'returned'],
   delivered: [],
   cancelled: ['new'],
+  returned: ['new'],
 });
+
+/**
+ * EasyOrders statuses an administrator may push after confirming a return.
+ * Both are documented values of the Update Order Status API:
+ *  - returning_from_delivery: the order is coming back from the courier (default)
+ *  - canceled: the order is cancelled (e.g. refused before any handover)
+ */
+export const RETURN_SYNC_STATUSES = Object.freeze(['returning_from_delivery', 'canceled']);
 
 export function canTransition(from, to) {
   return (DELIVERY_TRANSITIONS[from] || []).includes(to);
@@ -76,6 +87,18 @@ export const FAILURE_REASONS = Object.freeze([
   'reschedule_requested',
   'address_not_found',
   'customer_refused',
+  'payment_refused',
+  'other',
+]);
+
+export const EXPENSE_CATEGORIES = Object.freeze([
+  'purchases', // بضاعة / مشتريات
+  'shipping', // شحن
+  'ads', // إعلانات
+  'salaries', // رواتب
+  'rent', // إيجار
+  'packaging', // تغليف
+  'utilities', // كهرباء / إنترنت / مرافق
   'other',
 ]);
 

@@ -13,6 +13,7 @@ const TRIGGER_LABELS = {
   delivery_approved: 'موافقة على التسليم',
   delivery_started: 'بدء التوصيل',
   order_cancelled: 'إلغاء الطلب',
+  return_confirmed: 'اعتماد مرتجع',
 };
 
 export function SyncPage() {

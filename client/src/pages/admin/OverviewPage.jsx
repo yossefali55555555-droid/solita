@@ -35,7 +35,8 @@ export function OverviewPage() {
         <StatCard label="خرجت للتوصيل" value={formatNumber(o.outForDelivery)} tone="indigo" to="/admin/orders?deliveryStatus=out_for_delivery" />
         <StatCard label="بانتظار مراجعة التسليم" value={formatNumber(stats.pendingReviews)} tone="warning" to="/admin/reviews" />
         <StatCard label="تسليمات معتمدة" value={formatNumber(o.delivered)} tone="success" to="/admin/orders?deliveryStatus=delivered" />
-        <StatCard label="محاولات فاشلة" value={formatNumber(o.failed)} tone="danger" to="/admin/orders?deliveryStatus=failed" />
+        <StatCard label="رفض / فشل بانتظار المراجعة" value={formatNumber(o.failed)} tone="danger" to="/admin/returns" />
+        <StatCard label="مرتجعات معتمدة" value={formatNumber(o.returned ?? 0)} tone="warning" to="/admin/returns?status=returned" />
         <StatCard label="طلبات ملغاة" value={formatNumber(o.cancelled)} to="/admin/orders?deliveryStatus=cancelled" />
         <StatCard
           label="أخطاء المزامنة"

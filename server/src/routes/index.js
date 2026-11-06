@@ -78,6 +78,18 @@ export function buildRouter() {
   a.post('/cash/remittances/:id/receive', validate({ params: idParams, body: s.receiveRemittanceBody }), admin.receiveRemittance);
   a.post('/cash/remittances/:id/verify', validate({ params: idParams, body: s.verifyRemittanceBody }), admin.verifyRemittance);
   a.post('/cash/remittances/:id/cancel', validate({ params: idParams, body: s.cancelRemittanceBody }), admin.cancelRemittance);
+
+  a.get('/returns', validate({ query: s.listReturnsQuery }), admin.listReturns);
+  a.post('/orders/:id/return', validate({ params: idParams, body: s.confirmReturnBody }), admin.confirmReturn);
+
+  a.get('/customers', validate({ query: s.listCustomersQuery }), admin.listCustomers);
+  a.get('/customers/:key', validate({ params: s.customerKeyParams }), admin.getCustomer);
+
+  a.get('/finance/summary', validate({ query: s.profitQuery }), admin.profitSummary);
+  a.get('/finance/expenses', validate({ query: s.listExpensesQuery }), admin.listExpenses);
+  a.post('/finance/expenses', validate({ body: s.createExpenseBody }), admin.createExpense);
+  a.patch('/finance/expenses/:id', validate({ params: idParams, body: s.updateExpenseBody }), admin.updateExpense);
+  a.post('/finance/expenses/:id/delete', validate({ params: idParams, body: s.deleteExpenseBody }), admin.deleteExpense);
   api.use('/admin', a);
 
   // ---------------- Courier ----------------
