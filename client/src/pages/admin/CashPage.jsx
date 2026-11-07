@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Button, Card, DefinitionList, Field, Modal, PageHeader, Pagination, StatCard } from '../../components/ui.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
 import { RemittanceStatusBadge } from '../../components/StatusBadges.jsx';
+import { ConfirmWordModal } from '../../components/ConfirmWordModal.jsx';
 import { Timeline } from '../../components/Timeline.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
@@ -221,14 +222,20 @@ function RemittanceModal({ remittanceId, onClose, onChanged }) {
 }
 
 export function CashPage() {
+  const toast = useToast();
   const [params, setParams] = useSearchParams();
   const courier = params.get('courier') || '';
   const status = params.get('status') || '';
+  const beforeReset = params.get('beforeReset') || '';
   const page = Number(params.get('page') || 1);
   const overview = useAsync(() => api.get('/admin/cash/overview'), []);
-  const list = useAsync(() => api.get('/admin/cash/remittances', { courier, status, page, limit: 20 }), [courier, status, page]);
+  const list = useAsync(
+    () => api.get('/admin/cash/remittances', { courier, status, beforeReset, page, limit: 20 }),
+    [courier, status, beforeReset, page],
+  );
   const couriers = useAsync(() => api.get('/admin/couriers-brief'), []);
   const [createOpen, setCreateOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const [openId, setOpenId] = useState(null);
 
   const update = (k, v) => {
@@ -242,6 +249,22 @@ export function CashPage() {
     overview.reload({ silent: true });
     list.reload({ silent: true });
   };
+  const resetCash = async (confirm) => {
+    await api.post('/admin/cash/reset', { confirm });
+    setResetOpen(false);
+    toast.success('تم تصفير النقدية. السجلات القديمة ما زالت محفوظة.');
+    refresh();
+  };
+  const [undoReset, undoing] = useAction(async () => {
+    try {
+      await api.post('/admin/cash/reset/undo');
+      toast.success('تم إلغاء التصفير وعادت الأرقام كما كانت');
+      refresh();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  });
+
   const o = overview.data;
 
   return (
@@ -249,8 +272,35 @@ export function CashPage() {
       <PageHeader
         title="النقدية والتسويات"
         subtitle="تسليم الطلب لا يعني استلام النقدية؛ يتم تسجيل الاستلام والتحقق منه هنا"
-        actions={<Button onClick={() => setCreateOpen(true)}>تسجيل استلام نقدية</Button>}
+        actions={
+          <>
+            <Button onClick={() => setCreateOpen(true)}>تسجيل استلام نقدية</Button>
+            <Button variant="danger" onClick={() => setResetOpen(true)}>تصفير النقدية</Button>
+          </>
+        }
       />
+      {o?.resetAt && (
+        <div className="alert alert--info row-between">
+          <span>تم تصفير النقدية في {formatDateTime(o.resetAt)}. الأرقام تحسب ما بعد هذا التاريخ فقط.</span>
+          <span className="page-header__actions">
+            <Button size="sm" variant="secondary" onClick={() => update('beforeReset', beforeReset ? '' : 'true')}>
+              {beforeReset ? 'إخفاء التسويات القديمة' : 'عرض التسويات قبل التصفير'}
+            </Button>
+            <Button size="sm" variant="secondary" loading={undoing} onClick={undoReset}>إلغاء التصفير</Button>
+          </span>
+        </div>
+      )}
+      <ConfirmWordModal
+        open={resetOpen}
+        title="تصفير النقدية"
+        word="تصفير"
+        confirmLabel="تصفير النقدية"
+        onClose={() => setResetOpen(false)}
+        onConfirm={resetCash}
+      >
+        <p>ستبدأ كل أرقام هذه الصفحة من الصفر، وستُحسب التسليمات والتسويات التي تتم بعد التصفير فقط.</p>
+        <p><strong>لن يتم حذف أي تسوية أو طلب</strong>، ويمكنك عرض السجل القديم أو إلغاء التصفير في أي وقت.</p>
+      </ConfirmWordModal>
       {overview.loading && !o ? <LoadingState /> : overview.error ? <ErrorState error={overview.error} onRetry={overview.reload} /> : (
         <>
           <div className="stats-grid">

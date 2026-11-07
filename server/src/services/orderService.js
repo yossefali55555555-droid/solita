@@ -15,6 +15,9 @@ const COURIER_FIELDS = 'name phone isActive';
 
 export async function listOrders(filters, { skip, limit }) {
   const query = {};
+  // Cleared orders are hidden from the dashboard list unless asked for.
+  if (filters.cleared === 'only') query.dashboardHiddenAt = { $ne: null };
+  else if (filters.cleared !== 'include') query.dashboardHiddenAt = null;
   if (filters.q) {
     const q = filters.q.trim();
     const rx = new RegExp(escapeRegex(q), 'i');
@@ -229,4 +232,44 @@ export async function clearSourceConflict(admin, orderId) {
   if (!order) throw notFound('لا يوجد تعارض نشط لهذا الطلب');
   await recordEvent({ order: order._id, type: 'source_conflict_acknowledged', actor: userActor(admin) });
   return order;
+}
+
+// ---------------------------------------------------------------- dashboard clear
+
+/**
+ * Clear every currently listed order from the admin dashboard. Nothing is
+ * deleted: the orders only get a `dashboardHiddenAt` flag, which EasyOrders
+ * webhooks and polling never touch, so they do not come back on their own.
+ * Orders imported after this call are listed normally.
+ */
+export async function clearOrdersFromDashboard(admin) {
+  const now = new Date();
+  const res = await Order.updateMany(
+    { dashboardHiddenAt: null },
+    { $set: { dashboardHiddenAt: now, dashboardHiddenBy: admin._id } },
+  );
+  await recordEvent({
+    type: 'orders_cleared_from_dashboard',
+    actor: userActor(admin),
+    next: { count: res.modifiedCount, at: now },
+  });
+  return { cleared: res.modifiedCount, at: now };
+}
+
+/** Undo: show every cleared order on the dashboard again. */
+export async function restoreClearedOrders(admin) {
+  const res = await Order.updateMany(
+    { dashboardHiddenAt: { $ne: null } },
+    { $set: { dashboardHiddenAt: null, dashboardHiddenBy: null } },
+  );
+  await recordEvent({
+    type: 'orders_restored_to_dashboard',
+    actor: userActor(admin),
+    next: { count: res.modifiedCount },
+  });
+  return { restored: res.modifiedCount };
+}
+
+export async function countClearedOrders() {
+  return Order.countDocuments({ dashboardHiddenAt: { $ne: null } });
 }

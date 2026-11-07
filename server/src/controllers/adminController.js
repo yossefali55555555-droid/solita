@@ -75,6 +75,18 @@ export async function changeOrderStatus(req, res) {
   res.json(await orders.adminChangeStatus(req.user, req.valid.params.id, req.valid.body));
 }
 
+export async function clearOrders(req, res) {
+  res.json(await orders.clearOrdersFromDashboard(req.user));
+}
+
+export async function restoreClearedOrders(req, res) {
+  res.json(await orders.restoreClearedOrders(req.user));
+}
+
+export async function clearedOrdersCount(_req, res) {
+  res.json({ count: await orders.countClearedOrders() });
+}
+
 export async function acknowledgeConflict(req, res) {
   res.json({ order: await orders.clearSourceConflict(req.user, req.valid.params.id) });
 }
@@ -142,6 +154,14 @@ export async function processDue(_req, res) {
 // ---------- Cash ----------
 export async function cashOverview(_req, res) {
   res.json(await cash.cashOverview());
+}
+
+export async function resetCash(req, res) {
+  res.json(await cash.resetCash(req.user));
+}
+
+export async function undoCashReset(req, res) {
+  res.json(await cash.undoCashReset(req.user));
 }
 
 export async function eligibleOrders(req, res) {

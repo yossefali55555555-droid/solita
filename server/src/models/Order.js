@@ -128,6 +128,11 @@ const orderSchema = new mongoose.Schema(
       remittance: { type: ObjectId, ref: 'CashRemittance', default: null },
     },
 
+    // Set when an administrator clears the order from the dashboard lists.
+    // The order stays in the database and EasyOrders updates never reset it.
+    dashboardHiddenAt: { type: Date, default: null },
+    dashboardHiddenBy: { type: ObjectId, ref: 'User', default: null },
+
     // Demo records (MOCK_MODE only) are flagged so they are never mistaken for real data.
     isDemo: { type: Boolean, default: false },
   },
@@ -143,5 +148,6 @@ orderSchema.index({ 'customer.phoneNormalized': 1 });
 orderSchema.index({ deliveryStatus: 1, deliveredAt: -1 });
 orderSchema.index({ sourceCreatedAt: -1 });
 orderSchema.index({ 'cod.remittance': 1, assignedTo: 1 });
+orderSchema.index({ dashboardHiddenAt: 1, createdAt: -1 });
 
 export const Order = mongoose.models.Order || mongoose.model('Order', orderSchema);

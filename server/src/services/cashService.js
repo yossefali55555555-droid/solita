@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { CashRemittance, Order, User } from '../models/index.js';
+import { AppSetting, CashRemittance, Order, User } from '../models/index.js';
 import { conflict, notFound, unprocessable } from '../utils/errors.js';
 import { sumMinor } from '../utils/money.js';
 import { recordEvent, userActor } from './auditService.js';
@@ -183,10 +183,14 @@ export async function cancelRemittance(admin, id, { reason }) {
   return after;
 }
 
-export async function listRemittances({ status, courier }, { skip, limit }) {
+export async function listRemittances({ status, courier, beforeReset }, { skip, limit }) {
   const query = {};
   if (status) query.status = status;
   if (courier) query.courier = courier;
+  if (beforeReset !== 'true') {
+    const resetAt = await getCashResetAt();
+    if (resetAt) query.createdAt = { $gt: resetAt };
+  }
   const [items, total] = await Promise.all([
     CashRemittance.find(query)
       .sort({ createdAt: -1 })
@@ -255,19 +259,76 @@ export async function courierCashSummary(courierId) {
   };
 }
 
-/** Totals for all couriers (admin overview / cash page). */
+// ---------------------------------------------------------------- cash reset
+
+const CASH_KEY = 'cash';
+
+export async function getCashResetAt() {
+  const setting = await AppSetting.findOne({ key: CASH_KEY }).lean();
+  return setting?.resetAt || null;
+}
+
+/**
+ * Zero the admin cash page. Nothing is deleted: a reset marker is stored and
+ * the cash totals only count deliveries and remittances after it. Couriers'
+ * own cash and the remittance workflow are not changed.
+ */
+export async function resetCash(admin) {
+  const previousResetAt = await getCashResetAt();
+  const before = await cashOverview();
+  const now = new Date();
+  await AppSetting.findOneAndUpdate(
+    { key: CASH_KEY },
+    { $set: { resetAt: now, resetBy: admin._id } },
+    { upsert: true, setDefaultsOnInsert: true },
+  );
+  await recordEvent({
+    type: 'cash_reset',
+    actor: userActor(admin),
+    previous: {
+      resetAt: previousResetAt,
+      expectedDelivered: before.expectedDelivered,
+      handedOver: before.handedOver,
+      verified: before.verified,
+      outstanding: before.outstanding,
+    },
+    next: { resetAt: now },
+  });
+  return { resetAt: now };
+}
+
+/** Undo the last reset: the cash page counts everything again. */
+export async function undoCashReset(admin) {
+  const previousResetAt = await getCashResetAt();
+  await AppSetting.updateOne({ key: CASH_KEY }, { $set: { resetAt: null, resetBy: null } });
+  await recordEvent({
+    type: 'cash_reset_undone',
+    actor: userActor(admin),
+    previous: { resetAt: previousResetAt },
+    next: { resetAt: null },
+  });
+  return { resetAt: null };
+}
+
+/**
+ * Totals for all couriers (admin overview / cash page). After a cash reset
+ * only deliveries and remittances later than the reset are counted.
+ */
 export async function cashOverview() {
+  const resetAt = await getCashResetAt();
+  const deliveredAfter = resetAt ? { deliveredAt: { $gt: resetAt } } : {};
+  const createdAfter = resetAt ? { createdAt: { $gt: resetAt } } : {};
   const [expected, unremitted, remittances, perCourier] = await Promise.all([
     Order.aggregate([
-      { $match: { deliveryStatus: 'delivered', 'cod.isCod': true } },
+      { $match: { deliveryStatus: 'delivered', 'cod.isCod': true, ...deliveredAfter } },
       { $group: { _id: null, total: { $sum: '$cod.expectedAmount' } } },
     ]),
     Order.aggregate([
-      { $match: { deliveryStatus: 'delivered', 'cod.isCod': true, 'cod.remittance': null } },
+      { $match: { deliveryStatus: 'delivered', 'cod.isCod': true, 'cod.remittance': null, ...deliveredAfter } },
       { $group: { _id: null, total: { $sum: '$cod.expectedAmount' } } },
     ]),
     CashRemittance.aggregate([
-      { $match: { status: { $ne: 'cancelled' } } },
+      { $match: { status: { $ne: 'cancelled' }, ...createdAfter } },
       {
         $group: {
           _id: '$status',
@@ -280,7 +341,7 @@ export async function cashOverview() {
       },
     ]),
     Order.aggregate([
-      { $match: { deliveryStatus: 'delivered', 'cod.isCod': true, 'cod.remittance': null, assignedTo: { $ne: null } } },
+      { $match: { deliveryStatus: 'delivered', 'cod.isCod': true, 'cod.remittance': null, assignedTo: { $ne: null }, ...deliveredAfter } },
       { $group: { _id: '$assignedTo', expected: { $sum: '$cod.expectedAmount' }, count: { $sum: 1 } } },
       { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'courier' } },
       { $unwind: '$courier' },
@@ -301,5 +362,6 @@ export async function cashOverview() {
     awaitingVerification,
     outstanding: (unremitted[0]?.total || 0) + awaitingVerification,
     perCourier,
+    resetAt,
   };
 }
