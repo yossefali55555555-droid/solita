@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Card, PageHeader, Pagination } from '../../components/ui.jsx';
+import { Badge, Button, Card, PageHeader, Pagination } from '../../components/ui.jsx';
+import { ConfirmWordModal } from '../../components/ConfirmWordModal.jsx';
+import { useToast } from '../../components/Toast.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
 import { EasyOrdersSync } from '../../components/EasyOrdersSync.jsx';
 import { DeliveryStatusBadge, DemoBadge, OrderSyncBadge, SourceStatusBadge } from '../../components/StatusBadges.jsx';
-import { useAsync, useDebouncedValue } from '../../hooks/useAsync.js';
+import { useAction, useAsync, useDebouncedValue } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { DELIVERY_STATUS_LABELS, SOURCE_STATUS_LABELS } from '../../utils/labels.js';
 import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
 
-const FILTER_KEYS = ['q', 'sourceStatus', 'deliveryStatus', 'courier', 'syncState', 'from', 'to', 'page'];
+const FILTER_KEYS = ['q', 'sourceStatus', 'deliveryStatus', 'courier', 'syncState', 'cleared', 'from', 'to', 'page'];
 
 export function OrdersPage() {
   const [params, setParams] = useSearchParams();
@@ -27,6 +29,30 @@ export function OrdersPage() {
   const key = JSON.stringify(query);
   const { data, error, loading, reload } = useAsync(() => api.get('/admin/orders', query), [key]);
   const couriers = useAsync(() => api.get('/admin/couriers-brief'), []);
+  const cleared = useAsync(() => api.get('/admin/orders/cleared/count'), []);
+  const toast = useToast();
+  const [clearOpen, setClearOpen] = useState(false);
+
+  const refresh = () => {
+    reload({ silent: true });
+    cleared.reload({ silent: true });
+  };
+  const clearOrders = async (confirm) => {
+    const res = await api.post('/admin/orders/clear', { confirm });
+    setClearOpen(false);
+    toast.success(`تم مسح ${res.cleared} طلب من اللوحة (ما زالت محفوظة في قاعدة البيانات)`);
+    refresh();
+  };
+  const [restore, restoring] = useAction(async () => {
+    try {
+      const res = await api.post('/admin/orders/restore-cleared');
+      toast.success(`تم استرجاع ${res.restored} طلب إلى اللوحة`);
+      refresh();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  });
+  const clearedCount = cleared.data?.count || 0;
 
   const update = (k, v) => {
     const next = new URLSearchParams(params);
@@ -41,8 +67,35 @@ export function OrdersPage() {
       <PageHeader
         title="الطلبات"
         subtitle="طلبات المتجر المستوردة من EasyOrders"
-        actions={<EasyOrdersSync onChange={() => reload({ silent: true })} />}
+        actions={
+          <>
+            <EasyOrdersSync onChange={() => reload({ silent: true })} />
+            <Button variant="danger" onClick={() => setClearOpen(true)}>مسح الطلبات من اللوحة</Button>
+          </>
+        }
       />
+      {clearedCount > 0 && (
+        <div className="alert alert--info row-between">
+          <span>يوجد {clearedCount} طلب ممسوح من اللوحة ومحفوظ في قاعدة البيانات.</span>
+          <span className="page-header__actions">
+            <Button size="sm" variant="secondary" onClick={() => update('cleared', filters.cleared === 'only' ? '' : 'only')}>
+              {filters.cleared === 'only' ? 'إخفاء الطلبات الممسوحة' : 'عرض الطلبات الممسوحة'}
+            </Button>
+            <Button size="sm" variant="secondary" loading={restoring} onClick={restore}>استرجاع كل الطلبات الممسوحة</Button>
+          </span>
+        </div>
+      )}
+      <ConfirmWordModal
+        open={clearOpen}
+        title="مسح الطلبات من اللوحة"
+        word="مسح"
+        confirmLabel="مسح الطلبات"
+        onClose={() => setClearOpen(false)}
+        onConfirm={clearOrders}
+      >
+        <p>سيتم إخفاء كل الطلبات الموجودة حالياً من صفحة الطلبات والصفحة الرئيسية.</p>
+        <p><strong>لن يتم حذف أي طلب من قاعدة البيانات</strong>، ويمكنك عرضها أو استرجاعها في أي وقت. الطلبات الجديدة من EasyOrders ستظهر بشكل طبيعي، وصفحات المندوبين والنقدية لا تتأثر.</p>
+      </ConfirmWordModal>
       <Card>
         <div className="filters">
           <input
@@ -74,6 +127,11 @@ export function OrdersPage() {
             {couriers.data?.items.map((c) => (
               <option key={c.id} value={c.id}>{c.name}{c.isActive ? '' : ' (موقوف)'}</option>
             ))}
+          </select>
+          <select className="input" aria-label="الطلبات الممسوحة" value={filters.cleared} onChange={(e) => update('cleared', e.target.value)}>
+            <option value="">بدون الطلبات الممسوحة</option>
+            <option value="include">مع الطلبات الممسوحة</option>
+            <option value="only">الطلبات الممسوحة فقط</option>
           </select>
           <select className="input" aria-label="المزامنة" value={filters.syncState} onChange={(e) => update('syncState', e.target.value)}>
             <option value="">كل حالات المزامنة</option>
@@ -121,6 +179,7 @@ export function OrdersPage() {
                         {orderNumber(o)}
                       </Link>
                       <DemoBadge show={o.isDemo} />
+                      {o.dashboardHiddenAt && <Badge tone="neutral" title="ممسوح من اللوحة ومحفوظ في قاعدة البيانات">ممسوح</Badge>}
                     </td>
                     <td>
                       <div>{o.customer?.name || '—'}</div>

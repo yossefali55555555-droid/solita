@@ -10,6 +10,7 @@ import { Notification } from './Notification.js';
 import { RateLimitCounter } from './RateLimitCounter.js';
 import { IntegrationState } from './IntegrationState.js';
 import { Expense } from './Expense.js';
+import { AppSetting } from './AppSetting.js';
 
 export {
   publicUser,
@@ -25,6 +26,7 @@ export {
   RateLimitCounter,
   IntegrationState,
   Expense,
+  AppSetting,
 };
 
 export const allModels = [
@@ -40,4 +42,5 @@ export const allModels = [
   RateLimitCounter,
   IntegrationState,
   Expense,
+  AppSetting,
 ];

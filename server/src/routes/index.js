@@ -50,6 +50,9 @@ export function buildRouter() {
   a.get('/couriers/:id/events', id, admin.courierEvents);
 
   a.get('/orders', validate({ query: s.listOrdersQuery }), admin.listOrders);
+  a.get('/orders/cleared/count', admin.clearedOrdersCount);
+  a.post('/orders/clear', validate({ body: s.clearOrdersBody }), admin.clearOrders);
+  a.post('/orders/restore-cleared', admin.restoreClearedOrders);
   a.get('/orders/:id', id, admin.getOrder);
   a.patch('/orders/:id/assignment', validate({ params: idParams, body: s.assignmentBody }), admin.assignOrder);
   a.patch('/orders/:id/status', validate({ params: idParams, body: s.adminStatusBody }), admin.changeOrderStatus);
@@ -70,6 +73,8 @@ export function buildRouter() {
   a.post('/sync/:id/retry', id, admin.retrySync);
 
   a.get('/cash/overview', admin.cashOverview);
+  a.post('/cash/reset', validate({ body: s.cashResetBody }), admin.resetCash);
+  a.post('/cash/reset/undo', admin.undoCashReset);
   a.get('/cash/eligible-orders', validate({ query: s.eligibleOrdersQuery }), admin.eligibleOrders);
   a.get('/cash/remittances', validate({ query: s.listRemittancesQuery }), admin.listRemittances);
   a.post('/cash/remittances', validate({ body: s.adminCreateRemittanceBody }), admin.createRemittance);

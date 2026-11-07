@@ -62,6 +62,8 @@ export const listOrdersQuery = z.object({
   syncState: z.enum(['none', 'pending', 'synced', 'failed']).optional(),
   from: isoDate.optional(),
   to: isoDate.optional(),
+  // Orders cleared from the dashboard: hidden by default.
+  cleared: z.enum(['hide', 'include', 'only']).optional(),
   ...pageQuery,
 });
 
@@ -153,8 +155,14 @@ export const cancelRemittanceBody = z.strictObject({
 export const listRemittancesQuery = z.object({
   status: z.enum(REMITTANCE_STATUSES).optional(),
   courier: objectId.optional(),
+  // Remittances from before the cash reset are hidden unless asked for.
+  beforeReset: z.enum(['true', 'false']).optional(),
   ...pageQuery,
 });
+
+// Typing the confirmation word protects these dashboard-wide actions from a misclick.
+export const clearOrdersBody = z.strictObject({ confirm: z.literal('مسح', { error: 'اكتب كلمة "مسح" للتأكيد' }) });
+export const cashResetBody = z.strictObject({ confirm: z.literal('تصفير', { error: 'اكتب كلمة "تصفير" للتأكيد' }) });
 
 export const eligibleOrdersQuery = z.object({ courier: objectId });
 

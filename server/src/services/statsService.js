@@ -2,15 +2,18 @@ import { DeliveryReview, Order, SyncOperation, WebhookEvent } from '../models/in
 import { getConfig } from '../config/env.js';
 import { cashOverview } from './cashService.js';
 
+// Orders cleared from the dashboard are left out of the overview counts.
+const VISIBLE = { dashboardHiddenAt: null };
+
 /** Real, database-backed overview numbers (no hardcoded statistics). */
 export async function getOverview() {
   const [byDelivery, unassigned, pendingReviews, syncFailures, webhookFailures, total, cash] = await Promise.all([
-    Order.aggregate([{ $group: { _id: '$deliveryStatus', n: { $sum: 1 } } }]),
-    Order.countDocuments({ assignedTo: null, deliveryStatus: { $in: ['new', 'failed'] } }),
+    Order.aggregate([{ $match: VISIBLE }, { $group: { _id: '$deliveryStatus', n: { $sum: 1 } } }]),
+    Order.countDocuments({ ...VISIBLE, assignedTo: null, deliveryStatus: { $in: ['new', 'failed'] } }),
     DeliveryReview.countDocuments({ status: 'pending' }),
     SyncOperation.countDocuments({ state: { $in: ['failed', 'needs_reconciliation'] } }),
     WebhookEvent.countDocuments({ status: { $in: ['failed', 'pending_retry'] } }),
-    Order.estimatedDocumentCount(),
+    Order.countDocuments(VISIBLE),
     cashOverview(),
   ]);
   const d = Object.fromEntries(byDelivery.map((x) => [x._id, x.n]));
