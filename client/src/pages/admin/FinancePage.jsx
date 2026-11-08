@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Button, Card, ConfirmDialog, Field, Modal, PageHeader, Pagination, StatCard } from '../../components/ui.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
+import { ConfirmWordModal } from '../../components/ConfirmWordModal.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { EXPENSE_CATEGORY_LABELS, label } from '../../utils/labels.js';
-import { formatDate, formatMoney, formatNumber, isValidMoneyInput, minorToInput, toAsciiDigits } from '../../utils/format.js';
+import { formatDate, formatDateTime, formatMoney, formatNumber, isValidMoneyInput, minorToInput, toAsciiDigits } from '../../utils/format.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const dayString = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -143,10 +144,15 @@ export function FinancePage() {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null); // null | {} (new) | expense
   const [deleting, setDeleting] = useState(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [beforeReset, setBeforeReset] = useState(false);
 
   const query = toQuery(range);
   const summary = useAsync(() => api.get('/admin/finance/summary', query), [range.from, range.to]);
-  const expenses = useAsync(() => api.get('/admin/finance/expenses', { ...query, page, limit: 20 }), [range.from, range.to, page]);
+  const expenses = useAsync(
+    () => api.get('/admin/finance/expenses', { ...query, beforeReset: beforeReset ? 'true' : '', page, limit: 20 }),
+    [range.from, range.to, beforeReset, page],
+  );
 
   const reloadAll = () => {
     summary.reload({ silent: true });
@@ -169,6 +175,24 @@ export function FinancePage() {
     }
   });
 
+  const resetFinance = async (confirm) => {
+    await api.post('/admin/finance/reset', { confirm });
+    setResetOpen(false);
+    setBeforeReset(false);
+    setPage(1);
+    toast.success('تم تصفير الأرباح والمصروفات. الفواتير والطلبات القديمة ما زالت محفوظة.');
+    reloadAll();
+  };
+  const [undoReset, undoing] = useAction(async () => {
+    try {
+      await api.post('/admin/finance/reset/undo');
+      toast.success('تم إلغاء التصفير وعادت الأرقام كما كانت');
+      reloadAll();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  });
+
   const s = summary.data;
 
   return (
@@ -176,8 +200,42 @@ export function FinancePage() {
       <PageHeader
         title="الأرباح والمصروفات"
         subtitle="صافي الربح = مبيعات الطلبات المُسلَّمة − المصروفات (الفواتير)"
-        actions={<Button onClick={() => setEditing({})}>+ إضافة مصروف</Button>}
+        actions={
+          <>
+            <Button onClick={() => setEditing({})}>+ إضافة مصروف</Button>
+            <Button variant="danger" onClick={() => setResetOpen(true)}>تصفير الأرقام</Button>
+          </>
+        }
       />
+      {s?.resetAt && (
+        <div className="alert alert--info row-between">
+          <span>تم تصفير الأرباح والمصروفات في {formatDateTime(s.resetAt)}. الأرقام تحسب ما بعد هذا التاريخ فقط.</span>
+          <span className="page-header__actions">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setBeforeReset((v) => !v);
+                setPage(1);
+              }}
+            >
+              {beforeReset ? 'إخفاء الفواتير القديمة' : 'عرض الفواتير قبل التصفير'}
+            </Button>
+            <Button size="sm" variant="secondary" loading={undoing} onClick={undoReset}>إلغاء التصفير</Button>
+          </span>
+        </div>
+      )}
+      <ConfirmWordModal
+        open={resetOpen}
+        title="تصفير الأرباح والمصروفات"
+        word="تصفير"
+        confirmLabel="تصفير الأرقام"
+        onClose={() => setResetOpen(false)}
+        onConfirm={resetFinance}
+      >
+        <p>ستبدأ المبيعات والمصروفات وصافي الربح من الصفر، وستُحسب الطلبات المُسلَّمة والفواتير المضافة بعد التصفير فقط.</p>
+        <p><strong>لن يتم حذف أي فاتورة أو طلب</strong>، ويمكنك عرض الفواتير القديمة أو إلغاء التصفير في أي وقت.</p>
+      </ConfirmWordModal>
 
       <Card>
         <div className="filters">

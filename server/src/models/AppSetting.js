@@ -8,6 +8,8 @@ const { ObjectId } = mongoose.Schema.Types;
  * key "cash": `resetAt` is the cash-page reset marker. Cash figures on the
  * admin cash page only count deliveries and remittances after it. Nothing is
  * deleted, so clearing the marker brings the old figures back.
+ *
+ * key "finance": the same kind of marker for the profits & expenses page.
  */
 const appSettingSchema = new mongoose.Schema(
   {

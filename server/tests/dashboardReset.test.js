@@ -1,5 +1,6 @@
+import mongoose from 'mongoose';
 import { describe, expect, it } from 'vitest';
-import { CashRemittance, Order, OrderEvent } from '../src/models/index.js';
+import { CashRemittance, Expense, Order, OrderEvent } from '../src/models/index.js';
 import { normalizeEasyOrdersOrder } from '../src/integrations/easyorders/normalize.js';
 import { upsertOrderFromSource } from '../src/services/sourceOrderService.js';
 import { createAssignedOrder, createOrder, createUser, loginAs, orderPayload } from './helpers.js';
@@ -100,6 +101,61 @@ describe('cash reset', () => {
     await api.post('/api/admin/cash/reset/undo');
     const undone = (await api.get('/api/admin/cash/overview')).body;
     expect(undone.expectedDelivered).toBe(210000);
+    expect(undone.resetAt).toBeNull();
+  });
+});
+
+describe('profits & expenses reset', () => {
+  it('zeros sales, expenses and net profit without deleting anything, and can be undone', async () => {
+    const admin = await createUser('admin');
+    const courier = await createUser('courier');
+    const api = await loginAs(admin);
+    const courierApi = await loginAs(courier);
+    const earlier = new Date(Date.now() - 60_000);
+    const order = await createAssignedOrder(courier, admin, {}, 'delivered');
+    await Order.updateOne({ _id: order._id }, { $set: { deliveredAt: earlier } });
+    const today = new Date().toISOString().slice(0, 10);
+    const created = await api.post('/api/admin/finance/expenses', { date: today, amount: '200', category: 'ads' });
+    expect(created.status).toBe(201);
+    await // createdAt is immutable in Mongoose, so backdate it on the raw collection.
+    await Expense.collection.updateOne({ _id: new mongoose.Types.ObjectId(created.body.expense._id) }, { $set: { createdAt: earlier } });
+
+    const before = (await api.get('/api/admin/finance/summary')).body;
+    expect(before.sales.amount).toBe(105000);
+    expect(before.expenses.total).toBe(20000);
+    expect(before.netProfit).toBe(85000);
+
+    expect((await courierApi.post('/api/admin/finance/reset', { confirm: 'تصفير' })).status).toBe(403);
+    expect((await api.post('/api/admin/finance/reset', { confirm: 'x' })).status).toBe(400);
+    expect((await api.post('/api/admin/finance/reset', { confirm: 'تصفير' })).status).toBe(200);
+
+    const after = (await api.get('/api/admin/finance/summary')).body;
+    expect(after.sales.amount).toBe(0);
+    expect(after.expenses.total).toBe(0);
+    expect(after.netProfit).toBe(0);
+    expect(after.resetAt).toBeTruthy();
+    expect((await api.get('/api/admin/finance/expenses')).body.items).toHaveLength(0);
+    expect((await api.get('/api/admin/finance/expenses?beforeReset=true')).body.items).toHaveLength(1);
+    expect(await Expense.countDocuments()).toBe(1);
+    expect(await OrderEvent.countDocuments({ type: 'finance_reset' })).toBe(1);
+
+    // A date range that starts before the reset still counts from the reset.
+    const ranged = (await api.get(`/api/admin/finance/summary?from=${earlier.toISOString().slice(0, 10)}`)).body;
+    expect(ranged.sales.amount).toBe(0);
+
+    // New deliveries and invoices after the reset are counted.
+    const next = await createAssignedOrder(courier, admin, {}, 'delivered');
+    await Order.updateOne({ _id: next._id }, { $set: { deliveredAt: new Date(Date.now() + 1000) } });
+    await api.post('/api/admin/finance/expenses', { date: today, amount: '50', category: 'ads' });
+    const later = (await api.get('/api/admin/finance/summary')).body;
+    expect(later.sales.amount).toBe(105000);
+    expect(later.expenses.total).toBe(5000);
+    expect(later.netProfit).toBe(100000);
+
+    await api.post('/api/admin/finance/reset/undo');
+    const undone = (await api.get('/api/admin/finance/summary')).body;
+    expect(undone.sales.amount).toBe(210000);
+    expect(undone.expenses.total).toBe(25000);
     expect(undone.resetAt).toBeNull();
   });
 });
