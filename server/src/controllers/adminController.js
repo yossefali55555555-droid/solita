@@ -222,6 +222,14 @@ export async function getCustomer(req, res) {
 }
 
 // ---------- Expenses & profit ----------
+export async function resetFinance(req, res) {
+  res.json(await finance.resetFinance(req.user));
+}
+
+export async function undoFinanceReset(req, res) {
+  res.json(await finance.undoFinanceReset(req.user));
+}
+
 export async function listExpenses(req, res) {
   const page = paginationParams(req.valid.query);
   const { items, total, totalAmount } = await finance.listExpenses(req.valid.query, page);

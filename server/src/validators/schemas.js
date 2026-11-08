@@ -237,8 +237,12 @@ export const listExpensesQuery = z.object({
   from: isoDate.optional(),
   to: isoDate.optional(),
   category: z.enum(EXPENSE_CATEGORIES).optional(),
+  // Invoices entered before the profit reset are hidden unless asked for.
+  beforeReset: z.enum(['true', 'false']).optional(),
   ...pageQuery,
 });
+
+export const financeResetBody = z.strictObject({ confirm: z.literal('تصفير', { error: 'اكتب كلمة "تصفير" للتأكيد' }) });
 
 export const profitQuery = z.object({
   from: isoDate.optional(),

@@ -1,4 +1,4 @@
-import { CashRemittance, Expense, Order } from '../models/index.js';
+import { AppSetting, CashRemittance, Expense, Order } from '../models/index.js';
 import { EXPENSE_CATEGORIES } from '../constants/statuses.js';
 import { conflict, notFound } from '../utils/errors.js';
 import { recordEvent, userActor } from './auditService.js';
@@ -14,6 +14,9 @@ import { recordEvent, userActor } from './auditService.js';
  * it (cash basis), so the admin can compare both views.
  *
  * All amounts are integer piasters.
+ *
+ * After a profit reset (see resetFinance) only deliveries, returns, cash and
+ * expense invoices recorded after the reset are counted. Nothing is deleted.
  */
 
 function dateRange(field, { from, to } = {}) {
@@ -22,6 +25,69 @@ function dateRange(field, { from, to } = {}) {
   if (from) range.$gte = from;
   if (to) range.$lte = to;
   return { [field]: range };
+}
+
+/** `{ field: { $gt: resetAt } }`, or nothing when there is no reset. */
+function afterReset(field, resetAt) {
+  return resetAt ? { [field]: { $gt: resetAt } } : {};
+}
+
+/** Range filter whose lower bound is the later of `from` and the reset. */
+function rangeAfterReset(field, { from, to } = {}, resetAt) {
+  const start = resetAt && (!from || from < resetAt) ? null : from;
+  const query = dateRange(field, { from: start, to });
+  if (resetAt && !start) query[field] = { ...(query[field] || {}), $gt: resetAt };
+  return query;
+}
+
+// ---------------------------------------------------------------- reset
+
+const FINANCE_KEY = 'finance';
+
+export async function getFinanceResetAt() {
+  const setting = await AppSetting.findOne({ key: FINANCE_KEY }).lean();
+  return setting?.resetAt || null;
+}
+
+/**
+ * Zero the profits & expenses page. Nothing is deleted: a reset marker is
+ * stored and the summary only counts orders delivered, returns, cash received
+ * and expense invoices entered after it. The cash page has its own reset.
+ */
+export async function resetFinance(admin) {
+  const previousResetAt = await getFinanceResetAt();
+  const before = await getProfitSummary();
+  const now = new Date();
+  await AppSetting.findOneAndUpdate(
+    { key: FINANCE_KEY },
+    { $set: { resetAt: now, resetBy: admin._id } },
+    { upsert: true, setDefaultsOnInsert: true },
+  );
+  await recordEvent({
+    type: 'finance_reset',
+    actor: userActor(admin),
+    previous: {
+      resetAt: previousResetAt,
+      sales: before.sales.amount,
+      expenses: before.expenses.total,
+      netProfit: before.netProfit,
+    },
+    next: { resetAt: now },
+  });
+  return { resetAt: now };
+}
+
+/** Undo the last reset: the page counts everything again. */
+export async function undoFinanceReset(admin) {
+  const previousResetAt = await getFinanceResetAt();
+  await AppSetting.updateOne({ key: FINANCE_KEY }, { $set: { resetAt: null, resetBy: null } });
+  await recordEvent({
+    type: 'finance_reset_undone',
+    actor: userActor(admin),
+    previous: { resetAt: previousResetAt },
+    next: { resetAt: null },
+  });
+  return { resetAt: null };
 }
 
 // ---------------------------------------------------------------- expenses
@@ -37,8 +103,9 @@ export async function createExpense(admin, body) {
   return expense.toObject();
 }
 
-export async function listExpenses({ from, to, category }, { skip, limit }) {
-  const query = { deletedAt: null, ...dateRange('date', { from, to }) };
+export async function listExpenses({ from, to, category, beforeReset }, { skip, limit }) {
+  const resetAt = beforeReset === 'true' ? null : await getFinanceResetAt();
+  const query = { deletedAt: null, ...dateRange('date', { from, to }), ...afterReset('createdAt', resetAt) };
   if (category) query.category = category;
   const [items, total, sum] = await Promise.all([
     Expense.find(query).sort({ date: -1, _id: -1 }).skip(skip).limit(limit).populate('createdBy', 'name').lean(),
@@ -87,9 +154,10 @@ export async function deleteExpense(admin, expenseId, { reason } = {}) {
 // ---------------------------------------------------------------- profit
 
 export async function getProfitSummary({ from, to } = {}) {
+  const resetAt = await getFinanceResetAt();
   const [salesAgg, returnedCount, expensesAgg, cashAgg] = await Promise.all([
     Order.aggregate([
-      { $match: { deliveryStatus: 'delivered', ...dateRange('deliveredAt', { from, to }) } },
+      { $match: { deliveryStatus: 'delivered', ...rangeAfterReset('deliveredAt', { from, to }, resetAt) } },
       {
         $group: {
           _id: null,
@@ -100,13 +168,13 @@ export async function getProfitSummary({ from, to } = {}) {
         },
       },
     ]),
-    Order.countDocuments({ deliveryStatus: 'returned', ...dateRange('returnInfo.at', { from, to }) }),
+    Order.countDocuments({ deliveryStatus: 'returned', ...rangeAfterReset('returnInfo.at', { from, to }, resetAt) }),
     Expense.aggregate([
-      { $match: { deletedAt: null, ...dateRange('date', { from, to }) } },
+      { $match: { deletedAt: null, ...dateRange('date', { from, to }), ...afterReset('createdAt', resetAt) } },
       { $group: { _id: '$category', amount: { $sum: '$amount' }, count: { $sum: 1 } } },
     ]),
     CashRemittance.aggregate([
-      { $match: { status: { $in: ['received', 'reconciled', 'discrepancy'] }, ...dateRange('receivedAt', { from, to }) } },
+      { $match: { status: { $in: ['received', 'reconciled', 'discrepancy'] }, ...rangeAfterReset('receivedAt', { from, to }, resetAt) } },
       { $group: { _id: null, amount: { $sum: { $ifNull: ['$verifiedAmount', '$handedOverAmount'] } }, count: { $sum: 1 } } },
     ]),
   ]);
@@ -132,5 +200,6 @@ export async function getProfitSummary({ from, to } = {}) {
     },
     netProfit: sales.amount - expensesTotal,
     cash: { received: cashReceived, net: cashReceived - expensesTotal },
+    resetAt,
   };
 }

@@ -91,6 +91,8 @@ export function buildRouter() {
   a.get('/customers/:key', validate({ params: s.customerKeyParams }), admin.getCustomer);
 
   a.get('/finance/summary', validate({ query: s.profitQuery }), admin.profitSummary);
+  a.post('/finance/reset', validate({ body: s.financeResetBody }), admin.resetFinance);
+  a.post('/finance/reset/undo', admin.undoFinanceReset);
   a.get('/finance/expenses', validate({ query: s.listExpensesQuery }), admin.listExpenses);
   a.post('/finance/expenses', validate({ body: s.createExpenseBody }), admin.createExpense);
   a.patch('/finance/expenses/:id', validate({ params: idParams, body: s.updateExpenseBody }), admin.updateExpense);
