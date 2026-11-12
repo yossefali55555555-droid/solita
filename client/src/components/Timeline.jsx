@@ -30,6 +30,9 @@ function describeChange(event) {
     parts.push(from ? `${from} ← ${to}` : to);
   }
   if (next.courierName) parts.push(`المندوب: ${next.courierName}`);
+  const meta = event.metadata || {};
+  if (meta.parcel) parts.push(`الطرد ${meta.parcel}${meta.total ? ` من ${meta.total}` : ''}`);
+  if (next.parcels && event.type?.startsWith('labels_')) parts.push(`${next.parcels} طرود`);
   return parts.join(' · ');
 }
 

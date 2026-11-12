@@ -6,6 +6,7 @@ import { DemoBanner, Logo } from '../components/ui.jsx';
 const NAV = [
   { to: '/admin', label: 'نظرة عامة', end: true },
   { to: '/admin/orders', label: 'الطلبات' },
+  { to: '/admin/labels', label: 'طباعة البوليصة' },
   { to: '/admin/reviews', label: 'طلبات التسليم بانتظار المراجعة' },
   { to: '/admin/returns', label: 'مراجعة الرفض والمرتجعات' },
   { to: '/admin/customers', label: 'العملاء' },

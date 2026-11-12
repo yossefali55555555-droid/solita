@@ -8,6 +8,51 @@ import { useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { FAILURE_REASON_LABELS, label } from '../../utils/labels.js';
 import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
+import { useAction } from '../../hooks/useAsync.js';
+import { QrScanner } from '../../features/labels/QrScanner.jsx';
+
+const SCAN_TONE = { ok: 'success', mine: 'info', block: 'danger' };
+
+function parcelsBack(o) {
+  const parcels = o.parcels || [];
+  if (!o.labels?.printedAt || !parcels.length) return null;
+  const out = parcels.filter((p) => p.pickedUpAt).length;
+  const back = parcels.filter((p) => p.warehouseAt).length;
+  return { out, back, total: parcels.length };
+}
+
+/** Scan returned parcels back into the warehouse. */
+function WarehouseScan({ onScanned }) {
+  const [result, setResult] = useState(null);
+  const [scan, scanning] = useAction(async (code) => {
+    try {
+      const res = await api.post('/admin/returns/scan', { code });
+      setResult(res);
+      if (res.kind === 'ok') onScanned();
+    } catch (err) {
+      setResult({ kind: 'block', message: err.message });
+    }
+  });
+  return (
+    <Card title="استلام مرتجع في المخزن">
+      <p className="muted">امسح QR الطرد المرتجع عند وصوله، أو اكتب الكود. الطرد يتسجل "وصل المخزن".</p>
+      <QrScanner onCode={scan} busy={scanning} autoStart={false} compact />
+      {result && (
+        <div className={`alert alert--${SCAN_TONE[result.kind] || 'info'}`} role="status">
+          <strong>{result.message}</strong>
+          {result.order && (
+            <div className="small">
+              طلب <span className="mono" dir="ltr">{result.order.number}</span>
+              {result.order.customer ? ` — ${result.order.customer}` : ''}
+              {result.order.courier ? ` · المندوب: ${result.order.courier}` : ''} · في المخزن {result.order.parcels.inWarehouse} من{' '}
+              {result.order.parcels.total}
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
 
 const TABS = [
   { value: 'pending', label: 'بانتظار المراجعة' },
@@ -30,6 +75,7 @@ export function ReturnsPage() {
         title="مراجعة الرفض والمرتجعات"
         subtitle="الطلبات التي لم يتمكن المندوب من تسليمها (رفض الاستلام، لم يدفع، لم يرد...). عند اعتماد المرتجع تتحدث حالة EasyOrders تلقائياً."
       />
+      <WarehouseScan onScanned={() => reload({ silent: true })} />
       <div className="tabs" role="tablist">
         {TABS.map((t) => (
           <button
@@ -62,6 +108,7 @@ export function ReturnsPage() {
                   <th>المندوب</th>
                   <th>السبب</th>
                   <th>الوقت</th>
+                  <th>في المخزن</th>
                   <th>الحالات</th>
                   <th />
                 </tr>
@@ -96,6 +143,14 @@ export function ReturnsPage() {
                     </td>
                     <td className="nowrap muted">
                       {formatDateTime(status === 'returned' ? o.returnInfo?.at : o.lastAttempt?.at || o.updatedAt)}
+                    </td>
+                    <td className="nowrap">
+                      {(() => {
+                        const b = parcelsBack(o);
+                        if (!b) return <span className="muted">—</span>;
+                        if (!b.out) return <span className="muted">لم يخرج</span>;
+                        return <span className={b.back >= b.out ? 'text-success' : 'text-warning'}>{b.back} من {b.out}</span>;
+                      })()}
                     </td>
                     <td>
                       <div className="badge-stack">

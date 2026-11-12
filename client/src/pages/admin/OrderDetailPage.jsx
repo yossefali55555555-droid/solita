@@ -18,6 +18,78 @@ import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { FAILURE_REASON_LABELS, PAYMENT_STATUS_LABELS, SOURCE_STATUS_LABELS, label } from '../../utils/labels.js';
 import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
+import { PrintPortal } from '../../features/labels/LabelSheets.jsx';
+
+function parcelState(p) {
+  if (p.warehouseAt) return `وصل المخزن ${formatDateTime(p.warehouseAt)}`;
+  if (p.pickedUpAt) return `مع المندوب منذ ${formatDateTime(p.pickedUpAt)}`;
+  return 'في المخزن (لم يُستلم)';
+}
+
+/** Parcels of the order with their QR scan history, and a print button. */
+function ParcelsCard({ order, onPrinted }) {
+  const toast = useToast();
+  const [labels, setLabels] = useState(null);
+  const printable = ['new', 'assigned', 'out_for_delivery', 'failed'].includes(order.deliveryStatus);
+  const [print, printing] = useAction(async () => {
+    try {
+      const res = await api.post('/admin/labels/print', { orderIds: [order._id] });
+      setLabels(res.labels);
+      setTimeout(() => window.print(), 300);
+      window.addEventListener('afterprint', () => setLabels(null), { once: true });
+      onPrinted();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  });
+  const parcels = order.parcels || [];
+  const printed = Boolean(order.labels?.printedAt);
+  return (
+    <Card
+      title="الطرود والبوليصة"
+      actions={
+        printable && (
+          <Button size="sm" variant={printed ? 'secondary' : 'primary'} loading={printing} onClick={print}>
+            {printed ? 'إعادة طباعة البوليصة' : 'طباعة البوليصة'}
+          </Button>
+        )
+      }
+    >
+      {order.labels?.needsReprint && <div className="alert alert--warning">{order.labels.reprintReason || 'البوليصة تحتاج إعادة طباعة'}</div>}
+      {!printed ? (
+        <p className="muted">لم تُطبع البوليصة بعد. لا يستطيع المندوب استلام الطلب قبل طباعتها ومسح كل الطرود.</p>
+      ) : (
+        <>
+          <p className="muted small">
+            طُبعت {formatDateTime(order.labels.printedAt)}
+            {order.labels.printCount > 1 ? ` · ${order.labels.printCount} مرات` : ''}
+          </p>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>الطرد</th>
+                  <th>المحتوى</th>
+                  <th>الحالة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parcels.map((p) => (
+                  <tr key={p.n}>
+                    <td className="mono" dir="ltr">{p.n}/{parcels.length}</td>
+                    <td>{p.content}</td>
+                    <td className="small">{parcelState(p)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+      <PrintPortal labels={labels} />
+    </Card>
+  );
+}
 
 const ASSIGNABLE = ['new', 'assigned', 'out_for_delivery', 'failed'];
 const CANCELLABLE = ['new', 'assigned', 'out_for_delivery', 'failed'];
@@ -193,6 +265,8 @@ export function OrderDetailPage() {
           </table>
         </div>
       </Card>
+
+      <ParcelsCard order={order} onPrinted={refresh} />
 
       <div className="grid-2">
         <Card title="المندوب والتعيين">

@@ -84,6 +84,11 @@ export function buildRouter() {
   a.post('/cash/remittances/:id/verify', validate({ params: idParams, body: s.verifyRemittanceBody }), admin.verifyRemittance);
   a.post('/cash/remittances/:id/cancel', validate({ params: idParams, body: s.cancelRemittanceBody }), admin.cancelRemittance);
 
+  a.get('/labels', validate({ query: s.labelQueueQuery }), admin.labelQueue);
+  a.get('/labels/view', validate({ query: s.getLabelsQuery }), admin.getLabels);
+  a.post('/labels/print', validate({ body: s.printLabelsBody }), admin.printLabels);
+  a.post('/returns/scan', validate({ body: s.scanBody }), admin.warehouseScan);
+
   a.get('/returns', validate({ query: s.listReturnsQuery }), admin.listReturns);
   a.post('/orders/:id/return', validate({ params: idParams, body: s.confirmReturnBody }), admin.confirmReturn);
 
@@ -106,6 +111,7 @@ export function buildRouter() {
   c.get('/orders/:id', validate({ params: idParams }), courier.getOrder);
   c.patch('/orders/:id/status', validate({ params: idParams, body: s.courierStatusBody }), courier.updateStatus);
   c.post('/orders/:id/delivery-report', validate({ params: idParams, body: s.deliveryReportBody }), courier.deliveryReport);
+  c.post('/scan', validate({ body: s.scanBody }), courier.scanParcel);
   c.get('/cash', courier.cashSummary);
   c.post('/cash/remittances', validate({ body: s.courierDeclareRemittanceBody }), courier.declareRemittance);
   c.get('/cash/remittances/:id', validate({ params: idParams }), courier.getRemittance);

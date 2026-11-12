@@ -1031,7 +1031,7 @@ input[dir='ltr'].input {
   max-width: 640px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   background: var(--surface);
   border-block-start: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom);
@@ -1309,3 +1309,87 @@ input[dir='ltr'].input {
     bottom: 76px;
   }
 }
+
+/* ------------------------------------------------------------------ QR scanning */
+.qr-scanner { display: grid; gap: 10px; margin-block: 10px; }
+.qr-scanner__view { position: relative; inline-size: 100%; max-inline-size: 420px; aspect-ratio: 1; margin-inline: auto; overflow: hidden; border-radius: var(--radius); background: #000; }
+.qr-scanner--compact .qr-scanner__view { max-inline-size: 260px; }
+.qr-scanner__view video { inline-size: 100%; block-size: 100%; object-fit: cover; }
+.qr-scanner__frame { position: absolute; inset: 18%; border: 3px solid rgba(255, 255, 255, 0.9); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.25); }
+.qr-scanner__row { display: flex; justify-content: center; }
+.qr-scanner__manual { display: flex; gap: 8px; }
+.qr-scanner__manual .input { flex: 1; min-inline-size: 0; }
+.courier-scan__title { font-size: 1.35rem; margin: 0 0 4px; }
+.scan-result { margin-block: 12px; }
+.scan-log { font-size: 0.9rem; }
+.scan-log__item--block { color: var(--danger); }
+.scan-log__item--ok { color: var(--success); }
+.parcel-scan { border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: 10px; margin-block-end: 12px; }
+.parcel-scan-ok { margin-block-end: 12px; }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.tab__count { display: inline-block; margin-inline-start: 6px; padding: 0 7px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 0.75rem; line-height: 1.5; }
+.table tr.is-selected td { background: var(--info-bg); }
+
+/* ------------------------------------------------------------------ Shipping labels (A4, 4 per sheet) */
+.print-root { display: none; }
+
+@media print {
+  @page { size: A4; margin: 0; }
+  html, body { background: #fff !important; }
+  body > *:not(.print-root) { display: none !important; }
+  .print-root { display: block; }
+}
+
+.label-sheets { font-family: var(--font); color: #111; }
+.sheet {
+  inline-size: 210mm;
+  block-size: 297mm;
+  display: grid;
+  grid-template-columns: 105mm 105mm;
+  grid-template-rows: 148.5mm 148.5mm;
+  position: relative;
+  overflow: hidden;
+  page-break-after: always;
+  break-after: page;
+  background: #fff;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.sheet:last-child { page-break-after: auto; break-after: auto; }
+.sheet::before, .sheet::after { content: ''; position: absolute; border: 0 dashed #888; }
+.sheet::before { inset-block: 0; inset-inline-start: 105mm; border-inline-start-width: 0.3mm; }
+.sheet::after { inset-inline: 0; inset-block-start: 148.5mm; border-block-start-width: 0.3mm; }
+.sheet__cell { padding: 5mm; }
+.lab {
+  inline-size: 95mm;
+  block-size: 138.5mm;
+  border: 0.35mm solid #000;
+  display: flex;
+  flex-direction: column;
+  font-size: 10.5pt;
+  line-height: 1.35;
+  overflow: hidden;
+}
+.lab > * { padding: 1.6mm 2.5mm; border-block-end: 0.3mm solid #000; }
+.lab > *:last-child { border-block-end: 0; }
+.lab__caption { font-size: 8.5pt; color: #333; }
+.lab__head { display: flex; justify-content: space-between; align-items: center; min-block-size: 15mm; border-block-end-width: 0.6mm; }
+.lab__logo { block-size: 16mm; inline-size: 34mm; object-fit: cover; }
+.lab__support { display: flex; flex-direction: column; align-items: flex-end; font-size: 8.5pt; font-weight: 600; }
+.lab__order { display: flex; justify-content: space-between; align-items: center; }
+.lab__order > div:first-child { display: flex; flex-direction: column; }
+.lab__number { font-size: 24pt; font-weight: 800; line-height: 1.05; }
+.lab__parcel { inline-size: 34mm; border: 0.4mm solid #000; text-align: center; padding: 1mm; display: flex; flex-direction: column; }
+.lab__parcel strong { font-size: 18pt; line-height: 1.1; }
+.lab__customer strong { font-size: 12pt; }
+.lab__address { font-size: 12pt; }
+.lab__address-line { font-size: 10pt; max-block-size: 9.6mm; overflow: hidden; }
+.lab__content { font-weight: 600; font-size: 10pt; }
+.lab__pay { display: flex; gap: 2mm; align-items: center; flex: 1; }
+.lab__amount { flex: 1; display: flex; flex-direction: column; gap: 1mm; }
+.lab__money { font-size: 22pt; font-weight: 800; line-height: 1.1; }
+.lab__strip { border: 0.3mm solid #000; padding: 0.8mm 1.5mm; font-size: 8.5pt; font-weight: 600; }
+.lab__qr { display: flex; flex-direction: column; align-items: center; gap: 0.5mm; font-family: Consolas, var(--mono); font-size: 8pt; }
+.lab__note { font-size: 9pt; max-block-size: 10mm; overflow: hidden; }
+.lab__foot { display: flex; justify-content: space-between; font-size: 8pt; }

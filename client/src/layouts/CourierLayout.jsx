@@ -37,6 +37,9 @@ export function CourierLayout() {
         <NavLink to="/courier" end className={({ isActive }) => `courier-nav__link ${isActive ? 'is-active' : ''}`}>
           طلباتي
         </NavLink>
+        <NavLink to="/courier/scan" className={({ isActive }) => `courier-nav__link ${isActive ? 'is-active' : ''}`}>
+          استلام الطرود
+        </NavLink>
         <NavLink to="/courier/cash" className={({ isActive }) => `courier-nav__link ${isActive ? 'is-active' : ''}`}>
           النقدية
         </NavLink>

@@ -4,6 +4,7 @@ import { logger } from '../utils/logger.js';
 import { recordEvent, userActor } from './auditService.js';
 import { notify } from './notificationService.js';
 import { enqueueStatusSync, processOperation } from './syncService.js';
+import { assertParcelScan, assertReadyToStart } from './labelService.js';
 
 /**
  * Courier delivery workflow and mandatory supervisor approval.
@@ -36,6 +37,13 @@ const COURIER_ORDER_FIELDS = [
   'deliveredAt',
   'cod',
   'cancellation.reason',
+  'labels.printedAt',
+  'labels.total',
+  'labels.needsReprint',
+  'parcels.n',
+  'parcels.content',
+  'parcels.pickedUpAt',
+  'parcels.warehouseAt',
   'isDemo',
   'createdAt',
   'sourceCreatedAt',
@@ -109,6 +117,7 @@ export async function startDelivery(courier, orderId) {
   if (!['assigned', 'failed'].includes(order.deliveryStatus)) {
     throw unprocessable('لا يمكن بدء التوصيل في حالة الطلب الحالية', 'INVALID_TRANSITION');
   }
+  assertReadyToStart(order);
   const updated = await Order.findOneAndUpdate(
     { _id: orderId, assignedTo: courier._id, deliveryStatus: order.deliveryStatus },
     { $set: { deliveryStatus: 'out_for_delivery' } },
@@ -145,11 +154,13 @@ export async function startDelivery(courier, orderId) {
   return { order: updated, syncState: syncOperation?.state ?? null };
 }
 
-export async function reportFailedAttempt(courier, orderId, { reason, note }) {
+export async function reportFailedAttempt(courier, orderId, { reason, note, parcelCode }) {
   const order = await findOwnedOrder(courier, orderId);
   if (!['assigned', 'out_for_delivery'].includes(order.deliveryStatus)) {
     throw unprocessable('لا يمكن تسجيل محاولة فاشلة في حالة الطلب الحالية', 'INVALID_TRANSITION');
   }
+  // At the customer's door the courier proves the parcel is in hand.
+  const scanned = order.deliveryStatus === 'out_for_delivery' ? assertParcelScan(order, parcelCode) : null;
   const attempt = { courier: courier._id, outcome: 'failed', reason, note, at: new Date() };
   const updated = await Order.findOneAndUpdate(
     { _id: orderId, assignedTo: courier._id, deliveryStatus: order.deliveryStatus },
@@ -165,7 +176,7 @@ export async function reportFailedAttempt(courier, orderId, { reason, note }) {
     previous: { deliveryStatus: order.deliveryStatus },
     next: { deliveryStatus: 'failed' },
     reason: note || reason,
-    metadata: { reason },
+    metadata: { reason, ...(scanned ? { parcel: scanned.n } : {}) },
   });
   return { order: updated };
 }
@@ -174,11 +185,12 @@ export async function reportFailedAttempt(courier, orderId, { reason, note }) {
  * Courier presses "تم التسليم": creates a pending review. EasyOrders is NOT
  * updated here; that happens only after supervisor approval.
  */
-export async function submitDeliveryReport(courier, orderId, { collectedAmount, note, proofReference }) {
+export async function submitDeliveryReport(courier, orderId, { collectedAmount, note, proofReference, parcelCode }) {
   const order = await findOwnedOrder(courier, orderId);
   if (order.deliveryStatus !== 'out_for_delivery') {
     throw unprocessable('يجب بدء التوصيل قبل إرسال تأكيد التسليم', 'INVALID_TRANSITION');
   }
+  const scanned = assertParcelScan(order, parcelCode);
   const expected = order.cod?.isCod ? order.cod.expectedAmount || 0 : 0;
   if (expected > 0 && (collectedAmount === undefined || collectedAmount === null)) {
     throw badRequest('أدخل المبلغ الذي تم تحصيله من العميل', 'COLLECTED_AMOUNT_REQUIRED');
@@ -233,7 +245,13 @@ export async function submitDeliveryReport(courier, orderId, { collectedAmount, 
     actor: userActor(courier),
     previous: { deliveryStatus: 'out_for_delivery' },
     next: { deliveryStatus: 'pending_delivery_review' },
-    metadata: { review: review._id, collectedAmount: review.collectedAmount, expectedAmount: expected, proofReference },
+    metadata: {
+      review: review._id,
+      collectedAmount: review.collectedAmount,
+      expectedAmount: expected,
+      proofReference,
+      ...(scanned ? { parcel: scanned.n } : {}),
+    },
   });
   return { review, message: 'تم إرسال الطلب للمراجعة' };
 }
