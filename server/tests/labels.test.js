@@ -163,6 +163,47 @@ describe('courier pickup scan', () => {
   });
 });
 
+describe('courier takes an unassigned order by scanning', () => {
+  it('assigns a printed new order to the first courier who scans it', async () => {
+    const admin = await createUser('admin');
+    const courier = await createUser('courier');
+    const other = await createUser('courier');
+    const order = await createOrder({ short_id: Math.floor(Math.random() * 1e9) });
+    const adminApi = await loginAs(admin);
+    const courierApi = await loginAs(courier);
+    const otherApi = await loginAs(other);
+
+    const res = await adminApi.post('/api/admin/labels/print', { orderIds: [String(order._id)] });
+    const [c1, c2] = res.body.labels[0].parcels.map((p) => p.code);
+
+    const first = await courierApi.post('/api/courier/scan', { code: c1 });
+    expect(first.body.kind).toBe('ok');
+    expect(first.body.claimed).toBe(true);
+    expect(first.body.message).toContain('تم إسناد الطلب إليك');
+    const stored = await Order.findById(order._id);
+    expect(String(stored.assignedTo)).toBe(String(courier._id));
+    expect(stored.deliveryStatus).toBe('assigned');
+    expect(await OrderEvent.countDocuments({ order: order._id, type: 'assigned' })).toBe(1);
+
+    const taken = await otherApi.post('/api/courier/scan', { code: c2 });
+    expect(taken.body.message).toBe('هذا الطلب مع مندوب آخر');
+
+    const second = await courierApi.post('/api/courier/scan', { code: c2 });
+    expect(second.body.allPickedUp).toBe(true);
+    const start = await courierApi.patch(`/api/courier/orders/${order._id}/status`, { status: 'out_for_delivery' });
+    expect(start.status).toBe(200);
+  });
+
+  it('does not let a courier take an unprinted or cancelled order', async () => {
+    const courier = await createUser('courier');
+    const courierApi = await loginAs(courier);
+    const order = await createOrder({ short_id: Math.floor(Math.random() * 1e9) });
+    const unprinted = await courierApi.post('/api/courier/scan', { code: `SOL:${order.easyOrdersShortId}-1/2` });
+    expect(unprinted.body.kind).toBe('block');
+    expect((await Order.findById(order._id)).assignedTo).toBeNull();
+  });
+});
+
 describe('scan before delivery actions', () => {
   it('requires a picked-up parcel of the same order to deliver or fail', async () => {
     const ctx = await setup();

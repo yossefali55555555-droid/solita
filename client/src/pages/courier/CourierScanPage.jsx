@@ -24,7 +24,7 @@ export function CourierScanPage() {
   return (
     <div className="courier-scan">
       <h1 className="courier-scan__title">استلام الطرود</h1>
-      <p className="muted">امسح QR كل طرد من طرود الطلب. لا يمكن بدء التوصيل قبل مسح كل الطرود.</p>
+      <p className="muted">امسح QR كل طرد من طرود الطلب. الطلب المطبوع الذي لم يأخذه مندوب يُسند إليك تلقائيًا عند مسحه. لا يمكن بدء التوصيل قبل مسح كل الطرود.</p>
       <QrScanner onCode={scan} busy={scanning} />
       {latest && (
         <div className={`alert alert--${TONE[latest.kind] || 'info'} scan-result`} role="status">

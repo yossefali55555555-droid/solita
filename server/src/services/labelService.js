@@ -321,11 +321,21 @@ const PICKUP_STATUSES = ['assigned', 'out_for_delivery', 'failed'];
 export async function courierScan(courier, code) {
   const parsed = parseParcelCode(code);
   if (!parsed) return block('هذا ليس كود طرد من سوليتا');
-  const order = await Order.findOne(orderQueryForNumber(parsed.number)).lean();
+  let order = await Order.findOne(orderQueryForNumber(parsed.number)).lean();
   if (!order) return block('طرد غير مسجّل في النظام');
   if (isCancelled(order)) return block('هذا الطلب ملغى — لا تستلمه');
-  if (String(order.assignedTo || '') !== String(courier._id)) {
-    return block(order.assignedTo ? 'هذا الطلب مع مندوب آخر' : 'هذا الطلب غير مُسنَد إليك — اطلب من المشرف إسناده لك');
+  let claimed = false;
+  if (!order.assignedTo) {
+    // An order nobody took yet: scanning its printed label assigns it to
+    // this courier (the admin can still assign orders from the order page).
+    const problem = labelProblem(order, parsed);
+    if (problem) return block(problem);
+    if (order.deliveryStatus !== 'new') return block('هذا الطلب لا يحتاج استلام في حالته الحالية');
+    order = await claimOrder(courier, order);
+    if (!order) return block('سبقك مندوب آخر لهذا الطلب');
+    claimed = true;
+  } else if (String(order.assignedTo) !== String(courier._id)) {
+    return block('هذا الطلب مع مندوب آخر');
   }
   const problem = labelProblem(order, parsed);
   if (problem) return { ...block(problem), order: courierOrderBrief(order) };
@@ -360,14 +370,45 @@ export async function courierScan(courier, code) {
   });
   const brief = courierOrderBrief(updated);
   const done = brief.parcels.pickedUp === brief.parcels.total;
+  const prefix = claimed ? 'تم إسناد الطلب إليك — ' : '';
   return {
     kind: 'ok',
     message: done
-      ? `تم استلام الطرد ${parsed.n} من ${parsed.total} — اكتمل استلام الطلب`
-      : `تم استلام الطرد ${parsed.n} من ${parsed.total} — باقي ${brief.parcels.total - brief.parcels.pickedUp}`,
+      ? `${prefix}تم استلام الطرد ${parsed.n} من ${parsed.total} — اكتمل استلام الطلب`
+      : `${prefix}تم استلام الطرد ${parsed.n} من ${parsed.total} — باقي ${brief.parcels.total - brief.parcels.pickedUp}`,
     order: brief,
     allPickedUp: done,
+    claimed,
   };
+}
+
+/** Atomically assign an unassigned `new` order to the scanning courier. */
+async function claimOrder(courier, order) {
+  const now = new Date();
+  const updated = await Order.findOneAndUpdate(
+    { _id: order._id, assignedTo: null, deliveryStatus: 'new' },
+    {
+      $set: {
+        assignedTo: courier._id,
+        assignedBy: courier._id,
+        assignedAt: now,
+        deliveryStatus: 'assigned',
+        parcels: parcelsAfterAssignment(order, courier._id),
+      },
+    },
+    { returnDocument: 'after' },
+  ).lean();
+  if (!updated) return null;
+  await recordEvent({
+    order: order._id,
+    type: 'assigned',
+    actor: userActor(courier),
+    previous: { assignedTo: null, deliveryStatus: 'new' },
+    next: { assignedTo: courier._id, courierName: courier.name, deliveryStatus: 'assigned' },
+    reason: 'استلمه المندوب بمسح البوليصة',
+    metadata: { via: 'scan' },
+  });
+  return updated;
 }
 
 /** Delivery cannot start until every parcel of the order was scanned. */
