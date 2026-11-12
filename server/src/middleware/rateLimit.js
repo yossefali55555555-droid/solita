@@ -93,3 +93,29 @@ export function apiRateLimiter() {
     passOnStoreError: true,
   });
 }
+
+/** Storefront events: per IP. Generous because mobile carriers put many shoppers behind one IP. */
+export function publicEventsRateLimiter({ limit = 120 } = {}) {
+  return rateLimit({
+    windowMs: 60 * 1000,
+    limit,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    store: new MongoRateLimitStore('public-events'),
+    message: tooMany('Too many requests'),
+    passOnStoreError: true,
+  });
+}
+
+/** Public site configuration: per IP (the CDN cache absorbs most reads). */
+export function publicConfigRateLimiter({ limit = 120 } = {}) {
+  return rateLimit({
+    windowMs: 60 * 1000,
+    limit,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    store: new MongoRateLimitStore('public-config'),
+    message: tooMany('Too many requests'),
+    passOnStoreError: true,
+  });
+}

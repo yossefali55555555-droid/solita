@@ -1,6 +1,8 @@
 import { processDueOperations } from '../services/syncService.js';
 import { processPendingWebhooks } from '../services/webhookService.js';
 import { pollEasyOrders } from '../services/pollService.js';
+import { expireStaleCarts } from '../services/storefrontService.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Serverless-compatible background processing. Invoked by:
@@ -18,5 +20,9 @@ export async function processBackgroundWork({ timeBudgetMs = 20_000 } = {}) {
   const webhooks = await processPendingWebhooks({ timeBudgetMs: Math.floor(timeBudgetMs / 3) });
   const remaining = Math.max(1000, timeBudgetMs - (Date.now() - started));
   const operations = await processDueOperations({ timeBudgetMs: remaining });
-  return { poll, webhooks, operations, durationMs: Date.now() - started };
+  const storefront = await expireStaleCarts().catch((err) => {
+    logger.error('Expiring storefront carts failed', { error: err.message });
+    return { expired: 0, error: true };
+  });
+  return { poll, webhooks, operations, storefront, durationMs: Date.now() - started };
 }
