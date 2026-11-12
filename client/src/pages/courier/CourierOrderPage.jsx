@@ -9,6 +9,8 @@ import { api } from '../../services/api.js';
 import { FAILURE_REASON_LABELS, PAYMENT_STATUS_LABELS, label } from '../../utils/labels.js';
 import { formatDateTime, formatMoney, isValidMoneyInput, minorToInput, toAsciiDigits, orderNumber } from '../../utils/format.js';
 import { QrScanner } from '../../features/labels/QrScanner.jsx';
+import { orderStatusMessage, whatsappLink } from '../../features/whatsapp/whatsapp.js';
+import { useAuth } from '../../features/auth/AuthContext.jsx';
 
 /** QR text prefix of this order's parcels, e.g. "SOL:24-". */
 function codePrefix(order) {
@@ -47,6 +49,7 @@ function ParcelScanField({ order, value, onChange }) {
 export function CourierOrderPage() {
   const { id } = useParams();
   const toast = useToast();
+  const { user } = useAuth();
   const { data, error, loading, reload } = useAsync(() => api.get(`/courier/orders/${id}`), [id]);
   const [startOpen, setStartOpen] = useState(false);
   const [failOpen, setFailOpen] = useState(false);
@@ -119,6 +122,7 @@ export function CourierOrderPage() {
   const held = parcels.filter((p) => p.pickedUpAt && !p.warehouseAt).length;
   const needsScan = hasLabels && order.deliveryStatus === 'out_for_delivery';
   const scanMissing = needsScan && !parcelCode;
+  const waUrl = whatsappLink(c.phone, orderStatusMessage(order, user?.name));
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${c.address || ''} ${c.government || ''}`)}`;
 
   return (
@@ -161,6 +165,11 @@ export function CourierOrderPage() {
         <p className="panel__big">{c.name}</p>
         <div className="panel__actions">
           {c.phone && <a className="btn btn--primary btn--lg" href={`tel:${c.phone}`}>اتصال <span className="mono" dir="ltr">{c.phone}</span></a>}
+          {waUrl && (
+            <a className="btn btn--whatsapp btn--lg" href={waUrl} target="_blank" rel="noopener noreferrer">
+              واتساب برسالة جاهزة
+            </a>
+          )}
           {c.alternativePhone && <a className="btn btn--secondary" href={`tel:${c.alternativePhone}`}>رقم بديل</a>}
         </div>
       </section>
