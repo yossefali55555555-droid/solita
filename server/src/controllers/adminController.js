@@ -10,6 +10,7 @@ import * as poll from '../services/pollService.js';
 import * as returns from '../services/returnService.js';
 import * as customers from '../services/customerService.js';
 import * as finance from '../services/financeService.js';
+import * as labels from '../services/labelService.js';
 import { getOverview, getSystemStatus } from '../services/statsService.js';
 import { processBackgroundWork } from '../jobs/processBackgroundWork.js';
 import { notFound } from '../utils/errors.js';
@@ -250,4 +251,23 @@ export async function deleteExpense(req, res) {
 
 export async function profitSummary(req, res) {
   res.json(await finance.getProfitSummary(req.valid.query));
+}
+
+// ---------- Labels (البوليصة) ----------
+export async function labelQueue(req, res) {
+  const page = paginationParams({ limit: 50, ...req.valid.query });
+  const { items, total, counts } = await labels.listPrintQueue(req.valid.query, page);
+  res.json({ ...paginated(items, total, page), counts });
+}
+
+export async function printLabels(req, res) {
+  res.json(await labels.printLabels(req.user, req.valid.body.orderIds));
+}
+
+export async function getLabels(req, res) {
+  res.json(await labels.getLabels(req.valid.query.ids));
+}
+
+export async function warehouseScan(req, res) {
+  res.json(await labels.warehouseScan(req.user, req.valid.body.code));
 }

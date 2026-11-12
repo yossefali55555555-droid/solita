@@ -8,6 +8,41 @@ import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { FAILURE_REASON_LABELS, PAYMENT_STATUS_LABELS, label } from '../../utils/labels.js';
 import { formatDateTime, formatMoney, isValidMoneyInput, minorToInput, toAsciiDigits, orderNumber } from '../../utils/format.js';
+import { QrScanner } from '../../features/labels/QrScanner.jsx';
+
+/** QR text prefix of this order's parcels, e.g. "SOL:24-". */
+function codePrefix(order) {
+  return `SOL:${order.easyOrdersShortId || order.easyOrdersId}-`;
+}
+
+function ParcelScanField({ order, value, onChange }) {
+  const [error, setError] = useState('');
+  if (value) {
+    return (
+      <div className="alert alert--success parcel-scan-ok">
+        تم مسح الطرد <span className="mono" dir="ltr">{value}</span>{' '}
+        <button type="button" className="link" onClick={() => onChange('')}>مسح طرد آخر</button>
+      </div>
+    );
+  }
+  return (
+    <div className="parcel-scan">
+      <p><strong>امسح QR أي طرد من هذا الطلب أولاً</strong></p>
+      <QrScanner
+        compact
+        onCode={(code) => {
+          if (!code.toUpperCase().startsWith(codePrefix(order).toUpperCase())) {
+            setError('هذا الطرد ليس من هذا الطلب');
+            return;
+          }
+          setError('');
+          onChange(code);
+        }}
+      />
+      {error && <p className="form-error" role="alert">{error}</p>}
+    </div>
+  );
+}
 
 export function CourierOrderPage() {
   const { id } = useParams();
@@ -17,6 +52,7 @@ export function CourierOrderPage() {
   const [failOpen, setFailOpen] = useState(false);
   const [deliverOpen, setDeliverOpen] = useState(false);
   const [fail, setFail] = useState({ reason: '', note: '' });
+  const [parcelCode, setParcelCode] = useState('');
   const [deliver, setDeliver] = useState({ collectedAmount: '', note: '', proofReference: '' });
   const [formError, setFormError] = useState('');
   const [submittedMessage, setSubmittedMessage] = useState('');
@@ -38,7 +74,12 @@ export function CourierOrderPage() {
     if (!fail.reason) return setFormError('اختر سبب فشل التسليم');
     if (fail.reason === 'other' && fail.note.trim().length < 3) return setFormError('اكتب توضيحاً للسبب');
     try {
-      await api.patch(`/courier/orders/${id}/status`, { status: 'failed', reason: fail.reason, note: fail.note.trim() || undefined });
+      await api.patch(`/courier/orders/${id}/status`, {
+        status: 'failed',
+        reason: fail.reason,
+        note: fail.note.trim() || undefined,
+        parcelCode: parcelCode || undefined,
+      });
       toast.success('تم تسجيل المحاولة الفاشلة');
       setFailOpen(false);
       setFail({ reason: '', note: '' });
@@ -57,6 +98,7 @@ export function CourierOrderPage() {
         collectedAmount: amount || undefined,
         note: deliver.note.trim() || undefined,
         proofReference: deliver.proofReference.trim() || undefined,
+        parcelCode: parcelCode || undefined,
       });
       setDeliverOpen(false);
       setSubmittedMessage(res.message);
@@ -72,6 +114,11 @@ export function CourierOrderPage() {
   const c = order.customer || {};
   const expected = order.cod?.isCod ? order.cod.expectedAmount || 0 : 0;
   const latestReview = reviews[0];
+  const parcels = order.parcels || [];
+  const hasLabels = Boolean(order.labels?.printedAt && parcels.length);
+  const held = parcels.filter((p) => p.pickedUpAt && !p.warehouseAt).length;
+  const needsScan = hasLabels && order.deliveryStatus === 'out_for_delivery';
+  const scanMissing = needsScan && !parcelCode;
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${c.address || ''} ${c.government || ''}`)}`;
 
   return (
@@ -136,6 +183,35 @@ export function CourierOrderPage() {
       </section>
 
       <section className="panel">
+        <h2 className="panel__title">الطرود</h2>
+        {!hasLabels ? (
+          <p className="muted">لم تُطبع بوليصة هذا الطلب بعد. اطلب من المشرف طباعتها قبل الاستلام.</p>
+        ) : (
+          <>
+            {order.labels.needsReprint && (
+              <div className="alert alert--warning">تغيّر هذا الطلب ويحتاج بوليصة جديدة من المشرف.</div>
+            )}
+            <p>
+              معك <strong>{held}</strong> من <strong>{parcels.length}</strong> طرود
+            </p>
+            <ul className="simple-list">
+              {parcels.map((p) => (
+                <li key={p.n}>
+                  <span className="mono" dir="ltr">{p.n}/{parcels.length}</span> — {p.content}{' '}
+                  <span className={`small ${p.pickedUpAt && !p.warehouseAt ? 'text-success' : 'muted'}`}>
+                    {p.warehouseAt ? '(في المخزن)' : p.pickedUpAt ? '(معك)' : '(لم يُمسح بعد)'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {held < parcels.length && ['assigned', 'failed'].includes(order.deliveryStatus) && (
+              <Link className="btn btn--primary" to="/courier/scan">مسح الطرود للاستلام</Link>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className="panel">
         <h2 className="panel__title">المنتجات</h2>
         <ul className="simple-list">
           {order.items.map((item, i) => (
@@ -171,6 +247,7 @@ export function CourierOrderPage() {
               onClick={() => {
                 setFormError('');
                 setDeliver({ collectedAmount: expected ? minorToInput(expected) : '', note: '', proofReference: '' });
+                setParcelCode('');
                 setDeliverOpen(true);
               }}
             >
@@ -178,7 +255,7 @@ export function CourierOrderPage() {
             </Button>
           )}
           {allowedActions.includes('report_failed') && (
-            <Button size="lg" variant="secondary" className="btn--block" onClick={() => { setFormError(''); setFailOpen(true); }}>
+            <Button size="lg" variant="secondary" className="btn--block" onClick={() => { setFormError(''); setParcelCode(''); setFailOpen(true); }}>
               تعذر التسليم
             </Button>
           )}
@@ -202,10 +279,11 @@ export function CourierOrderPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setFailOpen(false)} disabled={failing}>إلغاء</Button>
-            <Button variant="danger" loading={failing} onClick={reportFail}>تسجيل المحاولة</Button>
+            <Button variant="danger" loading={failing} disabled={scanMissing} onClick={reportFail}>تسجيل المحاولة</Button>
           </>
         }
       >
+        {needsScan && <ParcelScanField order={order} value={parcelCode} onChange={setParcelCode} />}
         <fieldset className="radio-list">
           <legend>سبب عدم التسليم</legend>
           {Object.entries(FAILURE_REASON_LABELS).map(([value, text]) => (
@@ -228,10 +306,11 @@ export function CourierOrderPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeliverOpen(false)} disabled={submitting}>إلغاء</Button>
-            <Button variant="success" loading={submitting} onClick={() => submitDelivery(expected)}>إرسال للمراجعة</Button>
+            <Button variant="success" loading={submitting} disabled={scanMissing} onClick={() => submitDelivery(expected)}>إرسال للمراجعة</Button>
           </>
         }
       >
+        {needsScan && <ParcelScanField order={order} value={parcelCode} onChange={setParcelCode} />}
         <p>سيتم إرسال التأكيد للمشرف للمراجعة. لن يُعتبر الطلب مُسلّماً إلا بعد موافقته.</p>
         {expected > 0 && (
           <Field label="المبلغ المحصّل من العميل (ج.م)" required hint={`المطلوب: ${formatMoney(expected)}`}>

@@ -7,6 +7,7 @@ import { normalizePhone } from '../utils/phone.js';
 import { recordEvent, userActor } from './auditService.js';
 import { notify } from './notificationService.js';
 import { enqueueStatusSync, processOperation } from './syncService.js';
+import { parcelsAfterAssignment } from './labelService.js';
 
 const ASSIGNABLE = ['new', 'assigned', 'out_for_delivery', 'failed'];
 const COURIER_FIELDS = 'name phone isActive';
@@ -112,6 +113,7 @@ export async function assignOrder(admin, orderId, { courierId, note }) {
         assignedBy: courierId ? admin._id : null,
         assignedAt: courierId ? now : null,
         deliveryStatus: nextStatus,
+        parcels: parcelsAfterAssignment(order, courierId),
       },
     },
     { returnDocument: 'after' },

@@ -3,6 +3,7 @@ import { paymentStatusFromSource } from '../constants/statuses.js';
 import { isDuplicateKeyError } from '../utils/errors.js';
 import { EASYORDERS_ACTOR, recordEvent } from './auditService.js';
 import { notify } from './notificationService.js';
+import { flagReprintIfChanged } from './labelService.js';
 
 /**
  * EasyOrders → Solita: apply source data to orders.
@@ -111,6 +112,7 @@ export async function upsertOrderFromSource(n, { via = 'webhook', isDemo = false
   } else {
     await refreshCodExpectation(order);
   }
+  if (!created) await flagReprintIfChanged(order._id);
 
   return { order: await Order.findById(order._id), outcome: created ? 'created' : 'updated' };
 }

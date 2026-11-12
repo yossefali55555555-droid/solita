@@ -19,7 +19,7 @@ import { enqueueStatusSync, processOperation } from './syncService.js';
  */
 
 const ORDER_FIELDS =
-  'easyOrdersId easyOrdersShortId customer totalAmount currency paymentMethod sourceStatus deliveryStatus deliveryAttempts assignedTo returnInfo sync cod isDemo updatedAt createdAt';
+  'easyOrdersId easyOrdersShortId customer totalAmount currency paymentMethod sourceStatus deliveryStatus deliveryAttempts assignedTo returnInfo sync cod labels.printedAt parcels isDemo updatedAt createdAt';
 
 export async function listReturns({ status = 'pending' }, { skip, limit }) {
   const query = status === 'returned' ? { deliveryStatus: 'returned' } : { deliveryStatus: 'failed' };

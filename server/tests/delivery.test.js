@@ -20,7 +20,10 @@ describe('courier delivery workflow', () => {
   it('starts a delivery and records the in_delivery sync intent', async () => {
     enableEasyOrdersApi();
     const calls = mockEasyOrders(() => ({ status: 200, body: {} }));
-    const { order, courierApi } = await setup({ status: 'assigned' });
+    const { order, courierApi, adminApi } = await setup({ status: 'assigned' });
+    // Labels must be printed and every parcel scanned before leaving.
+    const printed = await adminApi.post('/api/admin/labels/print', { orderIds: [String(order._id)] });
+    for (const p of printed.body.labels[0].parcels) await courierApi.post('/api/courier/scan', { code: p.code });
     const res = await courierApi.patch(`/api/courier/orders/${order._id}/status`, { status: 'out_for_delivery' });
     expect(res.status).toBe(200);
     expect(res.body.order.deliveryStatus).toBe('out_for_delivery');

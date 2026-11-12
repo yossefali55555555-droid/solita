@@ -116,6 +116,11 @@ export const EVENT_LABELS = {
   courier_deactivated: 'إيقاف الحساب',
   courier_password_reset: 'إعادة تعيين كلمة المرور',
   password_changed: 'تغيير كلمة المرور',
+  labels_printed: 'طباعة البوليصة',
+  labels_reprinted: 'إعادة طباعة البوليصة',
+  labels_need_reprint: 'البوليصة تحتاج إعادة طباعة',
+  parcel_picked_up: 'مسح المندوب طرداً عند الاستلام',
+  parcel_returned_to_warehouse: 'وصل طرد مرتجع للمخزن',
 };
 
 export const label = (map, value) => (value ? map[value] || value : '—');

@@ -54,6 +54,22 @@ const deliveryAttemptSchema = new mongoose.Schema(
   { _id: true },
 );
 
+// One parcel (bag) per pair of shoes. Each parcel carries a printed label
+// with a QR code "SOL:<order number>-<n>/<total>" that is scanned when the
+// courier picks it up, before every delivery action, and when a returned
+// parcel arrives back at the warehouse.
+const parcelSchema = new mongoose.Schema(
+  {
+    n: { type: Number, required: true, min: 1 },
+    content: { type: String, maxlength: 400, default: '' },
+    pickedUpAt: { type: Date, default: null },
+    pickedUpBy: { type: ObjectId, ref: 'User', default: null },
+    warehouseAt: { type: Date, default: null },
+    warehouseBy: { type: ObjectId, ref: 'User', default: null },
+  },
+  { _id: false },
+);
+
 const orderSchema = new mongoose.Schema(
   {
     easyOrdersId: { type: String, required: true, trim: true, maxlength: 100 },
@@ -128,6 +144,19 @@ const orderSchema = new mongoose.Schema(
       remittance: { type: ObjectId, ref: 'CashRemittance', default: null },
     },
 
+    // ---- Shipping labels (البوليصة) and parcels ----
+    labels: {
+      printedAt: { type: Date, default: null },
+      printedBy: { type: ObjectId, ref: 'User', default: null },
+      printCount: { type: Number, default: 0 },
+      total: { type: Number, default: 0 },
+      amount: { type: Number, default: null }, // piasters shown on the label
+      signature: { type: String, maxlength: 2000 },
+      needsReprint: { type: Boolean, default: false },
+      reprintReason: { type: String, maxlength: 300 },
+    },
+    parcels: { type: [parcelSchema], default: [] },
+
     // Set when an administrator clears the order from the dashboard lists.
     // The order stays in the database and EasyOrders updates never reset it.
     dashboardHiddenAt: { type: Date, default: null },
@@ -149,5 +178,7 @@ orderSchema.index({ deliveryStatus: 1, deliveredAt: -1 });
 orderSchema.index({ sourceCreatedAt: -1 });
 orderSchema.index({ 'cod.remittance': 1, assignedTo: 1 });
 orderSchema.index({ dashboardHiddenAt: 1, createdAt: -1 });
+orderSchema.index({ 'labels.printedAt': 1, deliveryStatus: 1 });
+orderSchema.index({ 'labels.needsReprint': 1, deliveryStatus: 1 });
 
 export const Order = mongoose.models.Order || mongoose.model('Order', orderSchema);

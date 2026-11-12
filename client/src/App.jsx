@@ -20,10 +20,12 @@ import { ReturnsPage } from './pages/admin/ReturnsPage.jsx';
 import { CustomersPage } from './pages/admin/CustomersPage.jsx';
 import { CustomerDetailPage } from './pages/admin/CustomerDetailPage.jsx';
 import { FinancePage } from './pages/admin/FinancePage.jsx';
+import { LabelsPage } from './pages/admin/LabelsPage.jsx';
 import { CourierOrdersPage } from './pages/courier/CourierOrdersPage.jsx';
 import { CourierOrderPage } from './pages/courier/CourierOrderPage.jsx';
 import { CourierCashPage } from './pages/courier/CourierCashPage.jsx';
 import { CourierNotificationsPage } from './pages/courier/CourierNotificationsPage.jsx';
+import { CourierScanPage } from './pages/courier/CourierScanPage.jsx';
 
 function Home() {
   const { user, status } = useAuth();
@@ -65,6 +67,7 @@ export function App() {
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:key" element={<CustomerDetailPage />} />
         <Route path="finance" element={<FinancePage />} />
+        <Route path="labels" element={<LabelsPage />} />
       </Route>
       <Route
         path="/courier"
@@ -76,6 +79,7 @@ export function App() {
       >
         <Route index element={<CourierOrdersPage />} />
         <Route path="orders/:id" element={<CourierOrderPage />} />
+        <Route path="scan" element={<CourierScanPage />} />
         <Route path="cash" element={<CourierCashPage />} />
         <Route path="notifications" element={<CourierNotificationsPage />} />
       </Route>

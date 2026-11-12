@@ -9,6 +9,9 @@ import {
 } from '../constants/statuses.js';
 import { egyptianMobile, isoDate, moneyInput, objectId, pageQuery, password, trimmed } from './common.js';
 
+// Text of a scanned parcel QR code; parsed and checked by labelService.
+const parcelCodeInput = z.string().trim().min(1, 'امسح كود الطرد').max(200);
+
 // ---------- Auth ----------
 export const loginBody = z.object({
   identifier: z.string().trim().min(3, 'أدخل رقم الهاتف').max(200),
@@ -111,6 +114,7 @@ export const courierStatusBody = z.discriminatedUnion('status', [
       status: z.literal('failed'),
       reason: z.enum(FAILURE_REASONS, { message: 'اختر سبب فشل التسليم' }),
       note: trimmed(1000).optional(),
+      parcelCode: parcelCodeInput.optional(),
     })
     .refine((v) => v.reason !== 'other' || (v.note && v.note.length >= 3), {
       message: 'اكتب توضيحاً عند اختيار "سبب آخر"',
@@ -122,7 +126,28 @@ export const deliveryReportBody = z.strictObject({
   collectedAmount: moneyInput.optional(),
   note: trimmed(1000).optional(),
   proofReference: trimmed(300).optional(),
+  parcelCode: parcelCodeInput.optional(),
 });
+
+// ---------- Labels and parcel scans ----------
+export const labelQueueQuery = z.object({
+  tab: z.enum(['pending', 'reprint', 'printed']).default('pending'),
+  ...pageQuery,
+});
+
+export const printLabelsBody = z.strictObject({
+  orderIds: z.array(objectId).min(1, 'اختر طلباً واحداً على الأقل').max(40, 'الحد الأقصى 40 طلباً في المرة الواحدة'),
+});
+
+export const getLabelsQuery = z.object({
+  ids: z
+    .string()
+    .trim()
+    .transform((v) => v.split(',').filter(Boolean))
+    .pipe(z.array(objectId).min(1).max(40)),
+});
+
+export const scanBody = z.strictObject({ code: parcelCodeInput });
 
 // ---------- Cash ----------
 export const courierDeclareRemittanceBody = z.strictObject({
