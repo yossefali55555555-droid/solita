@@ -57,7 +57,7 @@ function ParcelsCard({ order, onPrinted }) {
     >
       {order.labels?.needsReprint && <div className="alert alert--warning">{order.labels.reprintReason || 'البوليصة تحتاج إعادة طباعة'}</div>}
       {!printed ? (
-        <p className="muted">لم تُطبع البوليصة بعد. لا يستطيع المندوب استلام الطلب قبل طباعتها ومسح كل الطرود.</p>
+        <p className="muted">لم تُطبع البوليصة بعد. لا يستطيع المندوب استلام الطلب قبل طباعتها ومسح كل الطرود. بعد الطباعة يمكنك إسناده لمندوب، أو يأخذه أي مندوب بمسح البوليصة.</p>
       ) : (
         <>
           <p className="muted small">
