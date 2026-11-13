@@ -21,6 +21,8 @@ import { CustomersPage } from './pages/admin/CustomersPage.jsx';
 import { CustomerDetailPage } from './pages/admin/CustomerDetailPage.jsx';
 import { FinancePage } from './pages/admin/FinancePage.jsx';
 import { LabelsPage } from './pages/admin/LabelsPage.jsx';
+import { AbandonedCartsPage } from './pages/admin/AbandonedCartsPage.jsx';
+import { SiteSettingsPage } from './pages/admin/SiteSettingsPage.jsx';
 import { CourierOrdersPage } from './pages/courier/CourierOrdersPage.jsx';
 import { CourierOrderPage } from './pages/courier/CourierOrderPage.jsx';
 import { CourierCashPage } from './pages/courier/CourierCashPage.jsx';
@@ -68,6 +70,8 @@ export function App() {
         <Route path="customers/:key" element={<CustomerDetailPage />} />
         <Route path="finance" element={<FinancePage />} />
         <Route path="labels" element={<LabelsPage />} />
+        <Route path="abandoned-carts" element={<AbandonedCartsPage />} />
+        <Route path="site-settings" element={<SiteSettingsPage />} />
       </Route>
       <Route
         path="/courier"

@@ -1396,3 +1396,8 @@ input[dir='ltr'].input {
 
 .btn--whatsapp { background: #128c4a; color: #fff; border-color: #128c4a; }
 .btn--whatsapp:hover { background: #0e7a40; color: #fff; }
+
+/* ---------- Storefront (abandoned carts, site settings) ---------- */
+.localized { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 640px) { .localized { grid-template-columns: 1fr; } }
+.behaviour-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 12px; }
