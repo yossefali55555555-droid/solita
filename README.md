@@ -91,6 +91,7 @@ npm run dev
 | `MONGODB_DNS_SERVERS` | اختياري (محلياً فقط) | خوادم DNS بديلة مثل `8.8.8.8,1.1.1.1` عند ظهور خطأ `querySrv ECONNREFUSED` |
 | `SESSION_SECRET` | نعم في الإنتاج | نص عشوائي ≥ 32 حرفاً (لتوقيع رموز CSRF) |
 | `CLIENT_ORIGIN` | نعم | رابط الواجهة، مثل `https://solita-courier.vercel.app` (يمكن وضع أكثر من رابط مفصولة بفاصلة) |
+| `STOREFRONT_ORIGINS` | لا | نطاق متجر سوليتا المسموح له باستخدام الروابط العامة `/api/public/*` (الافتراضي `https://solita.myeasyorders.com`، ويمكن وضع أكثر من نطاق مفصولة بفاصلة) |
 | `EASYORDERS_API_KEY` | للمزامنة | مفتاح EasyOrders API بصلاحيات `orders:read` و `orders:update` |
 | `EASYORDERS_API_BASE_URL` | لا | الافتراضي `https://api.easy-orders.net` |
 | `EASYORDERS_WEBHOOK_SECRET` | للـ Webhook | قيمة `secret` التي يعرضها EasyOrders بعد إنشاء الـ Webhook |
@@ -217,6 +218,8 @@ EASYORDERS_API_KEY=...
 EASYORDERS_API_BASE_URL=https://api.easy-orders.net
 EASYORDERS_WEBHOOK_SECRET=...
 CRON_SECRET=...
+# اختياري، الافتراضي https://solita.myeasyorders.com
+STOREFRONT_ORIGINS=https://solita.myeasyorders.com
 ```
 
 لا تضف `MOCK_MODE` على Vercel. `NODE_ENV` يضبطه Vercel تلقائياً. أعد النشر بعد تغيير أي متغير.
@@ -252,6 +255,7 @@ curl -i -X POST https://<نطاقك>/api/webhooks/easyorders/orders -H "Content-
 
 - يستمر العملاء في الشراء من `https://solita.myeasyorders.com/` بنفس صفحة الدفع الحالية. **لا يتم إنشاء أي طلب من هذا النظام**، لذلك لا يوجد خطر تكرار الطلبات.
 - بمجرد إعداد Webhook، كل طلب جديد يظهر في صفحة "الطلبات" بحالة "جديد".
+- **السلات المتروكة وإعدادات الموقع (v5):** الموقع يرسل أحداث الزائر إلى `POST /api/public/events` ويقرأ إعداداته من `GET /api/public/site-config`. التفاصيل الكاملة وشكل الطلبات والردود في `CHANGES-v5.md`.
 - يمكن إضافة رابط داخلي لفريق العمل إلى لوحة النظام (مثلاً نطاق فرعي `ops.solita...`) عبر إعداد Domain في Vercel؛ اللوحة غير مخصصة للعملاء ومحمية بتسجيل الدخول و `noindex`.
 
 ## 16. حل المشكلات الشائعة
@@ -319,10 +323,20 @@ client/public/favicon.svg             (نسخة مطابقة لأيقونة ال
 
 المندوب: `GET /api/courier/orders` · `GET /api/courier/orders/:id` · `PATCH /api/courier/orders/:id/status` · `POST /api/courier/orders/:id/delivery-report` · `GET /api/courier/cash` · `POST /api/courier/cash/remittances`
 
+المتجر (المشرف): `GET /api/admin/storefront/carts` · `POST /api/admin/storefront/carts/:id/contacted` · `POST /api/admin/storefront/carts/:id/dismiss` · `GET /api/admin/storefront/summary` · `GET/PATCH /api/admin/site-settings`
+
+روابط عامة للموقع (بدون تسجيل دخول): `POST /api/public/events` · `GET /api/public/site-config`
+
 Webhooks: `POST /api/webhooks/easyorders/orders` · `POST /api/webhooks/easyorders/status` — Cron: `GET /api/cron/process`
+
+## الخصوصية (بيانات زوار الموقع)
+
+- الزائر يُعرَّف برقم عشوائي يحفظه الموقع على جهازه، ولا يُخزَّن عنوان IP ولا بيانات المتصفح.
+- الاسم ورقم الهاتف يُحفظان فقط إذا كتبهما العميل في صفحة إتمام الطلب، لغرض تذكيره بسلته (مذكور في سياسة الخصوصية بالموقع).
+- الزوار يُحذفون تلقائياً بعد 90 يوماً من آخر زيارة، والسلات بعد 90 يوماً من آخر نشاط (فهارس TTL)، والإحصاءات اليومية بعد 120 يوماً.
 
 ## الأمان باختصار
 
-Argon2id لكلمات المرور · جلسات في قاعدة البيانات بكوكيز `HttpOnly` + `Secure` + `SameSite=Lax` (بادئة `__Host-` في الإنتاج) · CSRF (Double-submit موقّع + فحص Origin) · Helmet · تحديد معدل الطلبات بعدّاد في MongoDB (يعمل عبر كل نسخ Serverless) + قفل مؤقت للحساب بعد محاولات فاشلة · Zod مع رفض الحقول غير المعروفة (منع Mass Assignment) · الصلاحيات تُفرض في الخادم من بيانات المستخدم في قاعدة البيانات فقط · المندوب لا يرى إلا طلباته · حد حجم الطلب 256KB · رسائل أخطاء آمنة · إخفاء الأسرار من السجلات وسجل التدقيق.
+Argon2id لكلمات المرور · جلسات في قاعدة البيانات بكوكيز `HttpOnly` + `Secure` + `SameSite=Lax` (بادئة `__Host-` في الإنتاج) · CSRF (Double-submit موقّع + فحص Origin) · Helmet · تحديد معدل الطلبات بعدّاد في MongoDB (يعمل عبر كل نسخ Serverless) + قفل مؤقت للحساب بعد محاولات فاشلة · Zod مع رفض الحقول غير المعروفة (منع Mass Assignment) · الصلاحيات تُفرض في الخادم من بيانات المستخدم في قاعدة البيانات فقط · المندوب لا يرى إلا طلباته · حد حجم الطلب 256KB (و 32KB للروابط العامة، مع CORS لنطاق المتجر فقط وحد للطلبات لكل IP) · رسائل أخطاء آمنة · إخفاء الأسرار من السجلات وسجل التدقيق.
 
 </div>

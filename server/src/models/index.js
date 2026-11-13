@@ -11,6 +11,10 @@ import { RateLimitCounter } from './RateLimitCounter.js';
 import { IntegrationState } from './IntegrationState.js';
 import { Expense } from './Expense.js';
 import { AppSetting } from './AppSetting.js';
+import { Visitor } from './Visitor.js';
+import { StorefrontCart } from './StorefrontCart.js';
+import { StorefrontDailyStat } from './StorefrontDailyStat.js';
+import { SiteSettings } from './SiteSettings.js';
 
 export {
   publicUser,
@@ -27,6 +31,10 @@ export {
   IntegrationState,
   Expense,
   AppSetting,
+  Visitor,
+  StorefrontCart,
+  StorefrontDailyStat,
+  SiteSettings,
 };
 
 export const allModels = [
@@ -43,4 +51,8 @@ export const allModels = [
   IntegrationState,
   Expense,
   AppSetting,
+  Visitor,
+  StorefrontCart,
+  StorefrontDailyStat,
+  SiteSettings,
 ];

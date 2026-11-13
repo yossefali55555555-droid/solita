@@ -4,6 +4,7 @@ import { isDuplicateKeyError } from '../utils/errors.js';
 import { EASYORDERS_ACTOR, recordEvent } from './auditService.js';
 import { notify } from './notificationService.js';
 import { flagReprintIfChanged } from './labelService.js';
+import { convertCartsForOrder } from './storefrontService.js';
 
 /**
  * EasyOrders → Solita: apply source data to orders.
@@ -113,6 +114,8 @@ export async function upsertOrderFromSource(n, { via = 'webhook', isDemo = false
     await refreshCodExpectation(order);
   }
   if (!created) await flagReprintIfChanged(order._id);
+  // Storefront abandoned carts: link / convert. Never throws, never changes the order.
+  await convertCartsForOrder(order, { phoneMatch: created });
 
   return { order: await Order.findById(order._id), outcome: created ? 'created' : 'updated' };
 }

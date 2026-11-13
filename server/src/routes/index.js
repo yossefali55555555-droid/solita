@@ -8,6 +8,9 @@ import * as auth from '../controllers/authController.js';
 import * as admin from '../controllers/adminController.js';
 import * as courier from '../controllers/courierController.js';
 import * as webhook from '../controllers/webhookController.js';
+import * as storefront from '../controllers/storefrontController.js';
+import { listCartsQuery } from '../validators/storefront.js';
+import { siteSettingsSchema } from '../validators/siteSettings.js';
 
 export function buildRouter() {
   const api = Router();
@@ -102,6 +105,13 @@ export function buildRouter() {
   a.post('/finance/expenses', validate({ body: s.createExpenseBody }), admin.createExpense);
   a.patch('/finance/expenses/:id', validate({ params: idParams, body: s.updateExpenseBody }), admin.updateExpense);
   a.post('/finance/expenses/:id/delete', validate({ params: idParams, body: s.deleteExpenseBody }), admin.deleteExpense);
+
+  a.get('/storefront/carts', validate({ query: listCartsQuery }), storefront.listCarts);
+  a.post('/storefront/carts/:id/contacted', id, storefront.markCartContacted);
+  a.post('/storefront/carts/:id/dismiss', id, storefront.dismissCart);
+  a.get('/storefront/summary', storefront.behaviourSummary);
+  a.get('/site-settings', storefront.getSiteSettings);
+  a.patch('/site-settings', validate({ body: siteSettingsSchema }), storefront.updateSiteSettings);
   api.use('/admin', a);
 
   // ---------------- Courier ----------------

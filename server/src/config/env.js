@@ -12,6 +12,9 @@ import { z } from 'zod';
 
 export const DATABASE_NAME = 'solita';
 
+/** The public EasyOrders storefront that may call /api/public/*. */
+export const DEFAULT_STOREFRONT_ORIGIN = 'https://solita.myeasyorders.com';
+
 const booleanString = z
   .enum(['true', 'false', '1', '0', ''])
   .optional()
@@ -31,6 +34,10 @@ const envSchema = z.object({
   MONGODB_DNS_SERVERS: optionalString,
   SESSION_SECRET: optionalString,
   CLIENT_ORIGIN: z.string().optional().default('http://localhost:5173'),
+  STOREFRONT_ORIGINS: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? v : DEFAULT_STOREFRONT_ORIGIN)),
   EASYORDERS_API_KEY: optionalString,
   EASYORDERS_API_BASE_URL: z
     .string()
@@ -109,6 +116,15 @@ export function loadConfig(env = process.env, { forceMock } = {}) {
     }
   }
 
+  const storefrontOrigins = e.STOREFRONT_ORIGINS.split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+  for (const origin of storefrontOrigins) {
+    if (!/^https?:\/\/[^/\s]+$/.test(origin)) {
+      problems.push(`STOREFRONT_ORIGINS contains an invalid origin: "${origin}"`);
+    }
+  }
+
   if (problems.length) throw new ConfigError(problems);
 
   return Object.freeze({
@@ -123,6 +139,7 @@ export function loadConfig(env = process.env, { forceMock } = {}) {
     sessionSecret,
     sessionSecretIsEphemeral: sessionSecret === ephemeralSecret,
     clientOrigins,
+    storefrontOrigins,
     mockMode,
     cookieSecure: isProduction,
     cronSecret: e.CRON_SECRET,

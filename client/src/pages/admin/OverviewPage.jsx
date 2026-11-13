@@ -3,6 +3,7 @@ import { ErrorState, LoadingState } from '../../components/States.jsx';
 import { useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { formatMoney, formatNumber } from '../../utils/format.js';
+import { VisitorBehaviourCard } from '../../features/storefront/VisitorBehaviourCard.jsx';
 
 function ReadinessRow({ ok, label, hint }) {
   return (
@@ -25,6 +26,7 @@ export function OverviewPage() {
   return (
     <>
       <PageHeader title="نظرة عامة" subtitle="أرقام فعلية من قاعدة البيانات" />
+      <VisitorBehaviourCard showLink />
 
       <h2 className="section-title">الطلبات</h2>
       <div className="stats-grid">
