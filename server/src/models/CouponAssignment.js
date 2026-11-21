@@ -1,0 +1,40 @@
+import mongoose from 'mongoose';
+
+const { ObjectId } = mongoose.Schema.Types;
+
+/**
+ * A discount coupon created in EasyOrders and tied to one customer phone.
+ * A code with no phone is still in the pool (not given to anyone yet).
+ * Codes are stored lowercase (EasyOrders matches codes case-insensitively).
+ */
+const couponAssignmentSchema = new mongoose.Schema(
+  {
+    code: { type: String, required: true, trim: true, lowercase: true, maxlength: 60 },
+    // Insertion order: the lowest unassigned `seq` goes to the next customer.
+    seq: { type: Number, required: true },
+    phoneNormalized: { type: String, default: null, maxlength: 40 },
+    customerName: { type: String, trim: true, maxlength: 200, default: '' },
+    order: { type: ObjectId, ref: 'Order', default: null },
+    assignedAt: { type: Date, default: null },
+    // Valid for exactly 365 days from assignment (the customer received the order / the code).
+    expiresAt: { type: Date, default: null },
+    assignedVia: { type: String, enum: ['auto', 'manual', 'order', 'import'], default: undefined },
+    sentAt: { type: Date, default: null },
+    sentBy: { type: ObjectId, ref: 'User', default: null },
+    notes: { type: String, trim: true, maxlength: 1000, default: '' },
+  },
+  { timestamps: true },
+);
+
+couponAssignmentSchema.index({ code: 1 }, { unique: true });
+couponAssignmentSchema.index({ seq: 1 });
+// One code per customer phone; the pool (null phone) is not constrained.
+couponAssignmentSchema.index(
+  { phoneNormalized: 1 },
+  { unique: true, partialFilterExpression: { phoneNormalized: { $type: 'string' } } },
+);
+
+export const COUPON_VALID_DAYS = 365;
+
+export const CouponAssignment =
+  mongoose.models.CouponAssignment || mongoose.model('CouponAssignment', couponAssignmentSchema, 'coupon_assignments');

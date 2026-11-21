@@ -5,6 +5,7 @@ import { EASYORDERS_ACTOR, recordEvent } from './auditService.js';
 import { notify } from './notificationService.js';
 import { flagReprintIfChanged } from './labelService.js';
 import { convertCartsForOrder } from './storefrontService.js';
+import { flagCouponMisuse } from './couponService.js';
 
 /**
  * EasyOrders → Solita: apply source data to orders.
@@ -118,6 +119,8 @@ export async function upsertOrderFromSource(n, { via = 'webhook', isDemo = false
   if (!created) await flagReprintIfChanged(order._id);
   // Storefront abandoned carts: link / convert. Never throws, never changes the order.
   await convertCartsForOrder(order, { phoneMatch: created });
+  // Customer-bound coupons: flag an order that used a code from another phone. Never throws.
+  if (order.couponCode) await flagCouponMisuse(order);
 
   return { order: await Order.findById(order._id), outcome: created ? 'created' : 'updated' };
 }

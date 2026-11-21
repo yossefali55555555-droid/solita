@@ -90,3 +90,17 @@ export const updateFounderBody = z.strictObject({
   friendCode: couponCodeField.optional(),
   notes: str(1000).optional(),
 });
+
+export const couponCheckBody = z.strictObject({
+  code: str(60),
+  phone: str(40).optional(),
+});
+
+export const addCouponsBody = z.strictObject({
+  codes: z.array(str(60).min(1)).min(1, 'أضف كودًا واحدًا على الأقل').max(500),
+});
+
+export const assignCouponBody = z.strictObject({
+  phone: str(40).min(1),
+  name: str(200).optional(),
+});

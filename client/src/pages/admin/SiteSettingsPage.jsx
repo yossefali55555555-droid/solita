@@ -410,6 +410,34 @@ export function SiteSettingsPage() {
         </Field>
       </Card>
 
+      <Card title="رسائل واتساب الطلبات">
+        <p className="muted small">
+          النصوص اللي بتتبعت من صفحة «الطلبات». المتغيرات: {'{name}'} الاسم الأول، {'{code}'} كود الخصم، {'{store}'} رابط المتجر، {'{num}'} رقم الطلب، {'{items}'} المنتجات والمقاسات، {'{total}'} الإجمالي، {'{payment}'} طريقة الدفع، {'{address}'} العنوان.
+        </p>
+        <Field label="رسالة كود الخصم">
+          {(id) => (
+            <textarea
+              id={id}
+              className="input"
+              rows={8}
+              value={form.admin.couponWhatsappTemplate}
+              onChange={(e) => set(['admin', 'couponWhatsappTemplate'])(e.target.value)}
+            />
+          )}
+        </Field>
+        <Field label="رسالة تأكيد البيانات (للطلبات قيد المراجعة)">
+          {(id) => (
+            <textarea
+              id={id}
+              className="input"
+              rows={9}
+              value={form.admin.confirmWhatsappTemplate}
+              onChange={(e) => set(['admin', 'confirmWhatsappTemplate'])(e.target.value)}
+            />
+          )}
+        </Field>
+      </Card>
+
       <div className="sticky-actions">
         <Button onClick={save} loading={saving} disabled={!dirty} size="lg">
           حفظ التغييرات

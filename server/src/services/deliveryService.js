@@ -4,6 +4,7 @@ import { logger } from '../utils/logger.js';
 import { recordEvent, userActor } from './auditService.js';
 import { notify } from './notificationService.js';
 import { assignFounderForOrder } from './founderService.js';
+import { assignCouponOnDelivery } from './couponService.js';
 import { enqueueStatusSync, processOperation } from './syncService.js';
 import { assertParcelScan, assertReadyToStart } from './labelService.js';
 
@@ -340,6 +341,8 @@ export async function approveReview(admin, reviewId) {
   });
   // Founders: number the customer if still within the cap. Never throws.
   await assignFounderForOrder(order);
+  // Next customer-bound discount code for this customer. Never throws.
+  await assignCouponOnDelivery(order);
   await notify(review.courier, 'review_approved', `تمت الموافقة على تسليم الطلب (${order.easyOrdersId})`, order._id);
 
   // Start EasyOrders synchronization; tracked independently of the approval.

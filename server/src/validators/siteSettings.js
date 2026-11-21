@@ -88,6 +88,8 @@ export const siteSettingsSchema = z.strictObject({
   }),
   admin: z.strictObject({
     cartWhatsappTemplate: text(1000),
+    couponWhatsappTemplate: text(1500),
+    confirmWhatsappTemplate: text(1500),
   }),
 });
 
@@ -166,6 +168,10 @@ export const DEFAULT_SITE_SETTINGS = Object.freeze({
   admin: {
     cartWhatsappTemplate:
       'مرحبًا {name}، معك فريق سوليتا.\nلاحظنا أنك أضفت إلى سلتك: {items}\nالإجمالي: {total}.\nهل يمكننا مساعدتك في إتمام طلبك أو الإجابة عن أي سؤال؟',
+    couponWhatsappTemplate:
+      'أهلاً {name}،\nمعاك فريق سوليتا. شكراً إنك اخترتنا، ويسعدنا إن أوردرك وصلك بالسلامة.\nجهّزنالك هدية: خصم 15% على أوردرك الجاي بالكامل.\nكود الخصم بتاعك: {code}\nاكتبه في خانة الكوبون وانت بتكمّل طلبك على {store}\nالكود مخصوص لرقمك انت بس، ويتستخدم مرة واحدة.\nWalk with character.',
+    confirmWhatsappTemplate:
+      'أهلاً {name}، معاك فريق سوليتا.\nوصلنا طلبك رقم {num}:\n{items}\nالإجمالي: {total} شامل الشحن ({payment}).\nالعنوان: {address}\nممكن تأكدلنا إن البيانات دي صح؟ ولو في أي تعديل ابعتهولنا هنا.\nوتفتكر إنك بتفتح الطلب وتقيسه قدام المندوب قبل ما تدفع.',
   },
 });
 

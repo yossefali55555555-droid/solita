@@ -9,7 +9,8 @@ import * as admin from '../controllers/adminController.js';
 import * as courier from '../controllers/courierController.js';
 import * as webhook from '../controllers/webhookController.js';
 import * as storefront from '../controllers/storefrontController.js';
-import { listCartsQuery, updateFounderBody } from '../validators/storefront.js';
+import { addCouponsBody, assignCouponBody, listCartsQuery, updateFounderBody } from '../validators/storefront.js';
+import * as couponCtl from '../controllers/couponController.js';
 import { siteSettingsSchema } from '../validators/siteSettings.js';
 
 export function buildRouter() {
@@ -110,6 +111,13 @@ export function buildRouter() {
   a.post('/storefront/carts/:id/contacted', id, storefront.markCartContacted);
   a.post('/storefront/carts/:id/dismiss', id, storefront.dismissCart);
   a.get('/storefront/summary', storefront.behaviourSummary);
+  a.get('/coupons', couponCtl.listCoupons);
+  a.post('/coupons', validate({ body: addCouponsBody }), couponCtl.addCoupons);
+  a.post('/coupons/:id/assign', validate({ params: idParams, body: assignCouponBody }), couponCtl.assignCoupon);
+  a.post('/coupons/:id/release', id, couponCtl.releaseCoupon);
+  a.post('/coupons/:id/sent', id, couponCtl.couponSent);
+  a.post('/orders/:id/coupon', id, couponCtl.orderCoupon);
+  a.post('/orders/:id/confirmation-sent', id, couponCtl.orderConfirmationSent);
   a.get('/founders', storefront.listFounders);
   a.patch('/founders/:id', validate({ params: idParams, body: updateFounderBody }), storefront.updateFounder);
   a.get('/site-settings', storefront.getSiteSettings);

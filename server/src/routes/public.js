@@ -3,11 +3,12 @@ import cors from 'cors';
 import { getConfig } from '../config/env.js';
 import { connectDb } from '../db/connect.js';
 import { notFoundHandler } from '../middleware/errorHandler.js';
-import { publicConfigRateLimiter, publicEventsRateLimiter } from '../middleware/rateLimit.js';
+import { publicConfigRateLimiter, publicCouponCheckRateLimiter, publicEventsRateLimiter } from '../middleware/rateLimit.js';
 import { validate } from '../middleware/validate.js';
 import { badRequest, forbidden } from '../utils/errors.js';
-import { eventsEnvelopeSchema, PUBLIC_BODY_LIMIT } from '../validators/storefront.js';
+import { couponCheckBody, eventsEnvelopeSchema, PUBLIC_BODY_LIMIT } from '../validators/storefront.js';
 import * as pub from '../controllers/publicController.js';
+import * as couponCtl from '../controllers/couponController.js';
 
 const normalizeOrigin = (o) => String(o || '').replace(/\/+$/, '');
 
@@ -68,6 +69,13 @@ export function buildPublicRouter() {
     publicEventsRateLimiter(),
     validate({ body: eventsEnvelopeSchema }),
     pub.postEvents,
+  );
+  r.post(
+    '/coupon-check',
+    requireStorefrontOrigin,
+    publicCouponCheckRateLimiter(),
+    validate({ body: couponCheckBody }),
+    couponCtl.publicCouponCheck,
   );
   r.use(notFoundHandler);
   return r;

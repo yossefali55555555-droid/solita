@@ -23,6 +23,7 @@ import { FinancePage } from './pages/admin/FinancePage.jsx';
 import { LabelsPage } from './pages/admin/LabelsPage.jsx';
 import { AbandonedCartsPage } from './pages/admin/AbandonedCartsPage.jsx';
 import { FoundersPage } from './pages/admin/FoundersPage.jsx';
+import { CouponsPage } from './pages/admin/CouponsPage.jsx';
 import { SiteSettingsPage } from './pages/admin/SiteSettingsPage.jsx';
 import { CourierOrdersPage } from './pages/courier/CourierOrdersPage.jsx';
 import { CourierOrderPage } from './pages/courier/CourierOrderPage.jsx';
@@ -73,6 +74,7 @@ export function App() {
         <Route path="labels" element={<LabelsPage />} />
         <Route path="abandoned-carts" element={<AbandonedCartsPage />} />
         <Route path="founders" element={<FoundersPage />} />
+        <Route path="coupons" element={<CouponsPage />} />
         <Route path="site-settings" element={<SiteSettingsPage />} />
       </Route>
       <Route

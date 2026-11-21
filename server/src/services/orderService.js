@@ -8,6 +8,7 @@ import { recordEvent, userActor } from './auditService.js';
 import { notify } from './notificationService.js';
 import { enqueueStatusSync, processOperation } from './syncService.js';
 import { parcelsAfterAssignment } from './labelService.js';
+import { attachCoupons } from './couponService.js';
 
 const ASSIGNABLE = ['new', 'assigned', 'out_for_delivery', 'failed'];
 const COURIER_FIELDS = 'name phone isActive';
@@ -35,6 +36,8 @@ export async function listOrders(filters, { skip, limit }) {
   if (filters.courier === 'unassigned') query.assignedTo = null;
   else if (filters.courier) query.assignedTo = filters.courier;
   if (filters.syncState) query['sync.state'] = filters.syncState;
+  if (filters.unconfirmed) query.sourceStatus = 'pending';
+  if (filters.couponFlagged) query['couponFlag.active'] = true;
   if (filters.from || filters.to) {
     query.createdAt = {};
     if (filters.from) query.createdAt.$gte = filters.from;
@@ -46,11 +49,12 @@ export async function listOrders(filters, { skip, limit }) {
       .sort({ createdAt: -1, _id: -1 })
       .skip(skip)
       .limit(limit)
-      .select('-deliveryAttempts -items.options')
+      .select('-deliveryAttempts')
       .populate('assignedTo', COURIER_FIELDS)
       .lean(),
     Order.countDocuments(query),
   ]);
+  await attachCoupons(items);
   return { items, total };
 }
 
