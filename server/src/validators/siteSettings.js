@@ -80,6 +80,12 @@ export const siteSettingsSchema = z.strictObject({
     generalMessage: localized(500),
   }),
   delivery: z.strictObject({ text: localized(200) }),
+  founders: z.strictObject({
+    enabled: z.boolean(),
+    cap: z.number().int().min(1).max(500),
+    // The remaining-count is shown on the site only after this many founders.
+    showCounterAfter: z.number().int().min(0).max(500),
+  }),
   admin: z.strictObject({
     cartWhatsappTemplate: text(1000),
   }),
@@ -156,6 +162,7 @@ export const DEFAULT_SITE_SETTINGS = Object.freeze({
       en: 'Delivery usually takes 1 to 3 working days (Sunday to Thursday).',
     },
   },
+  founders: { enabled: true, cap: 50, showCounterAfter: 10 },
   admin: {
     cartWhatsappTemplate:
       'مرحبًا {name}، معك فريق سوليتا.\nلاحظنا أنك أضفت إلى سلتك: {items}\nالإجمالي: {total}.\nهل يمكننا مساعدتك في إتمام طلبك أو الإجابة عن أي سؤال؟',

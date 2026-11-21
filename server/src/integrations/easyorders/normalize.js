@@ -79,6 +79,9 @@ export function normalizeEasyOrdersOrder(payload) {
       : undefined;
   const paymentMethod = has(payload, 'payment_method') ? optStr(payload.payment_method, 60) : undefined;
 
+  const couponCode = has(payload, 'coupon_code') ? optStr(payload.coupon_code, 60)?.toLowerCase() : undefined;
+  const couponDiscount = has(payload, 'coupon_discount') ? toMinorOrZero(payload.coupon_discount) : undefined;
+
   const customer = {};
   if (has(payload, 'full_name')) customer.name = str(payload.full_name, 200);
   if (has(payload, 'phone')) {
@@ -98,6 +101,8 @@ export function normalizeEasyOrdersOrder(payload) {
     discount,
     totalAmount,
     paymentMethod,
+    couponCode,
+    couponDiscount,
     shortId: parseShortId(payload.short_id),
     sourceStatus: has(payload, 'status') ? optStr(payload.status, 60) : undefined,
     sourceCreatedAt: parseDate(payload.created_at),

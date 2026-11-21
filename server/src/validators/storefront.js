@@ -76,3 +76,17 @@ export const listCartsQuery = z.object({
   notContacted: z.enum(['true', 'false']).optional(),
   ...pageQuery,
 });
+
+// Founder coupon codes are EasyOrders codes (letters, digits, - _), stored lowercase.
+const couponCodeField = z
+  .string()
+  .trim()
+  .max(60)
+  .regex(/^[A-Za-z0-9_-]*$/, 'الكود يحتوي على أحرف غير مسموحة')
+  .transform((v) => v.toLowerCase());
+
+export const updateFounderBody = z.strictObject({
+  personalCode: couponCodeField.optional(),
+  friendCode: couponCodeField.optional(),
+  notes: str(1000).optional(),
+});

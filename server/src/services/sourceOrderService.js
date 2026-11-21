@@ -37,6 +37,8 @@ function buildSourceSet(n, now) {
   assign('discount', n.discount);
   assign('totalAmount', n.totalAmount);
   assign('paymentMethod', n.paymentMethod);
+  assign('couponCode', n.couponCode);
+  assign('couponDiscount', n.couponDiscount);
   assign('cod.isCod', n.isCod);
   assign('sourceCreatedAt', n.sourceCreatedAt);
   assign('sourceUpdatedAt', n.sourceUpdatedAt);

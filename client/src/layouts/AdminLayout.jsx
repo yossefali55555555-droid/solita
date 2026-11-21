@@ -14,6 +14,7 @@ const NAV = [
   { to: '/admin/cash', label: 'النقدية والتسويات' },
   { to: '/admin/finance', label: 'الأرباح والمصروفات' },
   { to: '/admin/abandoned-carts', label: 'السلات المتروكة' },
+  { to: '/admin/founders', label: 'أوائل سوليتا' },
   { to: '/admin/site-settings', label: 'إعدادات الموقع' },
   { to: '/admin/sync', label: 'المزامنة مع EasyOrders' },
 ];

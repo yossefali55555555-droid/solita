@@ -251,6 +251,43 @@ export function SiteSettingsPage() {
         </div>
       </Card>
 
+      <Card title="أوائل سوليتا">
+        <p className="muted small">
+          عدد المؤسسين الأقصى، ومتى يظهر عداد «باقي X من {form.founders.cap}» على الموقع (لا يظهر قبل هذا العدد حتى لا يبدو واقفًا). الأرقام الفعلية في صفحة «أوائل سوليتا».
+        </p>
+        <Toggle checked={form.founders.enabled} onChange={set(['founders', 'enabled'])}>
+          تفعيل ترقيم المؤسسين
+        </Toggle>
+        <div className="inline-form">
+          <Field label="الحد الأقصى للمؤسسين">
+            {(id) => (
+              <input
+                id={id}
+                className="input"
+                type="number"
+                min={1}
+                max={500}
+                value={form.founders.cap}
+                onChange={(e) => set(['founders', 'cap'])(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
+              />
+            )}
+          </Field>
+          <Field label="إظهار العداد بعد كم مؤسس">
+            {(id) => (
+              <input
+                id={id}
+                className="input"
+                type="number"
+                min={0}
+                max={500}
+                value={form.founders.showCounterAfter}
+                onChange={(e) => set(['founders', 'showCounterAfter'])(Math.max(0, Math.min(500, Number(e.target.value) || 0)))}
+              />
+            )}
+          </Field>
+        </div>
+      </Card>
+
       <Card title="رسائل السلة">
         <p className="muted small">
           عندما يعود زائر وفي سلته منتجات، تظهر له رسالة واحدة في كل زيارة بالترتيب: الزيارة الأولى الرسالة الأولى، ثم الثانية، وهكذا.

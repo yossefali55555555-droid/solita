@@ -15,6 +15,7 @@ import { Visitor } from './Visitor.js';
 import { StorefrontCart } from './StorefrontCart.js';
 import { StorefrontDailyStat } from './StorefrontDailyStat.js';
 import { SiteSettings } from './SiteSettings.js';
+import { Founder } from './Founder.js';
 
 export {
   publicUser,
@@ -35,6 +36,7 @@ export {
   StorefrontCart,
   StorefrontDailyStat,
   SiteSettings,
+  Founder,
 };
 
 export const allModels = [
@@ -55,4 +57,5 @@ export const allModels = [
   StorefrontCart,
   StorefrontDailyStat,
   SiteSettings,
+  Founder,
 ];

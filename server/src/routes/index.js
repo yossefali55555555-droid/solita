@@ -9,7 +9,7 @@ import * as admin from '../controllers/adminController.js';
 import * as courier from '../controllers/courierController.js';
 import * as webhook from '../controllers/webhookController.js';
 import * as storefront from '../controllers/storefrontController.js';
-import { listCartsQuery } from '../validators/storefront.js';
+import { listCartsQuery, updateFounderBody } from '../validators/storefront.js';
 import { siteSettingsSchema } from '../validators/siteSettings.js';
 
 export function buildRouter() {
@@ -110,6 +110,8 @@ export function buildRouter() {
   a.post('/storefront/carts/:id/contacted', id, storefront.markCartContacted);
   a.post('/storefront/carts/:id/dismiss', id, storefront.dismissCart);
   a.get('/storefront/summary', storefront.behaviourSummary);
+  a.get('/founders', storefront.listFounders);
+  a.patch('/founders/:id', validate({ params: idParams, body: updateFounderBody }), storefront.updateFounder);
   a.get('/site-settings', storefront.getSiteSettings);
   a.patch('/site-settings', validate({ body: siteSettingsSchema }), storefront.updateSiteSettings);
   api.use('/admin', a);
