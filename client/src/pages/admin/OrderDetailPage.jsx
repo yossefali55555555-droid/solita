@@ -19,6 +19,7 @@ import { api } from '../../services/api.js';
 import { FAILURE_REASON_LABELS, PAYMENT_STATUS_LABELS, SOURCE_STATUS_LABELS, label } from '../../utils/labels.js';
 import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
 import { PrintPortal } from '../../features/labels/LabelSheets.jsx';
+import { OrderWhatsAppButtons } from '../../features/whatsapp/OrderWhatsAppButtons.jsx';
 
 function parcelState(p) {
   if (p.warehouseAt) return `وصل المخزن ${formatDateTime(p.warehouseAt)}`;
@@ -100,6 +101,10 @@ export function OrderDetailPage() {
   const detail = useAsync(() => api.get(`/admin/orders/${id}`), [id]);
   const events = useAsync(() => api.get(`/admin/orders/${id}/events`), [id]);
   const couriers = useAsync(() => api.get('/admin/couriers-brief'), []);
+  const settings = useAsync(() => api.get('/admin/site-settings'), []);
+  const waTemplates = settings.data?.settings?.admin
+    ? { coupon: settings.data.settings.admin.couponWhatsappTemplate, confirm: settings.data.settings.admin.confirmWhatsappTemplate }
+    : null;
 
   const [courierId, setCourierId] = useState('');
   const [confirmAssign, setConfirmAssign] = useState(null); // { courierId, label }
@@ -218,6 +223,9 @@ export function OrderDetailPage() {
               c.notes && ['ملاحظات', c.notes],
             ]}
           />
+          <div className="order-whatsapp">
+            <OrderWhatsAppButtons order={order} templates={waTemplates} onChanged={() => detail.reload({ silent: true })} />
+          </div>
         </Card>
 
         <Card title="الدفع">

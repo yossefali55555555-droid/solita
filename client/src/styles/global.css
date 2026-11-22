@@ -1401,3 +1401,6 @@ input[dir='ltr'].input {
 .localized { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 @media (max-width: 640px) { .localized { grid-template-columns: 1fr; } }
 .behaviour-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 12px; }
+
+/* WhatsApp buttons under the customer data on the order page */
+.order-whatsapp { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border, #e5e0d5); }

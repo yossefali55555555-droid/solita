@@ -66,6 +66,7 @@ export async function getOrderForAdmin(orderId) {
     .populate('cancellation.by', 'name')
     .lean();
   if (!order) throw notFound('الطلب غير موجود');
+  await attachCoupons([order]);
   const [reviews, syncOperations] = await Promise.all([
     DeliveryReview.find({ order: orderId })
       .sort({ submittedAt: -1 })
