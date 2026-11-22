@@ -9,7 +9,8 @@ import * as admin from '../controllers/adminController.js';
 import * as courier from '../controllers/courierController.js';
 import * as webhook from '../controllers/webhookController.js';
 import * as storefront from '../controllers/storefrontController.js';
-import { listCartsQuery } from '../validators/storefront.js';
+import { addCouponsBody, assignCouponBody, couponDatesBody, couponSettingsBody, importCouponsBody, listCartsQuery, updateFounderBody } from '../validators/storefront.js';
+import * as couponCtl from '../controllers/couponController.js';
 import { siteSettingsSchema } from '../validators/siteSettings.js';
 
 export function buildRouter() {
@@ -69,6 +70,7 @@ export function buildRouter() {
 
   a.get('/sync/failures', validate({ query: s.listSyncFailuresQuery }), admin.syncFailures);
   a.post('/sync/process-due', admin.processDue);
+  a.post('/system/init-db', admin.initDb);
   a.get('/easyorders/poll', admin.pollStatus);
   a.post('/easyorders/poll', admin.pollNow);
   a.post('/easyorders/import', validate({ body: s.importOrderBody }), admin.importEasyOrdersOrder);
@@ -110,6 +112,20 @@ export function buildRouter() {
   a.post('/storefront/carts/:id/contacted', id, storefront.markCartContacted);
   a.post('/storefront/carts/:id/dismiss', id, storefront.dismissCart);
   a.get('/storefront/summary', storefront.behaviourSummary);
+  a.get('/coupons', couponCtl.listCoupons);
+  a.post('/coupons', validate({ body: addCouponsBody }), couponCtl.addCoupons);
+  a.get('/coupons/attempts', couponCtl.listAttempts);
+  a.post('/coupons/import', validate({ body: importCouponsBody }), couponCtl.importCoupons);
+  a.patch('/coupons/:id/dates', validate({ params: idParams, body: couponDatesBody }), couponCtl.editDates);
+  a.post('/coupons/:id/undo', id, couponCtl.undoChange);
+  a.patch('/coupons/:id/settings', validate({ params: idParams, body: couponSettingsBody }), couponCtl.updateSettings);
+  a.post('/coupons/:id/assign', validate({ params: idParams, body: assignCouponBody }), couponCtl.assignCoupon);
+  a.post('/coupons/:id/release', id, couponCtl.releaseCoupon);
+  a.post('/coupons/:id/sent', id, couponCtl.couponSent);
+  a.post('/orders/:id/coupon', id, couponCtl.orderCoupon);
+  a.post('/orders/:id/confirmation-sent', id, couponCtl.orderConfirmationSent);
+  a.get('/founders', storefront.listFounders);
+  a.patch('/founders/:id', validate({ params: idParams, body: updateFounderBody }), storefront.updateFounder);
   a.get('/site-settings', storefront.getSiteSettings);
   a.patch('/site-settings', validate({ body: siteSettingsSchema }), storefront.updateSiteSettings);
   api.use('/admin', a);

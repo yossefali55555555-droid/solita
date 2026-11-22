@@ -251,6 +251,43 @@ export function SiteSettingsPage() {
         </div>
       </Card>
 
+      <Card title="أوائل سوليتا">
+        <p className="muted small">
+          عدد المؤسسين الأقصى، ومتى يظهر عداد «باقي X من {form.founders.cap}» على الموقع (لا يظهر قبل هذا العدد حتى لا يبدو واقفًا). الأرقام الفعلية في صفحة «أوائل سوليتا».
+        </p>
+        <Toggle checked={form.founders.enabled} onChange={set(['founders', 'enabled'])}>
+          تفعيل ترقيم المؤسسين
+        </Toggle>
+        <div className="inline-form">
+          <Field label="الحد الأقصى للمؤسسين">
+            {(id) => (
+              <input
+                id={id}
+                className="input"
+                type="number"
+                min={1}
+                max={500}
+                value={form.founders.cap}
+                onChange={(e) => set(['founders', 'cap'])(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
+              />
+            )}
+          </Field>
+          <Field label="إظهار العداد بعد كم مؤسس">
+            {(id) => (
+              <input
+                id={id}
+                className="input"
+                type="number"
+                min={0}
+                max={500}
+                value={form.founders.showCounterAfter}
+                onChange={(e) => set(['founders', 'showCounterAfter'])(Math.max(0, Math.min(500, Number(e.target.value) || 0)))}
+              />
+            )}
+          </Field>
+        </div>
+      </Card>
+
       <Card title="رسائل السلة">
         <p className="muted small">
           عندما يعود زائر وفي سلته منتجات، تظهر له رسالة واحدة في كل زيارة بالترتيب: الزيارة الأولى الرسالة الأولى، ثم الثانية، وهكذا.
@@ -368,6 +405,34 @@ export function SiteSettingsPage() {
               rows={5}
               value={form.admin.cartWhatsappTemplate}
               onChange={(e) => set(['admin', 'cartWhatsappTemplate'])(e.target.value)}
+            />
+          )}
+        </Field>
+      </Card>
+
+      <Card title="رسائل واتساب الطلبات">
+        <p className="muted small">
+          النصوص اللي بتتبعت من صفحة «الطلبات». المتغيرات: {'{name}'} الاسم الأول، {'{code}'} كود الخصم، {'{store}'} رابط المتجر، {'{num}'} رقم الطلب، {'{items}'} المنتجات والمقاسات، {'{total}'} الإجمالي، {'{payment}'} طريقة الدفع (بتتغير حسب الدفع الفعلي)، {'{address}'} العنوان. سطر القياس اكتبه في الرسالة نفسها.
+        </p>
+        <Field label="رسالة كود الخصم">
+          {(id) => (
+            <textarea
+              id={id}
+              className="input"
+              rows={8}
+              value={form.admin.couponWhatsappTemplate}
+              onChange={(e) => set(['admin', 'couponWhatsappTemplate'])(e.target.value)}
+            />
+          )}
+        </Field>
+        <Field label="رسالة تأكيد البيانات (للطلبات قيد المراجعة)">
+          {(id) => (
+            <textarea
+              id={id}
+              className="input"
+              rows={9}
+              value={form.admin.confirmWhatsappTemplate}
+              onChange={(e) => set(['admin', 'confirmWhatsappTemplate'])(e.target.value)}
             />
           )}
         </Field>

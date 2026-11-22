@@ -1,5 +1,6 @@
 import { paginated, paginationParams } from '../utils/pagination.js';
 import * as storefront from '../services/storefrontService.js';
+import * as founders from '../services/founderService.js';
 import * as siteSettings from '../services/siteSettingsService.js';
 
 // ---------- Abandoned carts ----------
@@ -19,6 +20,15 @@ export async function dismissCart(req, res) {
 
 export async function behaviourSummary(_req, res) {
   res.json(await storefront.behaviourSummary());
+}
+
+// ---------- Founders ----------
+export async function listFounders(_req, res) {
+  res.json(await founders.listFounders());
+}
+
+export async function updateFounder(req, res) {
+  res.json({ founder: await founders.updateFounder(req.valid.params.id, req.valid.body) });
 }
 
 // ---------- Site settings ----------

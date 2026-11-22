@@ -1,4 +1,5 @@
 import { SiteSettings } from '../models/index.js';
+import { publicFounderCounter } from './founderService.js';
 import { DEFAULT_SITE_SETTINGS, mergeWithDefaults, publicSiteConfig } from '../validators/siteSettings.js';
 
 const KEY = 'site';
@@ -28,9 +29,12 @@ export async function updateSiteSettings(user, settings) {
 /** What the storefront reads: no dashboard-only settings, no user data. */
 export async function getPublicSiteConfig() {
   const doc = await SiteSettings.findOne({ key: KEY }, { settings: 1, revision: 1, updatedAt: 1 }).lean();
+  const settings = publicSiteConfig(mergeWithDefaults(doc?.settings));
+  // Founders counter: live numbers only (no customer data); the stored section holds the rules.
+  settings.founders = await publicFounderCounter();
   return {
     revision: doc?.revision || 0,
     updatedAt: doc?.updatedAt || null,
-    settings: publicSiteConfig(mergeWithDefaults(doc?.settings)),
+    settings,
   };
 }

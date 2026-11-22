@@ -63,6 +63,9 @@ export const listOrdersQuery = z.object({
   deliveryStatus: z.enum(DELIVERY_STATUSES).optional(),
   courier: z.union([objectId, z.literal('unassigned')]).optional(),
   syncState: z.enum(['none', 'pending', 'synced', 'failed']).optional(),
+  // Orders waiting for data confirmation (EasyOrders status `pending`).
+  unconfirmed: z.enum(['true']).optional(),
+  couponFlagged: z.enum(['true']).optional(),
   from: isoDate.optional(),
   to: isoDate.optional(),
   // Orders cleared from the dashboard: hidden by default.

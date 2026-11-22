@@ -10,8 +10,9 @@ import { useAction, useAsync, useDebouncedValue } from '../../hooks/useAsync.js'
 import { api } from '../../services/api.js';
 import { DELIVERY_STATUS_LABELS, SOURCE_STATUS_LABELS } from '../../utils/labels.js';
 import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
+import { OrderWhatsAppButtons } from '../../features/whatsapp/OrderWhatsAppButtons.jsx';
 
-const FILTER_KEYS = ['q', 'sourceStatus', 'deliveryStatus', 'courier', 'syncState', 'cleared', 'from', 'to', 'page'];
+const FILTER_KEYS = ['q', 'sourceStatus', 'deliveryStatus', 'courier', 'syncState', 'cleared', 'unconfirmed', 'couponFlagged', 'from', 'to', 'page'];
 
 export function OrdersPage() {
   const [params, setParams] = useSearchParams();
@@ -29,6 +30,11 @@ export function OrdersPage() {
   const key = JSON.stringify(query);
   const { data, error, loading, reload } = useAsync(() => api.get('/admin/orders', query), [key]);
   const couriers = useAsync(() => api.get('/admin/couriers-brief'), []);
+  const settings = useAsync(() => api.get('/admin/site-settings'), []);
+  const templates = settings.data?.settings?.admin
+    ? { coupon: settings.data.settings.admin.couponWhatsappTemplate, confirm: settings.data.settings.admin.confirmWhatsappTemplate }
+    : null;
+  const unconfirmedCount = useAsync(() => api.get('/admin/orders', { unconfirmed: 'true', limit: 1 }), []);
   const cleared = useAsync(() => api.get('/admin/orders/cleared/count'), []);
   const toast = useToast();
   const [clearOpen, setClearOpen] = useState(false);
@@ -36,6 +42,7 @@ export function OrdersPage() {
   const refresh = () => {
     reload({ silent: true });
     cleared.reload({ silent: true });
+    unconfirmedCount.reload({ silent: true });
   };
   const clearOrders = async (confirm) => {
     const res = await api.post('/admin/orders/clear', { confirm });
@@ -96,6 +103,17 @@ export function OrdersPage() {
         <p>سيتم إخفاء كل الطلبات الموجودة حالياً من صفحة الطلبات والصفحة الرئيسية.</p>
         <p><strong>لن يتم حذف أي طلب من قاعدة البيانات</strong>، ويمكنك عرضها أو استرجاعها في أي وقت. الطلبات الجديدة من EasyOrders ستظهر بشكل طبيعي، وصفحات المندوبين والنقدية لا تتأثر.</p>
       </ConfirmWordModal>
+      <div className="tabs" role="tablist">
+        <Button variant={!filters.unconfirmed && !filters.couponFlagged ? 'primary' : 'secondary'} onClick={() => setParams({}, { replace: true })}>
+          كل الطلبات
+        </Button>
+        <Button variant={filters.unconfirmed ? 'primary' : 'secondary'} onClick={() => setParams({ unconfirmed: 'true' }, { replace: true })}>
+          غير مؤكدة (قيد المراجعة){unconfirmedCount.data ? ` · ${unconfirmedCount.data.pagination?.total ?? 0}` : ''}
+        </Button>
+        <Button variant={filters.couponFlagged ? 'primary' : 'secondary'} onClick={() => setParams({ couponFlagged: 'true' }, { replace: true })}>
+          كوبون غير مطابق
+        </Button>
+      </div>
       <Card>
         <div className="filters">
           <input
@@ -169,6 +187,7 @@ export function OrdersPage() {
                   <th>الحالات</th>
                   <th>المندوب</th>
                   <th>التاريخ</th>
+                  <th>واتساب</th>
                 </tr>
               </thead>
               <tbody>
@@ -196,6 +215,9 @@ export function OrdersPage() {
                     </td>
                     <td>{o.assignedTo?.name || <span className="muted">غير معيّن</span>}</td>
                     <td className="nowrap muted">{formatDateTime(o.sourceCreatedAt || o.createdAt)}</td>
+                    <td>
+                      <OrderWhatsAppButtons order={o} templates={templates} onChanged={refresh} />
+                    </td>
                   </tr>
                 ))}
               </tbody>

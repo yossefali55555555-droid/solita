@@ -16,6 +16,39 @@ const TRIGGER_LABELS = {
   return_confirmed: 'اعتماد مرتجع',
 };
 
+function InitDatabaseCard() {
+  const toast = useToast();
+  const [result, setResult] = useState(null);
+  const [run, running] = useAction(async () => {
+    try {
+      const res = await api.post('/admin/system/init-db');
+      setResult(res);
+      toast.success(res.created.length ? `اتعمل ${res.created.length} مجموعة جديدة وكل الفهارس جاهزة` : 'كل المجموعات والفهارس جاهزة');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  });
+  return (
+    <Card title="تهيئة قاعدة البيانات">
+      <p className="muted small">
+        بتعمل أي مجموعة أو فهرس ناقص (نفس أمر <span dir="ltr">npm run db:init</span>). آمن ومبيمسحش ولا يغيّر أي بيانات، وممكن تدوس عليه أكتر من مرة. اضغطه مرة بعد أي تحديث بيضيف مجموعات جديدة.
+      </p>
+      <Button variant="secondary" loading={running} onClick={run}>
+        تهيئة الآن
+      </Button>
+      {result ? (
+        <ul className="simple-list">
+          {result.report.map((r) => (
+            <li key={r.collection} dir="ltr" className="small">
+              {r.collection}: {r.created ? 'created' : 'ok'} ({r.indexes.length} indexes)
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Card>
+  );
+}
+
 export function SyncPage() {
   const toast = useToast();
   const [page, setPage] = useState(1);
@@ -67,6 +100,8 @@ export function SyncPage() {
         subtitle="العمليات التي لم يؤكدها EasyOrders بعد، وأحداث Webhook التي لم تتم معالجتها"
         actions={<Button variant="secondary" loading={processing} onClick={processDue}>معالجة العمليات المستحقة الآن</Button>}
       />
+
+      <InitDatabaseCard />
 
       <Card title="تحديثات الحالة المرسلة إلى EasyOrders" padded={false}>
         {loading && !data ? (

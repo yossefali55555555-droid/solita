@@ -39,6 +39,9 @@ const envSchema = z.object({
     .optional()
     .transform((v) => (v && v.trim() ? v : DEFAULT_STOREFRONT_ORIGIN)),
   EASYORDERS_API_KEY: optionalString,
+  // Shared secret for the coupon sync bookmarklet (/api/coupon-sync). Unset = sync disabled.
+  COUPON_SYNC_SECRET: optionalString,
+  COUPON_SYNC_ORIGINS: z.string().optional().default('https://app.easy-orders.net'),
   EASYORDERS_API_BASE_URL: z
     .string()
     .optional()
@@ -140,6 +143,10 @@ export function loadConfig(env = process.env, { forceMock } = {}) {
     sessionSecretIsEphemeral: sessionSecret === ephemeralSecret,
     clientOrigins,
     storefrontOrigins,
+    couponSync: Object.freeze({
+      secret: e.COUPON_SYNC_SECRET,
+      origins: e.COUPON_SYNC_ORIGINS.split(',').map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean),
+    }),
     mockMode,
     cookieSecure: isProduction,
     cronSecret: e.CRON_SECRET,

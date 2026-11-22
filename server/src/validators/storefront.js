@@ -76,3 +76,59 @@ export const listCartsQuery = z.object({
   notContacted: z.enum(['true', 'false']).optional(),
   ...pageQuery,
 });
+
+// Founder coupon codes are EasyOrders codes (letters, digits, - _), stored lowercase.
+const couponCodeField = z
+  .string()
+  .trim()
+  .max(60)
+  .regex(/^[A-Za-z0-9_-]*$/, 'الكود يحتوي على أحرف غير مسموحة')
+  .transform((v) => v.toLowerCase());
+
+export const updateFounderBody = z.strictObject({
+  personalCode: couponCodeField.optional(),
+  friendCode: couponCodeField.optional(),
+  notes: str(1000).optional(),
+});
+
+export const couponCheckBody = z.strictObject({
+  code: str(60),
+  phone: str(40).optional(),
+  // What the customer typed so far at checkout, and the device id (sol_vid), for the owner's attempts list.
+  name: str(200).optional(),
+  visitorId: str(64).optional(),
+  stage: z.enum(['apply', 'submit']).optional(),
+});
+
+export const addCouponsBody = z.strictObject({
+  codes: z.array(str(60).min(1)).min(1, 'أضف كودًا واحدًا على الأقل').max(500),
+});
+
+export const assignCouponBody = z.strictObject({
+  phone: str(40).min(1),
+  name: str(200).optional(),
+});
+
+// Full EasyOrders coupon objects (stored as they are; only `code` is required).
+const eoCoupon = z.looseObject({ code: str(60).min(1) });
+export const importCouponsBody = z.strictObject({ coupons: z.array(eoCoupon).min(1).max(1000) });
+
+export const couponSettingsBody = z.strictObject({
+  value: z.number().min(0).max(100).optional(),
+  usageLimit: z.number().int().min(0).max(1_000_000).optional(),
+  isActive: z.boolean().optional(),
+  bound: z.boolean().optional(),
+});
+
+const couponDate = z
+  .string()
+  .min(1)
+  .transform((v) => new Date(v))
+  .refine((d) => !Number.isNaN(d.getTime()), 'تاريخ غير صالح');
+
+export const couponDatesBody = z
+  .strictObject({
+    sentAt: z.union([z.null(), couponDate]).optional(),
+    expiresAt: couponDate.optional(),
+  })
+  .refine((b) => b.sentAt !== undefined || b.expiresAt !== undefined, 'حدد تاريخًا واحدًا على الأقل');

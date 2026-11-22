@@ -10,6 +10,7 @@ import { apiRateLimiter } from './middleware/rateLimit.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { buildRouter } from './routes/index.js';
 import { buildPublicRouter } from './routes/public.js';
+import { buildCouponSyncRouter } from './routes/couponSync.js';
 import { logger } from './utils/logger.js';
 
 /**
@@ -32,6 +33,7 @@ export function createApp() {
   // Public storefront API: its own CORS (storefront origin only), body limit
   // and rate limits; no session, no CSRF. See routes/public.js.
   app.use('/api/public', buildPublicRouter());
+  app.use('/api/coupon-sync', buildCouponSyncRouter());
 
   app.use(
     cors({

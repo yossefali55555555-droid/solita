@@ -107,6 +107,19 @@ export function publicEventsRateLimiter({ limit = 120 } = {}) {
   });
 }
 
+/** Public coupon check: per IP, tighter than events (guessing codes is the abuse case). */
+export function publicCouponCheckRateLimiter({ limit = 30 } = {}) {
+  return rateLimit({
+    windowMs: 60 * 1000,
+    limit,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    store: new MongoRateLimitStore('public-coupon-check'),
+    message: tooMany('Too many requests'),
+    passOnStoreError: true,
+  });
+}
+
 /** Public site configuration: per IP (the CDN cache absorbs most reads). */
 export function publicConfigRateLimiter({ limit = 120 } = {}) {
   return rateLimit({

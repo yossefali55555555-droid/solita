@@ -89,6 +89,18 @@ const orderSchema = new mongoose.Schema(
     paymentMethod: { type: String, maxlength: 60 },
     paymentStatus: { type: String, enum: ['unpaid', 'paid', 'failed', 'refunded'], default: 'unpaid' },
     paymentRefId: { type: String, maxlength: 200 },
+    // EasyOrders `coupon_code` / `coupon_discount` (lowercase; EO matches codes case-insensitively).
+    couponCode: { type: String, maxlength: 60, lowercase: true, trim: true },
+    couponDiscount: moneyField,
+    // Set when a customer-bound coupon arrives on an order from another phone (or already used).
+    couponFlag: {
+      active: { type: Boolean, default: false },
+      reason: { type: String, enum: ['wrong_phone', 'unassigned', 'already_used', 'expired'] },
+      at: { type: Date },
+    },
+    // The data-confirmation WhatsApp message was sent from the dashboard.
+    confirmationSentAt: { type: Date, default: null },
+    confirmationSentBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 
     // ---- Source (EasyOrders) controlled ----
     sourceStatus: { type: String, maxlength: 60 },
@@ -174,6 +186,8 @@ orderSchema.index({ deliveryStatus: 1, createdAt: -1 });
 orderSchema.index({ sourceStatus: 1, createdAt: -1 });
 orderSchema.index({ assignedTo: 1, deliveryStatus: 1 });
 orderSchema.index({ 'customer.phoneNormalized': 1 });
+orderSchema.index({ couponCode: 1 }, { sparse: true });
+orderSchema.index({ 'couponFlag.active': 1 }, { sparse: true });
 orderSchema.index({ deliveryStatus: 1, deliveredAt: -1 });
 orderSchema.index({ sourceCreatedAt: -1 });
 orderSchema.index({ 'cod.remittance': 1, assignedTo: 1 });
