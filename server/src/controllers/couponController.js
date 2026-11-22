@@ -10,6 +10,24 @@ export async function addCoupons(req, res) {
   res.status(201).json(await coupons.addToPool(req.valid.body.codes));
 }
 
+export async function listAttempts(_req, res) {
+  res.json({ items: await coupons.listAttempts() });
+}
+
+export async function importCoupons(req, res) {
+  res.json(await coupons.importFromEasyOrders(req.valid.body.coupons));
+}
+
+export async function updateSettings(req, res) {
+  res.json({ coupon: await coupons.updateCouponSettings(req.valid.params.id, req.valid.body) });
+}
+
+// POST /api/coupon-sync/exchange (secret header): the bookmarklet's round trip.
+export async function syncExchange(req, res) {
+  res.set('Cache-Control', 'no-store');
+  res.json(await coupons.syncExchange(req.valid.body.coupons));
+}
+
 export async function assignCoupon(req, res) {
   res.json({ coupon: await coupons.assignManually(req.valid.params.id, req.valid.body) });
 }

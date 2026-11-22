@@ -17,6 +17,7 @@ import { StorefrontDailyStat } from './StorefrontDailyStat.js';
 import { SiteSettings } from './SiteSettings.js';
 import { Founder } from './Founder.js';
 import { CouponAssignment } from './CouponAssignment.js';
+import { CouponAttempt } from './CouponAttempt.js';
 
 export {
   publicUser,
@@ -39,6 +40,7 @@ export {
   SiteSettings,
   Founder,
   CouponAssignment,
+  CouponAttempt,
 };
 
 export const allModels = [
@@ -61,4 +63,5 @@ export const allModels = [
   SiteSettings,
   Founder,
   CouponAssignment,
+  CouponAttempt,
 ];

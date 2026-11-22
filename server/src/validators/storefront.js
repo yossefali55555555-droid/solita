@@ -94,6 +94,10 @@ export const updateFounderBody = z.strictObject({
 export const couponCheckBody = z.strictObject({
   code: str(60),
   phone: str(40).optional(),
+  // What the customer typed so far at checkout, and the device id (sol_vid), for the owner's attempts list.
+  name: str(200).optional(),
+  visitorId: str(64).optional(),
+  stage: z.enum(['apply', 'submit']).optional(),
 });
 
 export const addCouponsBody = z.strictObject({
@@ -103,4 +107,15 @@ export const addCouponsBody = z.strictObject({
 export const assignCouponBody = z.strictObject({
   phone: str(40).min(1),
   name: str(200).optional(),
+});
+
+// Full EasyOrders coupon objects (stored as they are; only `code` is required).
+const eoCoupon = z.looseObject({ code: str(60).min(1) });
+export const importCouponsBody = z.strictObject({ coupons: z.array(eoCoupon).min(1).max(1000) });
+
+export const couponSettingsBody = z.strictObject({
+  value: z.number().min(0).max(100).optional(),
+  usageLimit: z.number().int().min(0).max(1_000_000).optional(),
+  isActive: z.boolean().optional(),
+  bound: z.boolean().optional(),
 });

@@ -12,6 +12,13 @@ const couponAssignmentSchema = new mongoose.Schema(
     code: { type: String, required: true, trim: true, lowercase: true, maxlength: 60 },
     // Insertion order: the lowest unassigned `seq` goes to the next customer.
     seq: { type: Number, required: true },
+    // Customer-bound: only the assigned phone may use it. Unbound coupons are left to EasyOrders.
+    bound: { type: Boolean, default: true },
+    // Full coupon object as EasyOrders has it (all its settings), refreshed by the sync.
+    eo: { type: mongoose.Schema.Types.Mixed, default: null },
+    eoSyncedAt: { type: Date, default: null },
+    // Edits made here that EasyOrders does not have yet (EasyOrders field names). Applied by the next sync.
+    pendingEo: { type: mongoose.Schema.Types.Mixed, default: null },
     phoneNormalized: { type: String, default: null, maxlength: 40 },
     customerName: { type: String, trim: true, maxlength: 200, default: '' },
     order: { type: ObjectId, ref: 'Order', default: null },

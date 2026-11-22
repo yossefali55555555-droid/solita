@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>مزامنة كوبونات EasyOrders مع سوليتا</title>
+<style>
+  body{font-family:Tahoma,Arial,sans-serif;max-width:720px;margin:32px auto;padding:0 16px;line-height:1.8;color:#1e1d1a}
+  input{width:100%;padding:8px;margin:4px 0 12px;font-size:15px;box-sizing:border-box}
+  a.bm{display:inline-block;padding:10px 16px;background:#b8603e;color:#fff;border-radius:8px;text-decoration:none;font-weight:700}
+  code{background:#eee;padding:2px 6px;border-radius:4px}
+  .note{color:#5c574d;font-size:14px}
+</style>
+</head>
+<body>
+<h1>مزامنة الكوبونات</h1>
+<p>EasyOrders معندوش API للكوبونات، فالمزامنة بتتم من جوه لوحة EasyOrders بحسابك انت: زرار (Bookmark) بتدوس عليه وانت فاتح لوحة EasyOrders. الزرار بيبعت كل الكوبونات لنظام سوليتا، وبيطبّق على EasyOrders أي تعديل عملته من تاب «الكوبونات» (النسبة، حد الاستخدام، التفعيل، وتاريخ الانتهاء).</p>
+<p class="note">الصفحة دي مش بتبعت حاجة ولا بتحفظ حاجة. السر بيتكتب جوه الزرار على جهازك بس، فمتحطّوش في أي ملف أو مكان عام.</p>
+
+<label>رابط النظام على فيرسل</label>
+<input id="base" value="https://solita-ashy.vercel.app" dir="ltr">
+<label>سر المزامنة (نفس قيمة <code>COUPON_SYNC_SECRET</code> في Vercel)</label>
+<input id="secret" dir="ltr" autocomplete="off" placeholder="الصق السر هنا">
+<p><a class="bm" id="link" href="#">مزامنة كوبونات سوليتا</a></p>
+<p>اسحب الزرار ده لشريط المفضلة (Bookmarks bar). بعد كده افتح <code>app.easy-orders.net</code> وانت مسجل دخول، وادوس عليه.</p>
+
+<script>
+function sync(BASE, SECRET) {
+  (async function () {
+    try {
+      if (!/easy-orders\.net$/.test(location.hostname)) { alert('افتح لوحة EasyOrders الأول (app.easy-orders.net) وانت مسجل دخول.'); return; }
+      function findJwt(o) {
+        if (!o || typeof o !== 'object') return null;
+        for (var k in o) {
+          if (typeof o[k] === 'string' && o[k].split('.').length === 3 && o[k].length > 100) return o[k];
+          var r = findJwt(o[k]); if (r) return r;
+        }
+        return null;
+      }
+      var token = findJwt(JSON.parse(localStorage.getItem('user-accounts') || 'null'));
+      if (!token) { alert('مش لاقي تسجيل الدخول. سجّل دخول في EasyOrders وجرّب تاني.'); return; }
+      var H = { Authorization: 'Bearer ' + token };
+      var API = 'https://api.easy-orders.net/api/v1/coupons';
+      async function load() {
+        var r = await fetch(API + '?limit=500', { headers: H });
+        if (!r.ok) throw new Error('EasyOrders رجّع ' + r.status);
+        return r.json();
+      }
+      async function exchange(list) {
+        var r = await fetch(BASE + '/api/coupon-sync/exchange', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Sync-Secret': SECRET },
+          body: JSON.stringify({ coupons: list })
+        });
+        if (r.status === 401) throw new Error('السر غلط');
+        if (r.status === 503) throw new Error('المزامنة مش مفعّلة على السيرفر (COUPON_SYNC_SECRET)');
+        if (!r.ok) throw new Error('النظام رجّع ' + r.status);
+        return r.json();
+      }
+      var list = await load();
+      var res = await exchange(list);
+      var applied = 0, failed = [];
+      for (var i = 0; i < res.pending.length; i++) {
+        var p = res.pending[i];
+        var c = list.filter(function (x) { return x.id === p.id; })[0];
+        if (!c) { failed.push(p.code); continue; }
+        var body = Object.assign({}, c, p.patch);
+        var r2 = await fetch(API + '/' + p.id, { method: 'PATCH', headers: Object.assign({ 'Content-Type': 'application/json' }, H), body: JSON.stringify(body) });
+        if (r2.ok) applied++; else failed.push(p.code);
+      }
+      if (applied) { res = await exchange(await load()); }
+      alert('تمت المزامنة.\nكوبونات جديدة: ' + res.created + '\nاتحدّث: ' + res.updated + '\nتعديلات اتطبّقت على EasyOrders: ' + applied + (failed.length ? '\nفشلت: ' + failed.join(', ') : ''));
+    } catch (e) {
+      alert('فشلت المزامنة: ' + (e && e.message ? e.message : e));
+    }
+  })();
+}
+function build() {
+  var base = document.getElementById('base').value.trim().replace(/\/+$/, '');
+  var secret = document.getElementById('secret').value.trim();
+  var code = '(' + sync.toString() + ')(' + JSON.stringify(base) + ',' + JSON.stringify(secret) + ')';
+  document.getElementById('link').href = 'javascript:' + encodeURIComponent(code);
+}
+['base', 'secret'].forEach(function (id) { document.getElementById(id).addEventListener('input', build); });
+document.getElementById('link').addEventListener('click', function (e) { if (!document.getElementById('secret').value.trim()) { e.preventDefault(); alert('اكتب السر الأول، وبعدها اسحب الزرار للمفضلة.'); } });
+build();
+</script>
+</body>
+</html>

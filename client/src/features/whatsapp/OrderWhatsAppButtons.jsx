@@ -3,7 +3,7 @@ import { Badge, Button } from '../../components/ui.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { api } from '../../services/api.js';
 import { whatsappLink } from './whatsapp.js';
-import { confirmationMessage, couponMessage } from './orderMessages.js';
+import { cairoDate, confirmationMessage, couponMessage } from './orderMessages.js';
 
 /**
  * Two WhatsApp buttons on an order row:
@@ -26,10 +26,11 @@ export function OrderWhatsAppButtons({ order, templates, onChanged }) {
     setBusy(true);
     try {
       const { coupon: row } = coupon ? { coupon } : await api.post(`/admin/orders/${order._id}/coupon`);
-      const href = whatsappLink(phone, couponMessage(order, row.code, templates.coupon));
+      // The 365 days start the day the code is sent, so mark it first and read the dates back.
+      const { coupon: sent } = await api.post(`/admin/coupons/${row._id}/sent`);
+      const href = whatsappLink(phone, couponMessage(order, sent, templates.coupon));
       if (tab) tab.location.href = href;
       else window.location.href = href;
-      await api.post(`/admin/coupons/${row._id}/sent`);
       onChanged?.();
     } catch (err) {
       tab?.close();
@@ -64,7 +65,7 @@ export function OrderWhatsAppButtons({ order, templates, onChanged }) {
       <div className="badge-row">
         {coupon ? (
           <Badge tone={coupon.sentAt ? 'success' : 'warning'} title={coupon.code}>
-            {coupon.sentAt ? 'الكود اتبعت' : 'الكود لم يُرسل'} · <span dir="ltr">{coupon.code.toUpperCase()}</span>
+            {coupon.sentAt ? 'الكود اتبعت' : 'الكود لم يُرسل'} · <span dir="ltr">{coupon.code.toUpperCase()}</span>{coupon.sentAt && coupon.expiresAt ? ` · حتى ${cairoDate(coupon.expiresAt)}` : ''}
           </Badge>
         ) : null}
         {order.confirmationSentAt ? <Badge tone="success">رسالة التأكيد اتبعتت</Badge> : null}
