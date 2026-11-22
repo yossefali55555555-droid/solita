@@ -7,6 +7,7 @@ import * as sync from '../services/syncService.js';
 import * as webhooks from '../services/webhookService.js';
 import * as cash from '../services/cashService.js';
 import * as poll from '../services/pollService.js';
+import { initDatabase } from '../db/initDatabase.js';
 import * as returns from '../services/returnService.js';
 import * as customers from '../services/customerService.js';
 import * as finance from '../services/financeService.js';
@@ -137,6 +138,12 @@ export async function retryWebhook(req, res) {
 
 export async function pollStatus(_req, res) {
   res.json(await poll.getPollStatus());
+}
+
+// Creates any missing collection and index (same as `npm run db:init`). Safe to repeat; never drops anything.
+export async function initDb(_req, res) {
+  const report = await initDatabase();
+  res.json({ collections: report.length, created: report.filter((r) => r.created).map((r) => r.collection), report });
 }
 
 export async function pollNow(_req, res) {

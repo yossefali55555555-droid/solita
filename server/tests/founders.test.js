@@ -107,3 +107,22 @@ describe('founders admin API and public counter', () => {
     expect(JSON.stringify(after.body)).not.toMatch(/phone|01\d{9}/);
   });
 });
+
+describe('database initialisation from the dashboard', () => {
+  it('lets an admin create the missing collections and indexes, repeatably', async () => {
+    const admin = await loginAs(await createUser('admin'));
+    const first = await admin.post('/api/admin/system/init-db');
+    expect(first.status).toBe(200);
+    const names = first.body.report.map((r) => r.collection);
+    expect(names).toEqual(expect.arrayContaining(['founders', 'coupon_assignments', 'coupon_attempts', 'orders']));
+    const founders = first.body.report.find((r) => r.collection === 'founders');
+    expect(founders.indexes).toEqual(expect.arrayContaining(['number_1', 'phoneNormalized_1', 'order_1']));
+    const second = await admin.post('/api/admin/system/init-db');
+    expect(second.status).toBe(200);
+    expect(second.body.created).toEqual([]);
+
+    const courier = await loginAs(await createUser('courier'));
+    expect((await courier.post('/api/admin/system/init-db')).status).toBe(403);
+    expect([401, 403]).toContain((await request(getTestApp()).post('/api/admin/system/init-db')).status);
+  });
+});
