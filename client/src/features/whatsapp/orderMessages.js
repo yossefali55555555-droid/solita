@@ -26,14 +26,16 @@ export function describeOrderItems(items = []) {
 }
 
 /**
- * How the customer pays, from EasyOrders' `payment_method` (seen so far: `cod`,
- * `transfer_receipt`). Card values are matched loosely because we have not seen one yet.
+ * How the customer pays, from EasyOrders' `payment_method`. Keys that exist in EasyOrders
+ * (read from its dashboard): cod, transfer_receipt (transfer + receipt image), paymob (Visa/Mastercard),
+ * paymob wallets, vodafone_cash, and the mixed gateways kashier, fawaterk, xpay, easykash, fabmisr, upay, taager, paypal, ziina.
  */
 export function paymentKind(order) {
   const v = String(order.paymentMethod || '').toLowerCase();
-  if (!v || v === 'cod' || v.includes('cash') || order.cod?.isCod) return 'cod';
-  if (v.includes('transfer') || v.includes('instapay') || v.includes('wallet')) return 'transfer';
-  if (/card|visa|master|paymob|kashier|fawry|paytabs|stripe/.test(v)) return 'card';
+  if (!v || v === 'cod' || v.includes('cash_on') || order.cod?.isCod) return 'cod';
+  if (v.includes('transfer') || v.includes('instapay')) return 'transfer';
+  if (v.includes('wallet') || v.includes('vodafone') || v.includes('etisalat')) return 'wallet';
+  if (/visa|master|card|paymob|ziina/.test(v)) return 'card';
   return 'online';
 }
 
@@ -47,6 +49,8 @@ export function paymentLine(order) {
       return paid
         ? 'تم الدفع بالتحويل (إنستا باي أو المحفظة)، ومفيش مبلغ هتدفعه للمندوب.'
         : 'الدفع بالتحويل (إنستا باي أو المحفظة)، وبانتظار تأكيد وصول المبلغ.';
+    case 'wallet':
+      return paid ? 'تم الدفع بالمحفظة، ومفيش مبلغ هتدفعه للمندوب.' : 'الدفع بالمحفظة، وبانتظار تأكيد العملية.';
     case 'card':
       return paid ? 'تم الدفع بالفيزا، ومفيش مبلغ هتدفعه للمندوب.' : 'الدفع بالفيزا، وبانتظار تأكيد العملية.';
     default:
@@ -54,16 +58,9 @@ export function paymentLine(order) {
   }
 }
 
-/** The measuring reminder, worded for how the customer pays. Same meaning in both. */
-export function inspectLine(order) {
-  return paymentKind(order) === 'cod'
-    ? 'وتفتكر إنك بتفتح الطلب وتقيسه قدام المندوب قبل ما تدفع، عشان تتأكد إن المقاس مظبوط.'
-    : 'وتقدر تفتح الطلب وتقيسه قدام المندوب عشان تتأكد إن المقاس مظبوط، ولو مش مظبوط قوله وإحنا هنتصرف معاك.';
-}
-
 /**
  * The data-confirmation message for an order under review.
- * Placeholders: {name} (first name), {num}, {items}, {total}, {payment}, {inspect}, {address}.
+ * Placeholders: {name} (first name), {num}, {items}, {total}, {payment}, {address}.
  */
 export function confirmationMessage(order, template) {
   const address = [order.customer?.government, order.customer?.address].filter(Boolean).join('، ');
@@ -74,7 +71,6 @@ export function confirmationMessage(order, template) {
       .replaceAll('{items}', describeOrderItems(order.items))
       .replaceAll('{total}', formatMoney(order.totalAmount, order.currency))
       .replaceAll('{payment}', paymentLine(order))
-      .replaceAll('{inspect}', inspectLine(order))
       .replaceAll('{address}', address || '—'),
   );
 }

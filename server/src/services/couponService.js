@@ -23,6 +23,51 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const normalizeCode = (v) => String(v ?? '').trim().toLowerCase();
 export const expiryFrom = (date) => new Date(date.getTime() + COUPON_VALID_DAYS * DAY_MS);
 
+// ---------------------------------------------------------------- history (undo)
+
+const TRACKED = ['phoneNormalized', 'customerName', 'order', 'assignedAt', 'expiresAt', 'assignedVia', 'sentAt', 'sentBy', 'bound', 'pendingEo'];
+const HISTORY_LIMIT = 30;
+const EMPTY_BEFORE = Object.freeze({ phoneNormalized: null, customerName: '', order: null, assignedAt: null, expiresAt: null, assignedVia: null, sentAt: null, sentBy: null });
+
+function snapshot(row) {
+  const out = {};
+  for (const k of TRACKED) out[k] = row[k] === undefined ? null : row[k];
+  return out;
+}
+
+/** Push the values a change is about to replace (call before changing the row, then save). */
+function remember(row, action, user) {
+  row.history.push({ at: new Date(), by: user?._id || null, action, before: snapshot(row) });
+  if (row.history.length > HISTORY_LIMIT) row.history.splice(0, row.history.length - HISTORY_LIMIT);
+}
+
+export const ACTION_LABELS = {
+  assign: 'تخصيص الكود',
+  release: 'إلغاء التخصيص',
+  sent: 'إرسال الكود',
+  dates: 'تعديل التواريخ',
+  settings: 'تعديل الإعدادات',
+};
+
+/** Undo the most recent change of a code: restores exactly what it replaced. */
+export async function undoLastChange(id) {
+  const row = await CouponAssignment.findById(id);
+  if (!row) throw notFound('الكود غير موجود');
+  const last = row.history[row.history.length - 1];
+  if (!last) throw unprocessable('مفيش تغيير يتراجع عنه');
+  const before = last.before || {};
+  if (before.phoneNormalized && before.phoneNormalized !== row.phoneNormalized) {
+    const clash = await CouponAssignment.exists({ _id: { $ne: row._id }, phoneNormalized: before.phoneNormalized });
+    if (clash) throw unprocessable('العميل ده خد كود تاني في الفترة دي، مينفعش نرجّع الكود ده له');
+  }
+  for (const k of TRACKED) row[k] = before[k] === undefined ? null : before[k];
+  if (!row.customerName) row.customerName = '';
+  row.markModified('pendingEo');
+  row.history.pop();
+  await row.save();
+  return row.toObject();
+}
+
 /**
  * Can `phone` use `code`?  → { managed, allowed, reason }
  * Only bound coupons and founder codes are managed here; everything else is
@@ -171,7 +216,10 @@ export async function ensureCouponForOrder(order, { via = 'auto' } = {}) {
     try {
       return await CouponAssignment.findOneAndUpdate(
         { phoneNormalized: null, bound: { $ne: false } },
-        { $set: assignmentFields(order, via) },
+        {
+          $set: assignmentFields(order, via),
+          $push: { history: { $each: [{ at: new Date(), by: null, action: 'assign', before: EMPTY_BEFORE }], $slice: -HISTORY_LIMIT } },
+        },
         { sort: { seq: 1 }, returnDocument: 'after' },
       ).lean();
     } catch (err) {
@@ -205,7 +253,7 @@ export async function couponForOrder(orderId) {
   return row;
 }
 
-export async function assignManually(id, { phone, name }) {
+export async function assignManually(id, { phone, name }, user = null) {
   const p = normalizePhone(phone);
   if (!MOBILE_RE.test(p)) throw unprocessable('رقم الهاتف غير صالح');
   const row = await CouponAssignment.findById(id);
@@ -213,15 +261,17 @@ export async function assignManually(id, { phone, name }) {
   if (row.phoneNormalized) throw unprocessable('هذا الكود مخصص لعميل بالفعل');
   if (await CouponAssignment.exists({ phoneNormalized: p })) throw unprocessable('هذا العميل لديه كود بالفعل');
   const assignedAt = new Date();
+  remember(row, 'assign', user);
   Object.assign(row, { phoneNormalized: p, customerName: name || '', assignedAt, expiresAt: expiryFrom(assignedAt), assignedVia: 'manual' });
   await row.save();
   return row.toObject();
 }
 
-export async function releaseCoupon(id) {
+export async function releaseCoupon(id, user = null) {
   const row = await CouponAssignment.findById(id);
   if (!row) throw notFound('الكود غير موجود');
-  if (row.sentAt) throw unprocessable('الكود اتبعت للعميل بالفعل، لا يمكن إلغاء تخصيصه');
+  if (!row.phoneNormalized) throw unprocessable('الكود مش مخصص لحد');
+  remember(row, 'release', user);
   Object.assign(row, { phoneNormalized: null, customerName: '', order: null, assignedAt: null, expiresAt: null, assignedVia: undefined, sentAt: null, sentBy: null });
   await row.save();
   return row.toObject();
@@ -236,6 +286,7 @@ export async function markCouponSent(id, user) {
   if (!row) throw notFound('الكود غير موجود أو غير مخصص لعميل');
   if (!row.sentAt) {
     const now = new Date();
+    remember(row, 'sent', user);
     row.sentAt = now;
     row.sentBy = user._id;
     row.expiresAt = expiryFrom(now);
@@ -244,6 +295,29 @@ export async function markCouponSent(id, user) {
     row.markModified('pendingEo');
     await row.save();
   }
+  return row.toObject();
+}
+
+/**
+ * The owner sets the dates by hand. `sentAt` = the day the customer got the code (null = not sent yet),
+ * `expiresAt` = the last valid day. Changing only the start moves the end to start + 365 days.
+ */
+export async function editDates(id, { sentAt, expiresAt }, user = null) {
+  const row = await CouponAssignment.findOne({ _id: id, phoneNormalized: { $ne: null } });
+  if (!row) throw notFound('الكود غير موجود أو غير مخصص لعميل');
+  remember(row, 'dates', user);
+  if (sentAt !== undefined) {
+    row.sentAt = sentAt;
+    row.sentBy = sentAt ? user?._id || row.sentBy : null;
+    if (expiresAt === undefined) row.expiresAt = expiryFrom(sentAt || row.assignedAt || new Date());
+  }
+  if (expiresAt !== undefined) row.expiresAt = expiresAt;
+  if (row.sentAt && row.expiresAt <= row.sentAt) throw unprocessable('تاريخ النهاية لازم يكون بعد تاريخ البداية');
+  if (row.eo && row.expiresAt) {
+    row.pendingEo = { ...(row.pendingEo || {}), expires_at: row.expiresAt.toISOString() };
+    row.markModified('pendingEo');
+  }
+  await row.save();
   return row.toObject();
 }
 
@@ -296,9 +370,10 @@ export async function importFromEasyOrders(coupons) {
 }
 
 /** Owner edits from the dashboard: `bound` applies here, the rest waits for the sync. */
-export async function updateCouponSettings(id, patch) {
+export async function updateCouponSettings(id, patch, user = null) {
   const row = await CouponAssignment.findById(id);
   if (!row) throw notFound('الكود غير موجود');
+  remember(row, 'settings', user);
   if (patch.bound !== undefined) {
     if (patch.bound === false && row.phoneNormalized) throw unprocessable('الكود مخصص لعميل، ألغِ التخصيص قبل ما تفصله عن العملاء');
     row.bound = patch.bound;
@@ -346,9 +421,10 @@ export async function listCoupons() {
     .limit(50)
     .select('easyOrdersShortId easyOrdersId couponCode couponFlag customer.name customer.phone sourceStatus')
     .lean();
-  const items = rows.map((r) => ({
+  const items = rows.map(({ history, ...r }) => ({
     ...r,
     uses: uses.get(r.code) || 0,
+    lastChange: history?.length ? { at: history.at(-1).at, action: history.at(-1).action, label: ACTION_LABELS[history.at(-1).action] || history.at(-1).action } : null,
     // The few EasyOrders settings the page shows and edits (the full object stays in `eo`).
     settings: r.eo
       ? {

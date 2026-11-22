@@ -29,6 +29,21 @@ const couponAssignmentSchema = new mongoose.Schema(
     sentAt: { type: Date, default: null },
     sentBy: { type: ObjectId, ref: 'User', default: null },
     notes: { type: String, trim: true, maxlength: 1000, default: '' },
+    // Every change the owner (or the system) made, with the values it replaced, so the last ones can be undone.
+    history: {
+      type: [
+        new mongoose.Schema(
+          {
+            at: { type: Date, default: Date.now },
+            by: { type: ObjectId, ref: 'User', default: null },
+            action: { type: String, maxlength: 40 },
+            before: { type: mongoose.Schema.Types.Mixed, default: {} },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
   },
   { timestamps: true },
 );

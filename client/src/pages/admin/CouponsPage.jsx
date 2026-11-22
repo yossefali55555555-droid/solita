@@ -105,6 +105,7 @@ export function CouponsPage() {
   const [importText, setImportText] = useState('');
   const [busy, setBusy] = useState(false);
   const [manual, setManual] = useState({ id: null, phone: '', name: '' });
+  const [dates, setDates] = useState({ id: null });
   const [editing, setEditing] = useState(null);
   const s = data?.summary;
 
@@ -366,9 +367,70 @@ export function CouponsPage() {
                               </Button>
                             )
                           ) : null}
-                          {c.phoneNormalized && !c.sentAt ? (
-                            <Button size="sm" variant="ghost" loading={busy} onClick={() => run(() => api.post(`/admin/coupons/${c._id}/release`), 'تم إلغاء التخصيص')}>
+                          {c.phoneNormalized ? (
+                            dates.id === c._id ? (
+                              <div className="badge-stack">
+                                <label className="checkbox">
+                                  بداية الصلاحية (يوم الإرسال)
+                                  <input className="input" type="date" value={dates.sentAt} onChange={(e) => setDates({ ...dates, sentAt: e.target.value })} />
+                                </label>
+                                <label className="checkbox">
+                                  آخر يوم صالح
+                                  <input className="input" type="date" value={dates.expiresAt} onChange={(e) => setDates({ ...dates, expiresAt: e.target.value })} />
+                                </label>
+                                <div className="badge-row">
+                                  <Button
+                                    size="sm"
+                                    loading={busy}
+                                    onClick={() =>
+                                      run(async () => {
+                                        const body = {};
+                                        if (dates.sentAt !== dates.origSent) body.sentAt = dates.sentAt ? `${dates.sentAt}T12:00:00.000Z` : null;
+                                        if (dates.expiresAt && dates.expiresAt !== dates.origEnd) body.expiresAt = `${dates.expiresAt}T12:00:00.000Z`;
+                                        if (!Object.keys(body).length) throw new Error('مفيش تاريخ اتغيّر');
+                                        await api.patch(`/admin/coupons/${c._id}/dates`, body);
+                                        setDates({ id: null });
+                                      }, 'تم تعديل التواريخ')
+                                    }
+                                  >
+                                    حفظ
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={() => setDates({ id: null })}>
+                                    إلغاء
+                                  </Button>
+                                </div>
+                                <p className="muted small">لو غيّرت البداية بس، النهاية بتتحسب 365 يوم بعدها. ولو مسحت البداية يبقى الكود «لم يُرسل».</p>
+                              </div>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  const sentAt = c.sentAt ? c.sentAt.slice(0, 10) : '';
+                                  const expiresAt = c.expiresAt ? c.expiresAt.slice(0, 10) : '';
+                                  setDates({ id: c._id, sentAt, expiresAt, origSent: sentAt, origEnd: expiresAt });
+                                }}
+                              >
+                                تعديل التواريخ
+                              </Button>
+                            )
+                          ) : null}
+                          {c.phoneNormalized ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              loading={busy}
+                              onClick={() => {
+                                if (c.sentAt && !window.confirm('الكود ده اتبعت للعميل. تلغي تخصيصه؟ تقدر ترجّعه بزرار «تراجع».')) return;
+                                run(() => api.post(`/admin/coupons/${c._id}/release`), 'تم إلغاء التخصيص');
+                              }}
+                            >
                               إلغاء التخصيص
+                            </Button>
+                          ) : null}
+                          {c.lastChange ? (
+                            <Button size="sm" variant="secondary" loading={busy} onClick={() => run(() => api.post(`/admin/coupons/${c._id}/undo`), 'تم التراجع')}>
+                              تراجع عن: {c.lastChange.label}
                             </Button>
                           ) : null}
                         </div>

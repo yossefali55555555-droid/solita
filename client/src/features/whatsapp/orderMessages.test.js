@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cairoDate, confirmationMessage, couponMessage, describeOrderItems, inspectLine, paymentLine } from './orderMessages.js';
+import { cairoDate, confirmationMessage, couponMessage, describeOrderItems, paymentLine } from './orderMessages.js';
 
 const order = {
   easyOrdersShortId: 57,
@@ -21,26 +21,25 @@ describe('order WhatsApp messages', () => {
   });
 
   it('fills the confirmation template for a cash on delivery order', () => {
-    const msg = confirmationMessage(order, 'أهلاً {name}، طلب {num}:\n{items}\nالإجمالي: {total}.\n{payment}\nالعنوان: {address}\n{inspect}');
+    const msg = confirmationMessage(order, 'أهلاً {name}، طلب {num}:\n{items}\nالإجمالي: {total}.\n{payment}\nالعنوان: {address}');
     expect(msg).toContain('أهلاً أحمد،');
     expect(msg).toContain('#57');
     expect(msg).toContain('- Samba (مقاس 42)');
     expect(msg).toContain('الدفع عند الاستلام.');
     expect(msg).toContain('الجيزة، 10 شارع النيل');
-    expect(msg).toContain('تقيسه قدام المندوب قبل ما تدفع');
   });
 
   it('never says cash on delivery for an order paid online', () => {
     const transfer = { ...order, paymentMethod: 'transfer_receipt', cod: { isCod: false }, paymentStatus: 'paid' };
     expect(paymentLine(transfer)).toContain('تم الدفع بالتحويل');
     expect(paymentLine(transfer)).not.toContain('عند الاستلام');
-    expect(inspectLine(transfer)).not.toContain('قبل ما تدفع');
-    expect(inspectLine(transfer)).toContain('تقيسه قدام المندوب');
 
     const waiting = { ...transfer, paymentStatus: 'unpaid' };
     expect(paymentLine(waiting)).toContain('بانتظار تأكيد وصول المبلغ');
 
-    const card = { ...order, paymentMethod: 'paymob_card', cod: { isCod: false }, paymentStatus: 'paid' };
+    const wallet = { ...order, paymentMethod: 'vodafone_cash', cod: { isCod: false }, paymentStatus: 'paid' };
+    expect(paymentLine(wallet)).toContain('تم الدفع بالمحفظة');
+    const card = { ...order, paymentMethod: 'paymob', cod: { isCod: false }, paymentStatus: 'paid' };
     expect(paymentLine(card)).toContain('تم الدفع بالفيزا');
     const other = { ...order, paymentMethod: 'something_new', cod: { isCod: false }, paymentStatus: 'paid' };
     expect(paymentLine(other)).toContain('تم الدفع أونلاين');

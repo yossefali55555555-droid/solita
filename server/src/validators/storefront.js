@@ -119,3 +119,16 @@ export const couponSettingsBody = z.strictObject({
   isActive: z.boolean().optional(),
   bound: z.boolean().optional(),
 });
+
+const couponDate = z
+  .string()
+  .min(1)
+  .transform((v) => new Date(v))
+  .refine((d) => !Number.isNaN(d.getTime()), 'تاريخ غير صالح');
+
+export const couponDatesBody = z
+  .strictObject({
+    sentAt: z.union([z.null(), couponDate]).optional(),
+    expiresAt: couponDate.optional(),
+  })
+  .refine((b) => b.sentAt !== undefined || b.expiresAt !== undefined, 'حدد تاريخًا واحدًا على الأقل');

@@ -311,3 +311,61 @@ describe('EasyOrders coupons: import, edit, sync', () => {
     expect((await post('sync-secret-for-tests')).status).toBe(503);
   });
 });
+
+describe('the owner controls the dates and can undo', () => {
+  it('edits start and end by hand, and undoes each change in reverse', async () => {
+    const admin = await loginAs(await createUser('admin'));
+    await addToPool(['st30-ctl']);
+    const order = await createOrder({ phone: nextPhone() });
+    const given = (await admin.post(`/api/admin/orders/${order._id}/coupon`)).body.coupon;
+
+    // Send, then set the dates by hand.
+    await admin.post(`/api/admin/coupons/${given._id}/sent`);
+    const edited = await admin.patch(`/api/admin/coupons/${given._id}/dates`, { sentAt: '2026-12-01T12:00:00.000Z' });
+    expect(edited.status).toBe(200);
+    expect(edited.body.coupon.sentAt).toBe('2026-12-01T12:00:00.000Z');
+    expect(Math.round((new Date(edited.body.coupon.expiresAt) - new Date('2026-12-01T12:00:00.000Z')) / DAY)).toBe(365);
+
+    const both = await admin.patch(`/api/admin/coupons/${given._id}/dates`, { sentAt: '2026-12-01T12:00:00.000Z', expiresAt: '2027-03-01T12:00:00.000Z' });
+    expect(both.body.coupon.expiresAt).toBe('2027-03-01T12:00:00.000Z');
+    expect((await admin.patch(`/api/admin/coupons/${given._id}/dates`, { expiresAt: '2026-01-01T00:00:00.000Z' })).status).toBe(422);
+    expect((await admin.patch(`/api/admin/coupons/${given._id}/dates`, {})).status).toBe(400);
+    expect((await admin.patch(`/api/admin/coupons/${given._id}/dates`, { expiresAt: 'not a date' })).status).toBe(400);
+
+    // The rejected edit changed nothing, and shows as the last change only once.
+    let row = (await admin.get('/api/admin/coupons')).body.items.find((r) => r._id === given._id);
+    expect(row.expiresAt).toBe('2027-03-01T12:00:00.000Z');
+    expect(row.lastChange.action).toBe('dates');
+
+    // Undo: back to the first edit, then before it, then the send, then the assignment.
+    expect((await admin.post(`/api/admin/coupons/${given._id}/undo`)).body.coupon.expiresAt).not.toBe('2027-03-01T12:00:00.000Z');
+    await admin.post(`/api/admin/coupons/${given._id}/undo`);
+    const unsent = await admin.post(`/api/admin/coupons/${given._id}/undo`);
+    expect(unsent.body.coupon.sentAt).toBeNull();
+    const freed = await admin.post(`/api/admin/coupons/${given._id}/undo`);
+    expect(freed.body.coupon.phoneNormalized).toBeNull();
+    expect((await admin.post(`/api/admin/coupons/${given._id}/undo`)).status).toBe(422);
+  });
+
+  it('can release a code that was already sent, and undo brings it back', async () => {
+    const admin = await loginAs(await createUser('admin'));
+    await addToPool(['st30-rel']);
+    const order = await createOrder({ phone: nextPhone() });
+    const given = (await admin.post(`/api/admin/orders/${order._id}/coupon`)).body.coupon;
+    await admin.post(`/api/admin/coupons/${given._id}/sent`);
+
+    const released = await admin.post(`/api/admin/coupons/${given._id}/release`);
+    expect(released.status).toBe(200);
+    expect(released.body.coupon.phoneNormalized).toBeNull();
+    const back = await admin.post(`/api/admin/coupons/${given._id}/undo`);
+    expect(back.body.coupon.phoneNormalized).toBe(order.customer.phoneNormalized);
+    expect(back.body.coupon.sentAt).toBeTruthy();
+
+    // If the customer got another code meanwhile, the undo refuses instead of creating two.
+    await admin.post(`/api/admin/coupons/${given._id}/release`);
+    await addToPool(['st30-rel-b']);
+    const other = await CouponAssignment.findOne({ code: 'st30-rel-b' }).lean();
+    await admin.post(`/api/admin/coupons/${other._id}/assign`, { phone: order.customer.phoneNormalized, name: 'x' });
+    expect((await admin.post(`/api/admin/coupons/${given._id}/undo`)).status).toBe(422);
+  });
+});

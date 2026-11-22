@@ -19,7 +19,7 @@ export async function importCoupons(req, res) {
 }
 
 export async function updateSettings(req, res) {
-  res.json({ coupon: await coupons.updateCouponSettings(req.valid.params.id, req.valid.body) });
+  res.json({ coupon: await coupons.updateCouponSettings(req.valid.params.id, req.valid.body, req.user) });
 }
 
 // POST /api/coupon-sync/exchange (secret header): the bookmarklet's round trip.
@@ -28,12 +28,20 @@ export async function syncExchange(req, res) {
   res.json(await coupons.syncExchange(req.valid.body.coupons));
 }
 
+export async function editDates(req, res) {
+  res.json({ coupon: await coupons.editDates(req.valid.params.id, req.valid.body, req.user) });
+}
+
+export async function undoChange(req, res) {
+  res.json({ coupon: await coupons.undoLastChange(req.valid.params.id) });
+}
+
 export async function assignCoupon(req, res) {
-  res.json({ coupon: await coupons.assignManually(req.valid.params.id, req.valid.body) });
+  res.json({ coupon: await coupons.assignManually(req.valid.params.id, req.valid.body, req.user) });
 }
 
 export async function releaseCoupon(req, res) {
-  res.json({ coupon: await coupons.releaseCoupon(req.valid.params.id) });
+  res.json({ coupon: await coupons.releaseCoupon(req.valid.params.id, req.user) });
 }
 
 export async function couponSent(req, res) {

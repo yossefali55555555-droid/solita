@@ -21,6 +21,7 @@
 <input id="base" value="https://solita-ashy.vercel.app" dir="ltr">
 <label>سر المزامنة (نفس قيمة <code>COUPON_SYNC_SECRET</code> في Vercel)</label>
 <input id="secret" dir="ltr" autocomplete="off" placeholder="الصق السر هنا">
+<p><button id="gen" type="button">ولّد سر عشوائي جديد</button> <span class="note">السر ده بتخترعه انت (مش بتجيبه من مكان). ولّده هنا، وانسخه، وضيفه في Vercel بنفس الاسم <code>COUPON_SYNC_SECRET</code> (Project ← Settings ← Environment Variables ← Add). بعد الإضافة اعمل Redeploy.</span></p>
 <p><a class="bm" id="link" href="#">مزامنة كوبونات سوليتا</a></p>
 <p>اسحب الزرار ده لشريط المفضلة (Bookmarks bar). بعد كده افتح <code>app.easy-orders.net</code> وانت مسجل دخول، وادوس عليه.</p>
 
@@ -82,6 +83,12 @@ function build() {
 }
 ['base', 'secret'].forEach(function (id) { document.getElementById(id).addEventListener('input', build); });
 document.getElementById('link').addEventListener('click', function (e) { if (!document.getElementById('secret').value.trim()) { e.preventDefault(); alert('اكتب السر الأول، وبعدها اسحب الزرار للمفضلة.'); } });
+document.getElementById('gen').addEventListener('click', function () {
+  var a = new Uint8Array(32); crypto.getRandomValues(a);
+  var v = Array.prototype.map.call(a, function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+  var el = document.getElementById('secret'); el.value = v; el.select(); build();
+  try { navigator.clipboard.writeText(v); } catch (e) {}
+});
 build();
 </script>
 </body>
