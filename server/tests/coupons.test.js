@@ -174,6 +174,9 @@ describe('coupons admin API and order buttons', () => {
     expect(row.couponAssignment.code).toBe('st30-x1');
     expect(row.couponAssignment.sentAt).toBeTruthy();
 
+    const detail = await admin.get(`/api/admin/orders/${order._id}`);
+    expect(detail.body.order.couponAssignment.code).toBe('st30-x1');
+
     const unconfirmed = await admin.get('/api/admin/orders?unconfirmed=true');
     expect(unconfirmed.body.items.map((o) => String(o._id))).toEqual([String(order._id)]);
 
