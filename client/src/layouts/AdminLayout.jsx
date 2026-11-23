@@ -3,23 +3,25 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import { DemoBanner, Logo } from '../components/ui.jsx';
 
+// Ordered from the most to the least important for the day-to-day work:
+// orders and delivery first, then money, then recovering customers, then analytics and marketing, system last.
 const NAV = [
   { to: '/admin', label: 'نظرة عامة', end: true },
   { to: '/admin/orders', label: 'الطلبات' },
+  { to: '/admin/missed-orders', label: 'الطلبات المفقودة' },
   { to: '/admin/labels', label: 'طباعة البوليصة' },
   { to: '/admin/reviews', label: 'طلبات التسليم بانتظار المراجعة' },
   { to: '/admin/returns', label: 'مراجعة الرفض والمرتجعات' },
-  { to: '/admin/customers', label: 'العملاء' },
   { to: '/admin/couriers', label: 'المندوبون' },
   { to: '/admin/cash', label: 'النقدية والتسويات' },
-  { to: '/admin/finance', label: 'الأرباح والمصروفات' },
+  { to: '/admin/customers', label: 'العملاء' },
   { to: '/admin/abandoned-carts', label: 'السلات المتروكة' },
-  { to: '/admin/missed-orders', label: 'الطلبات المفقودة' },
+  { to: '/admin/finance', label: 'الأرباح والمصروفات' },
   { to: '/admin/page-time', label: 'حركة الصفحات' },
-  { to: '/admin/founders', label: 'أوائل سوليتا' },
   { to: '/admin/coupons', label: 'الكوبونات' },
-  { to: '/admin/site-settings', label: 'إعدادات الموقع' },
+  { to: '/admin/founders', label: 'أوائل سوليتا' },
   { to: '/admin/sync', label: 'المزامنة مع EasyOrders' },
+  { to: '/admin/site-settings', label: 'إعدادات الموقع' },
 ];
 
 export function AdminLayout() {
