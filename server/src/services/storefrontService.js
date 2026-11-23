@@ -5,6 +5,7 @@ import { storefrontEventSchema } from '../validators/storefront.js';
 import { isDuplicateKeyError, notFound, unprocessable } from '../utils/errors.js';
 import { toMinor } from '../utils/money.js';
 import { logger } from '../utils/logger.js';
+import { recordPageEvents } from './pageStatService.js';
 
 /**
  * Storefront integration: anonymous visitors, abandoned carts and the
@@ -103,6 +104,11 @@ export async function ingestEvents({ visitorId, newVisit = false, events }, { no
 
   await updateVisitor(visitorId, newVisit, valid, now);
   await updateDailyStats(valid, now);
+  try {
+    await recordPageEvents(valid, now);
+  } catch (err) {
+    logger.error('Page stats failed', { error: err.message }); // never lose the rest of the batch
+  }
   await applyCartEvents(visitorId, valid, now);
 
   return { accepted: valid.length, rejected };

@@ -46,6 +46,63 @@ function normalizeItem(item) {
   };
 }
 
+const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+
+/** First non-empty string found under any of the keys, in any of the objects. */
+function pick(objs, keys) {
+  for (const o of objs) {
+    if (!isObj(o)) continue;
+    for (const k of keys) {
+      const v = o[k];
+      if (typeof v === 'string' && v.trim()) return v.trim().slice(0, 200);
+    }
+  }
+  return undefined;
+}
+
+const intOrUndef = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Math.max(0, Math.round(Number(v))) : undefined);
+
+/**
+ * Visit-session data: EasyOrders documents `metadata.tracking`
+ * { first_visit_at, first_order_at, orders_count, sessions_count,
+ *   visit_duration_seconds, pages_visited[], referrer } and `ip_country`.
+ * Campaign fields are not documented, so common UTM spellings are looked up
+ * in tracking, metadata and the payload itself; whatever else metadata holds
+ * is kept (size-limited) in `extra`. Returns undefined when nothing is there,
+ * so a payload without a session never wipes stored data.
+ */
+export function normalizeSession(payload) {
+  if (!isObj(payload)) return undefined;
+  const meta = isObj(payload.metadata) ? payload.metadata : null;
+  const tracking = isObj(meta?.tracking) ? meta.tracking : null;
+  const where = [tracking, meta, isObj(meta?.utm) ? meta.utm : null, isObj(tracking?.utm) ? tracking.utm : null, payload];
+  const out = {};
+  const put = (k, v) => {
+    if (v !== undefined && v !== '') out[k] = v;
+  };
+  if (tracking) {
+    put('firstVisitAt', parseDate(tracking.first_visit_at));
+    put('firstOrderAt', parseDate(tracking.first_order_at));
+    put('ordersCount', intOrUndef(tracking.orders_count));
+    put('sessionsCount', intOrUndef(tracking.sessions_count));
+    put('visitDurationSeconds', intOrUndef(tracking.visit_duration_seconds));
+    if (Array.isArray(tracking.pages_visited)) {
+      put('pagesVisited', tracking.pages_visited.filter((p) => typeof p === 'string').slice(0, 60).map((p) => p.slice(0, 300)));
+    }
+    put('referrer', optStr(tracking.referrer, 300));
+  }
+  put('ipCountry', optStr(payload.ip_country, 10));
+  put('utmSource', pick(where, ['utm_source', 'source', 'campaign_source', 'utmSource']));
+  put('utmCampaign', pick(where, ['utm_campaign', 'campaign', 'campaign_name', 'utmCampaign']));
+  if (meta) {
+    const rest = { ...meta };
+    delete rest.tracking;
+    const json = JSON.stringify(rest);
+    if (json && json !== '{}' && json.length <= 3000) out.extra = rest;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 export function extractExternalOrderId(payload) {
   const id = payload?.id ?? payload?.order_id;
   if (id === null || id === undefined) return null;
@@ -93,6 +150,7 @@ export function normalizeEasyOrdersOrder(payload) {
 
   return {
     easyOrdersId,
+    session: normalizeSession(payload),
     storeId: has(payload, 'store_id') ? optStr(payload.store_id, 100) : undefined,
     customer,
     items,

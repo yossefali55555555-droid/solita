@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { EGYPT_MOBILE_REGEX, normalizePhone } from '../utils/phone.js';
 import { pageQuery } from './common.js';
+import { DEVICES, OSES, SOURCES } from '../models/PageStat.js';
 
 /**
  * Public storefront events (POST /api/public/events).
@@ -43,7 +44,30 @@ const phone = z
   .refine((v) => EGYPT_MOBILE_REGEX.test(v), 'رقم موبايل مصري غير صحيح');
 
 export const storefrontEventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('page_view'), path: str(300).min(1), title: str(200).optional() }),
+  z.object({
+    type: z.literal('page_view'),
+    path: str(300).min(1),
+    title: str(200).optional(),
+    device: z.enum(DEVICES).optional(),
+    os: z.enum(OSES).optional(),
+    src: z.enum(SOURCES).optional(),
+  }),
+  // Active seconds on a page. `part` reports are partial (tab hidden); the final one
+  // (part false) carries the whole visit's `total`, whether the visitor went on to
+  // another page (cont true) or left the site (cont false), and the scroll depth.
+  z.object({
+    type: z.literal('page_time'),
+    path: str(300).min(1),
+    title: str(200).optional(),
+    seconds: z.number().min(0).max(7200).transform((n) => Math.round(n)),
+    total: z.number().min(0).max(7200).transform((n) => Math.round(n)).optional(),
+    part: z.boolean().optional(),
+    cont: z.boolean().optional(),
+    scroll: z.number().min(0).max(100).transform((n) => Math.round(n)).optional(),
+    device: z.enum(DEVICES).optional(),
+    os: z.enum(OSES).optional(),
+    src: z.enum(SOURCES).optional(),
+  }),
   z.object({ type: z.literal('product_view'), product: productRef }),
   z.object({ type: z.literal('cart_add'), item: cartItem }),
   z.object({
@@ -69,6 +93,42 @@ export const eventsEnvelopeSchema = z.strictObject({
 });
 
 // ---------- Admin ----------
+export const pageStatsQuery = z.object({
+  range: z.enum(['today', '7d', '30d', '90d']).optional(),
+  device: z.enum(DEVICES).optional(),
+  src: z.enum(SOURCES).optional(),
+  type: z.enum(['home', 'product', 'collection', 'checkout', 'thanks', 'track', 'cart', 'page', 'search', 'other']).optional(),
+});
+
+export const importMissedBody = z.strictObject({ text: z.string().min(10).max(100_000) });
+
+export const listMissedQuery = z.object({
+  status: z.enum(['open', 'contacted', 'dismissed', 'all']).optional(),
+  test: z.enum(['include', 'only']).optional(),
+  reason: z.string().trim().max(200).optional(),
+  priority: z.enum(['all', 'hot', 'done', 'unreachable', 'likely_test']).optional(),
+  q: z.string().trim().max(100).optional(),
+  ...pageQuery,
+});
+
+export const bulkMissedBody = z
+  .strictObject({
+    ids: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/)).min(1).max(500),
+    contacted: z.boolean().optional(),
+    dismissed: z.boolean().optional(),
+    isTest: z.boolean().optional(),
+  })
+  .refine((v) => v.contacted !== undefined || v.dismissed !== undefined || v.isTest !== undefined, 'لا توجد بيانات للتحديث');
+
+export const updateMissedBody = z
+  .strictObject({
+    contacted: z.boolean().optional(),
+    dismissed: z.boolean().optional(),
+    isTest: z.boolean().optional(),
+    note: z.string().trim().max(1000).optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, 'لا توجد بيانات للتحديث');
+
 export const listCartsQuery = z.object({
   range: z.enum(['today', '3d', '7d', '30d', 'all']).optional(),
   status: z.enum(['active', 'open', 'contacted', 'converted', 'expired', 'all']).optional(),
@@ -119,7 +179,7 @@ export const couponSettingsBody = z.strictObject({
   isActive: z.boolean().optional(),
   bound: z.boolean().optional(),
 });
-
+
 const couponDate = z
   .string()
   .min(1)

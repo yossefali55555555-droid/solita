@@ -11,6 +11,7 @@ import { api } from '../../services/api.js';
 import { DELIVERY_STATUS_LABELS, SOURCE_STATUS_LABELS } from '../../utils/labels.js';
 import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
 import { OrderWhatsAppButtons } from '../../features/whatsapp/OrderWhatsAppButtons.jsx';
+import { CustomerRiskBadge } from '../../features/orders/OrderInsights.jsx';
 
 const FILTER_KEYS = ['q', 'sourceStatus', 'deliveryStatus', 'courier', 'syncState', 'cleared', 'test', 'unconfirmed', 'couponFlagged', 'from', 'to', 'page'];
 
@@ -327,6 +328,7 @@ export function OrdersPage() {
                     <td>
                       <div>{o.customer?.name || '—'}</div>
                       <div className="muted mono" dir="ltr">{o.customer?.phone}</div>
+                      <CustomerRiskBadge history={o.customerHistory} />
                     </td>
                     <td>{o.customer?.government || '—'}</td>
                     <td className="nowrap">{formatMoney(o.totalAmount, o.currency)}</td>

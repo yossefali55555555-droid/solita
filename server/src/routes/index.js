@@ -9,7 +9,7 @@ import * as admin from '../controllers/adminController.js';
 import * as courier from '../controllers/courierController.js';
 import * as webhook from '../controllers/webhookController.js';
 import * as storefront from '../controllers/storefrontController.js';
-import { addCouponsBody, assignCouponBody, couponDatesBody, couponSettingsBody, importCouponsBody, listCartsQuery, updateFounderBody } from '../validators/storefront.js';
+import { pageStatsQuery, importMissedBody, listMissedQuery, updateMissedBody, bulkMissedBody, addCouponsBody, assignCouponBody, couponDatesBody, couponSettingsBody, importCouponsBody, listCartsQuery, updateFounderBody } from '../validators/storefront.js';
 import * as couponCtl from '../controllers/couponController.js';
 import { siteSettingsSchema } from '../validators/siteSettings.js';
 
@@ -56,6 +56,8 @@ export function buildRouter() {
   a.get('/orders', validate({ query: s.listOrdersQuery }), admin.listOrders);
   a.get('/orders/cleared/count', admin.clearedOrdersCount);
   a.post('/orders/bulk', validate({ body: s.bulkOrdersBody }), admin.bulkOrders);
+  a.post('/orders/:id/notes', validate({ params: idParams, body: s.noteBody }), admin.addOrderNoteCtl);
+  a.post('/orders/:id/notes/:noteId/retry', id, admin.retryOrderNoteCtl);
   a.post('/orders/:id/test', validate({ params: idParams, body: s.testFlagBody }), admin.setOrderTest);
   a.post('/orders/clear', validate({ body: s.clearOrdersBody }), admin.clearOrders);
   a.post('/orders/restore-cleared', admin.restoreClearedOrders);
@@ -114,6 +116,11 @@ export function buildRouter() {
   a.post('/storefront/carts/:id/contacted', id, storefront.markCartContacted);
   a.post('/storefront/carts/:id/dismiss', id, storefront.dismissCart);
   a.get('/storefront/summary', storefront.behaviourSummary);
+  a.get('/storefront/pages', validate({ query: pageStatsQuery }), storefront.getPageStats);
+  a.get('/missed-orders', validate({ query: listMissedQuery }), storefront.listMissed);
+  a.post('/missed-orders/import', validate({ body: importMissedBody }), storefront.importMissed);
+  a.post('/missed-orders/bulk', validate({ body: bulkMissedBody }), storefront.bulkMissed);
+  a.patch('/missed-orders/:id', validate({ params: idParams, body: updateMissedBody }), storefront.updateMissed);
   a.get('/coupons', couponCtl.listCoupons);
   a.post('/coupons', validate({ body: addCouponsBody }), couponCtl.addCoupons);
   a.get('/coupons/attempts', couponCtl.listAttempts);
