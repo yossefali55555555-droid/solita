@@ -70,6 +70,8 @@ export const listOrdersQuery = z.object({
   to: isoDate.optional(),
   // Orders cleared from the dashboard: hidden by default.
   cleared: z.enum(['hide', 'include', 'only']).optional(),
+  // Admin-marked test orders: hidden by default.
+  test: z.enum(['include', 'only']).optional(),
   ...pageQuery,
 });
 
@@ -86,6 +88,27 @@ export const adminStatusBody = z.discriminatedUnion('status', [
   }),
   z.strictObject({
     status: z.literal('new'),
+    reason: trimmed(1000).min(3, 'سبب إعادة الفتح مطلوب'),
+  }),
+]);
+
+export const testFlagBody = z.strictObject({ isTest: z.boolean() });
+
+export const bulkOrdersBody = z.discriminatedUnion('action', [
+  z.strictObject({ action: z.literal('mark_test'), ids: z.array(objectId).min(1).max(100) }),
+  z.strictObject({ action: z.literal('unmark_test'), ids: z.array(objectId).min(1).max(100) }),
+  z.strictObject({ action: z.literal('hide'), ids: z.array(objectId).min(1).max(100) }),
+  z.strictObject({ action: z.literal('unassign'), ids: z.array(objectId).min(1).max(100) }),
+  z.strictObject({ action: z.literal('assign'), ids: z.array(objectId).min(1).max(100), courierId: objectId }),
+  z.strictObject({
+    action: z.literal('cancel'),
+    ids: z.array(objectId).min(1).max(100),
+    reason: trimmed(1000).min(3, 'سبب الإلغاء مطلوب'),
+    syncToEasyOrders: z.boolean().default(false),
+  }),
+  z.strictObject({
+    action: z.literal('reopen'),
+    ids: z.array(objectId).min(1).max(100),
     reason: trimmed(1000).min(3, 'سبب إعادة الفتح مطلوب'),
   }),
 ]);

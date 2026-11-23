@@ -1,3 +1,4 @@
+import { NOT_TEST } from '../models/Order.js';
 import { AppSetting, CashRemittance, Expense, Order } from '../models/index.js';
 import { EXPENSE_CATEGORIES } from '../constants/statuses.js';
 import { conflict, notFound } from '../utils/errors.js';
@@ -157,7 +158,7 @@ export async function getProfitSummary({ from, to } = {}) {
   const resetAt = await getFinanceResetAt();
   const [salesAgg, returnedCount, expensesAgg, cashAgg] = await Promise.all([
     Order.aggregate([
-      { $match: { deliveryStatus: 'delivered', ...rangeAfterReset('deliveredAt', { from, to }, resetAt) } },
+      { $match: { ...NOT_TEST, deliveryStatus: 'delivered', ...rangeAfterReset('deliveredAt', { from, to }, resetAt) } },
       {
         $group: {
           _id: null,
@@ -168,7 +169,7 @@ export async function getProfitSummary({ from, to } = {}) {
         },
       },
     ]),
-    Order.countDocuments({ deliveryStatus: 'returned', ...rangeAfterReset('returnInfo.at', { from, to }, resetAt) }),
+    Order.countDocuments({ ...NOT_TEST, deliveryStatus: 'returned', ...rangeAfterReset('returnInfo.at', { from, to }, resetAt) }),
     Expense.aggregate([
       { $match: { deletedAt: null, ...dateRange('date', { from, to }), ...afterReset('createdAt', resetAt) } },
       { $group: { _id: '$category', amount: { $sum: '$amount' }, count: { $sum: 1 } } },

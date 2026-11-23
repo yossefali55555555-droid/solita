@@ -1,9 +1,10 @@
 import { DeliveryReview, Order, SyncOperation, WebhookEvent } from '../models/index.js';
+import { NOT_TEST } from '../models/Order.js';
 import { getConfig } from '../config/env.js';
 import { cashOverview } from './cashService.js';
 
 // Orders cleared from the dashboard are left out of the overview counts.
-const VISIBLE = { dashboardHiddenAt: null };
+const VISIBLE = { dashboardHiddenAt: null, ...NOT_TEST };
 
 /** Real, database-backed overview numbers (no hardcoded statistics). */
 export async function getOverview() {

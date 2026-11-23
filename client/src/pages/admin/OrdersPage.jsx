@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Badge, Button, Card, PageHeader, Pagination } from '../../components/ui.jsx';
+import { Badge, Button, Card, ConfirmDialog, Field, PageHeader, Pagination } from '../../components/ui.jsx';
 import { ConfirmWordModal } from '../../components/ConfirmWordModal.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
@@ -12,7 +12,7 @@ import { DELIVERY_STATUS_LABELS, SOURCE_STATUS_LABELS } from '../../utils/labels
 import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
 import { OrderWhatsAppButtons } from '../../features/whatsapp/OrderWhatsAppButtons.jsx';
 
-const FILTER_KEYS = ['q', 'sourceStatus', 'deliveryStatus', 'courier', 'syncState', 'cleared', 'unconfirmed', 'couponFlagged', 'from', 'to', 'page'];
+const FILTER_KEYS = ['q', 'sourceStatus', 'deliveryStatus', 'courier', 'syncState', 'cleared', 'test', 'unconfirmed', 'couponFlagged', 'from', 'to', 'page'];
 
 export function OrdersPage() {
   const [params, setParams] = useSearchParams();
@@ -39,6 +39,7 @@ export function OrdersPage() {
   const toast = useToast();
   const [clearOpen, setClearOpen] = useState(false);
 
+
   const refresh = () => {
     reload({ silent: true });
     cleared.reload({ silent: true });
@@ -60,6 +61,62 @@ export function OrdersPage() {
     }
   });
   const clearedCount = cleared.data?.count || 0;
+
+  // ---- multi-select + bulk actions ----
+  const [selected, setSelected] = useState(() => new Set());
+  const [bulk, setBulk] = useState(null); // { action, courierId?, reason?, syncToEasyOrders? }
+  const [bulkError, setBulkError] = useState('');
+  const pageIds = (data?.items || []).map((o) => o._id);
+  const allOnPage = pageIds.length > 0 && pageIds.every((i) => selected.has(i));
+  const toggleOne = (oid) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(oid)) next.delete(oid);
+      else next.add(oid);
+      return next;
+    });
+  const togglePage = () =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allOnPage) pageIds.forEach((i) => next.delete(i));
+      else pageIds.forEach((i) => next.add(i));
+      return next;
+    });
+  const BULK_LABELS = {
+    assign: 'تعيين لمندوب',
+    unassign: 'سحب التعيين',
+    cancel: 'إلغاء الطلبات',
+    reopen: 'إعادة فتح الطلبات',
+    mark_test: 'تحديد كطلبات تجريبية',
+    unmark_test: 'إلغاء علامة التجريبي',
+    hide: 'مسح من اللوحة',
+  };
+  const [runBulk, runningBulk] = useAction(async () => {
+    setBulkError('');
+    const body = { action: bulk.action, ids: [...selected] };
+    if (bulk.action === 'assign') body.courierId = bulk.courierId;
+    if (bulk.action === 'cancel') {
+      body.reason = bulk.reason || '';
+      body.syncToEasyOrders = Boolean(bulk.syncToEasyOrders);
+    }
+    if (bulk.action === 'reopen') body.reason = bulk.reason || '';
+    try {
+      const res = await api.post('/admin/orders/bulk', body);
+      if (res.failed.length) {
+        toast.info(`تم تنفيذ ${res.done} طلب، وتعذر ${res.failed.length}: ${res.failed[0].message}`);
+        setSelected(new Set(res.failed.map((x) => x.id)));
+      } else {
+        toast.success(`تم تنفيذ العملية على ${res.done} طلب`);
+        setSelected(new Set());
+      }
+      setBulk(null);
+      refresh();
+    } catch (err) {
+      setBulkError(err.details?.[0]?.message || err.message);
+    }
+  });
+  const bulkNeedsReason = bulk && ['cancel', 'reopen'].includes(bulk.action);
+  const bulkReady = bulk && (bulk.action !== 'assign' || bulk.courierId) && (!bulkNeedsReason || (bulk.reason || '').trim().length >= 3);
 
   const update = (k, v) => {
     const next = new URLSearchParams(params);
@@ -151,6 +208,11 @@ export function OrdersPage() {
             <option value="include">مع الطلبات الممسوحة</option>
             <option value="only">الطلبات الممسوحة فقط</option>
           </select>
+          <select className="input" aria-label="الطلبات التجريبية" value={filters.test} onChange={(e) => update('test', e.target.value)}>
+            <option value="">بدون الطلبات التجريبية</option>
+            <option value="include">مع الطلبات التجريبية</option>
+            <option value="only">التجريبية فقط</option>
+          </select>
           <select className="input" aria-label="المزامنة" value={filters.syncState} onChange={(e) => update('syncState', e.target.value)}>
             <option value="">كل حالات المزامنة</option>
             <option value="pending">جاري المزامنة</option>
@@ -168,6 +230,61 @@ export function OrdersPage() {
         </div>
       </Card>
 
+      {selected.size > 0 && (
+        <div className="alert alert--info row-between" role="region" aria-label="إجراءات جماعية">
+          <span>
+            <strong>{selected.size}</strong> طلب محدد
+          </span>
+          <span className="page-header__actions">
+            {Object.entries(BULK_LABELS).map(([action, text]) => (
+              <Button
+                key={action}
+                size="sm"
+                variant={action === 'cancel' || action === 'hide' ? 'danger' : 'secondary'}
+                onClick={() => { setBulkError(''); setBulk({ action }); }}
+              >
+                {text}
+              </Button>
+            ))}
+            <Button size="sm" variant="secondary" onClick={() => setSelected(new Set())}>إلغاء التحديد</Button>
+          </span>
+        </div>
+      )}
+      <ConfirmDialog
+        open={Boolean(bulk)}
+        title={bulk ? `${BULK_LABELS[bulk.action]} (${selected.size} طلب)` : ''}
+        confirmLabel="تنفيذ"
+        tone={bulk && (bulk.action === 'cancel' || bulk.action === 'hide') ? 'danger' : 'primary'}
+        loading={runningBulk}
+        onClose={() => setBulk(null)}
+        onConfirm={() => bulkReady && runBulk()}
+      >
+        {bulk?.action === 'assign' && (
+          <Field label="المندوب" required>
+            <select className="input" value={bulk.courierId || ''} onChange={(e) => setBulk({ ...bulk, courierId: e.target.value })}>
+              <option value="">اختر المندوب</option>
+              {couriers.data?.items.filter((c) => c.isActive).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </Field>
+        )}
+        {bulkNeedsReason && (
+          <Field label={bulk.action === 'cancel' ? 'سبب الإلغاء' : 'سبب إعادة الفتح'} required>
+            <textarea className="input" rows={3} value={bulk.reason || ''} onChange={(e) => setBulk({ ...bulk, reason: e.target.value })} />
+          </Field>
+        )}
+        {bulk?.action === 'cancel' && (
+          <label className="checkbox">
+            <input type="checkbox" checked={Boolean(bulk.syncToEasyOrders)} onChange={(e) => setBulk({ ...bulk, syncToEasyOrders: e.target.checked })} />
+            <span>إلغاء الطلبات في EasyOrders أيضًا</span>
+          </label>
+        )}
+        {bulk?.action === 'mark_test' && <p>لن تدخل هذه الطلبات في أي أرقام (مبيعات، نقدية، أرباح، كوبونات، عملاء) ولن تظهر في القوائم. يمكنك استرجاعها بفلتر «التجريبية فقط».</p>}
+        {bulk?.action === 'hide' && <p>سيتم إخفاء الطلبات المحددة من اللوحة فقط، وتبقى محفوظة في قاعدة البيانات.</p>}
+        {bulkError && <div className="alert alert--danger" role="alert">{bulkError}</div>}
+      </ConfirmDialog>
+
       <Card padded={false}>
         {loading && !data ? (
           <LoadingState />
@@ -180,6 +297,9 @@ export function OrdersPage() {
             <table className="table">
               <thead>
                 <tr>
+                  <th>
+                    <input type="checkbox" aria-label="تحديد كل الطلبات في الصفحة" checked={allOnPage} onChange={togglePage} />
+                  </th>
                   <th>رقم الطلب</th>
                   <th>العميل</th>
                   <th>المحافظة</th>
@@ -192,12 +312,16 @@ export function OrdersPage() {
               </thead>
               <tbody>
                 {data.items.map((o) => (
-                  <tr key={o._id}>
+                  <tr key={o._id} className={selected.has(o._id) ? 'is-selected' : ''}>
+                    <td>
+                      <input type="checkbox" aria-label={`تحديد الطلب ${orderNumber(o)}`} checked={selected.has(o._id)} onChange={() => toggleOne(o._id)} />
+                    </td>
                     <td>
                       <Link to={`/admin/orders/${o._id}`} className="link mono">
                         {orderNumber(o)}
                       </Link>
                       <DemoBadge show={o.isDemo} />
+                      {o.isTest && <Badge tone="warning" title="طلب تجريبي: لا يدخل في أي أرقام">تجريبي</Badge>}
                       {o.dashboardHiddenAt && <Badge tone="neutral" title="ممسوح من اللوحة ومحفوظ في قاعدة البيانات">ممسوح</Badge>}
                     </td>
                     <td>

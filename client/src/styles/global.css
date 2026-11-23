@@ -1404,3 +1404,5 @@ input[dir='ltr'].input {
 
 /* WhatsApp buttons under the customer data on the order page */
 .order-whatsapp { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border, #e5e0d5); }
+
+.table tr.is-selected td { background: rgba(74, 81, 64, 0.08); }

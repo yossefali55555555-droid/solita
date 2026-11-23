@@ -1,3 +1,4 @@
+import { NOT_TEST } from '../models/Order.js';
 import { Order } from '../models/index.js';
 import { badRequest, conflict, unprocessable } from '../utils/errors.js';
 import { recordEvent, userActor } from './auditService.js';
@@ -154,11 +155,11 @@ const QUEUE_FIELDS =
   'easyOrdersId easyOrdersShortId customer.name customer.phone customer.government items totalAmount cod paymentStatus sourceStatus deliveryStatus assignedTo labels parcels isDemo createdAt';
 
 export async function listPrintQueue({ tab = 'pending' }, { skip, limit }) {
-  const notCancelled = { sourceStatus: { $ne: 'canceled' } };
+  const notCancelled = { sourceStatus: { $ne: 'canceled' }, ...NOT_TEST };
   const queries = {
     pending: { 'labels.printedAt': null, deliveryStatus: { $in: ['new', 'assigned'] }, dashboardHiddenAt: null, ...notCancelled },
     reprint: { 'labels.needsReprint': true, deliveryStatus: { $in: PRINTABLE_STATUSES }, ...notCancelled },
-    printed: { 'labels.printedAt': { $ne: null } },
+    printed: { 'labels.printedAt': { $ne: null }, ...NOT_TEST },
   };
   const query = queries[tab] || queries.pending;
   const sort = tab === 'printed' ? { 'labels.printedAt': -1, _id: -1 } : { createdAt: 1, _id: 1 };

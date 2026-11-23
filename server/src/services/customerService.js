@@ -1,3 +1,4 @@
+import { NOT_TEST } from '../models/Order.js';
 import { Order } from '../models/index.js';
 import { notFound } from '../utils/errors.js';
 import { escapeRegex } from '../utils/sanitize.js';
@@ -42,12 +43,12 @@ const GROUP_STAGE = {
 };
 
 function searchMatch(q) {
-  if (!q) return {};
+  if (!q) return { ...NOT_TEST };
   const rx = new RegExp(escapeRegex(q.trim()), 'i');
   const or = [{ 'customer.name': rx }, { 'customer.phone': rx }];
   const phone = normalizePhone(q);
   if (phone.length >= 4) or.push({ 'customer.phoneNormalized': new RegExp(escapeRegex(phone)) });
-  return { $or: or };
+  return { ...NOT_TEST, $or: or };
 }
 
 const SORTS = {
@@ -73,11 +74,12 @@ export async function listCustomers({ q, sort = 'recent' } = {}, { skip = 0, lim
 function matchForKey(key) {
   if (key.startsWith(NAME_PREFIX)) {
     return {
+      ...NOT_TEST,
       'customer.name': key.slice(NAME_PREFIX.length),
       $or: [{ 'customer.phoneNormalized': '' }, { 'customer.phoneNormalized': null }, { 'customer.phoneNormalized': { $exists: false } }],
     };
   }
-  return { 'customer.phoneNormalized': key };
+  return { ...NOT_TEST, 'customer.phoneNormalized': key };
 }
 
 export async function getCustomer(key) {

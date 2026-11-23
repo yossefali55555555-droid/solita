@@ -174,6 +174,11 @@ const orderSchema = new mongoose.Schema(
     dashboardHiddenAt: { type: Date, default: null },
     dashboardHiddenBy: { type: ObjectId, ref: 'User', default: null },
 
+    // Marked as a test order by an admin: every number, list and queue ignores it.
+    isTest: { type: Boolean, default: false },
+    testMarkedAt: { type: Date, default: null },
+    testMarkedBy: { type: ObjectId, ref: 'User', default: null },
+
     // Demo records (MOCK_MODE only) are flagged so they are never mistaken for real data.
     isDemo: { type: Boolean, default: false },
   },
@@ -194,5 +199,8 @@ orderSchema.index({ 'cod.remittance': 1, assignedTo: 1 });
 orderSchema.index({ dashboardHiddenAt: 1, createdAt: -1 });
 orderSchema.index({ 'labels.printedAt': 1, deliveryStatus: 1 });
 orderSchema.index({ 'labels.needsReprint': 1, deliveryStatus: 1 });
+
+/** Spread into any query/$match that must ignore admin-marked test orders. */
+export const NOT_TEST = { isTest: { $ne: true } };
 
 export const Order = mongoose.models.Order || mongoose.model('Order', orderSchema);

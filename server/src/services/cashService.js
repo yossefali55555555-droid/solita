@@ -1,3 +1,4 @@
+import { NOT_TEST } from '../models/Order.js';
 import mongoose from 'mongoose';
 import { AppSetting, CashRemittance, Order, User } from '../models/index.js';
 import { conflict, notFound, unprocessable } from '../utils/errors.js';
@@ -19,6 +20,7 @@ import { recordEvent, userActor } from './auditService.js';
  */
 
 const ELIGIBLE = (courierId) => ({
+  ...NOT_TEST,
   assignedTo: new mongoose.Types.ObjectId(String(courierId)),
   deliveryStatus: 'delivered',
   'cod.isCod': true,
@@ -225,7 +227,7 @@ export async function courierCashSummary(courierId) {
       { $group: { _id: null, expected: { $sum: '$cod.expectedAmount' }, declared: { $sum: { $ifNull: ['$cod.declaredAmount', 0] } }, count: { $sum: 1 } } },
     ]),
     Order.aggregate([
-      { $match: { assignedTo: cid, 'cod.isCod': true, deliveryStatus: { $in: ['out_for_delivery', 'pending_delivery_review'] } } },
+      { $match: { ...NOT_TEST, assignedTo: cid, 'cod.isCod': true, deliveryStatus: { $in: ['out_for_delivery', 'pending_delivery_review'] } } },
       { $group: { _id: null, expected: { $sum: '$cod.expectedAmount' }, count: { $sum: 1 } } },
     ]),
     CashRemittance.aggregate([
@@ -320,11 +322,11 @@ export async function cashOverview() {
   const createdAfter = resetAt ? { createdAt: { $gt: resetAt } } : {};
   const [expected, unremitted, remittances, perCourier] = await Promise.all([
     Order.aggregate([
-      { $match: { deliveryStatus: 'delivered', 'cod.isCod': true, ...deliveredAfter } },
+      { $match: { ...NOT_TEST, deliveryStatus: 'delivered', 'cod.isCod': true, ...deliveredAfter } },
       { $group: { _id: null, total: { $sum: '$cod.expectedAmount' } } },
     ]),
     Order.aggregate([
-      { $match: { deliveryStatus: 'delivered', 'cod.isCod': true, 'cod.remittance': null, ...deliveredAfter } },
+      { $match: { ...NOT_TEST, deliveryStatus: 'delivered', 'cod.isCod': true, 'cod.remittance': null, ...deliveredAfter } },
       { $group: { _id: null, total: { $sum: '$cod.expectedAmount' } } },
     ]),
     CashRemittance.aggregate([
@@ -341,7 +343,7 @@ export async function cashOverview() {
       },
     ]),
     Order.aggregate([
-      { $match: { deliveryStatus: 'delivered', 'cod.isCod': true, 'cod.remittance': null, assignedTo: { $ne: null }, ...deliveredAfter } },
+      { $match: { ...NOT_TEST, deliveryStatus: 'delivered', 'cod.isCod': true, 'cod.remittance': null, assignedTo: { $ne: null }, ...deliveredAfter } },
       { $group: { _id: '$assignedTo', expected: { $sum: '$cod.expectedAmount' }, count: { $sum: 1 } } },
       { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'courier' } },
       { $unwind: '$courier' },

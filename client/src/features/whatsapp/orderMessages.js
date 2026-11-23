@@ -2,6 +2,9 @@ import { formatMoney, orderNumber } from '../../utils/format.js';
 
 export const STORE_URL = 'https://solita.myeasyorders.com';
 
+/** The customer's order tracking page on the store. */
+export const trackingUrl = (order) => `${STORE_URL}/track/${encodeURIComponent(order.easyOrdersId)}`;
+
 const firstName = (order) => (order.customer?.name || '').trim().split(/\s+/)[0] || '';
 
 function tidy(text) {
