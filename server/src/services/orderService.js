@@ -9,6 +9,8 @@ import { notify } from './notificationService.js';
 import { enqueueStatusSync, processOperation } from './syncService.js';
 import { parcelsAfterAssignment } from './labelService.js';
 import { attachCoupons } from './couponService.js';
+import { attachCustomerHistory } from './customerRiskService.js';
+import { addOrderNote, EasyOrdersError } from '../integrations/easyorders/client.js';
 
 const ASSIGNABLE = ['new', 'assigned', 'out_for_delivery', 'failed'];
 const COURIER_FIELDS = 'name phone isActive';
@@ -58,6 +60,7 @@ export async function listOrders(filters, { skip, limit }) {
     Order.countDocuments(query),
   ]);
   await attachCoupons(items);
+  await attachCustomerHistory(items);
   return { items, total };
 }
 
@@ -70,6 +73,7 @@ export async function getOrderForAdmin(orderId) {
     .lean();
   if (!order) throw notFound('الطلب غير موجود');
   await attachCoupons([order]);
+  await attachCustomerHistory([order]);
   const [reviews, syncOperations] = await Promise.all([
     DeliveryReview.find({ order: orderId })
       .sort({ submittedAt: -1 })
@@ -242,6 +246,52 @@ export async function clearSourceConflict(admin, orderId) {
   if (!order) throw notFound('لا يوجد تعارض نشط لهذا الطلب');
   await recordEvent({ order: order._id, type: 'source_conflict_acknowledged', actor: userActor(admin) });
   return order;
+}
+
+// ---------------------------------------------------------------- notes
+
+async function pushNote(order, note) {
+  if (!order.storeId) return { sync: 'failed', syncError: 'لا يوجد store_id للطلب، حدّث الطلب من EasyOrders أولاً' };
+  try {
+    await addOrderNote({ orderId: order.easyOrdersId, storeId: order.storeId, note: note.text, type: note.type });
+    return { sync: 'synced', syncError: '' };
+  } catch (err) {
+    const msg = err instanceof EasyOrdersError ? err.message : 'تعذر الإرسال إلى EasyOrders';
+    return { sync: 'failed', syncError: String(msg).slice(0, 300) };
+  }
+}
+
+/**
+ * Add a note to an order. It is saved here first, then sent to EasyOrders
+ * (public notes show on the customer's tracking page). A failed send keeps
+ * the note and can be retried.
+ */
+export async function addNote(admin, orderId, { text, type }) {
+  const order = await Order.findById(orderId).lean();
+  if (!order) throw notFound('الطلب غير موجود');
+  const note = { text, type, by: admin._id, byName: admin.name || '', at: new Date() };
+  const result = await pushNote(order, note);
+  const updated = await Order.findOneAndUpdate(
+    { _id: orderId },
+    { $push: { notes: { ...note, ...result } } },
+    { returnDocument: 'after' },
+  ).lean();
+  await recordEvent({ order: order._id, type: 'order_note_added', actor: userActor(admin), next: { noteType: type, sync: result.sync } });
+  return { order: updated, sync: result.sync, syncError: result.syncError };
+}
+
+export async function retryNote(admin, orderId, noteId) {
+  const order = await Order.findById(orderId).lean();
+  const note = order?.notes?.find((n) => String(n._id) === String(noteId));
+  if (!note) throw notFound('الملاحظة غير موجودة');
+  if (note.sync === 'synced') return { order, sync: 'synced', syncError: '' };
+  const result = await pushNote(order, note);
+  const updated = await Order.findOneAndUpdate(
+    { _id: orderId, 'notes._id': noteId },
+    { $set: { 'notes.$.sync': result.sync, 'notes.$.syncError': result.syncError } },
+    { returnDocument: 'after' },
+  ).lean();
+  return { order: updated, sync: result.sync, syncError: result.syncError };
 }
 
 // ---------------------------------------------------------------- test flag + bulk

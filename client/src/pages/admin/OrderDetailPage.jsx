@@ -21,6 +21,7 @@ import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js'
 import { PrintPortal } from '../../features/labels/LabelSheets.jsx';
 import { OrderWhatsAppButtons } from '../../features/whatsapp/OrderWhatsAppButtons.jsx';
 import { trackingUrl } from '../../features/whatsapp/orderMessages.js';
+import { CustomerRecordCard, NotesCard, SessionCard } from '../../features/orders/OrderInsights.jsx';
 
 async function copyText(text) {
   try {
@@ -295,6 +296,12 @@ export function OrderDetailPage() {
           />
         </Card>
       </div>
+
+      <div className="grid-2">
+        <SessionCard order={order} onChanged={refresh} />
+        <CustomerRecordCard history={order.customerHistory} />
+      </div>
+      <NotesCard order={order} onChanged={refresh} />
 
       <Card title="المنتجات">
         <div className="table-wrap">

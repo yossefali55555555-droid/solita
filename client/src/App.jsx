@@ -22,6 +22,8 @@ import { CustomerDetailPage } from './pages/admin/CustomerDetailPage.jsx';
 import { FinancePage } from './pages/admin/FinancePage.jsx';
 import { LabelsPage } from './pages/admin/LabelsPage.jsx';
 import { AbandonedCartsPage } from './pages/admin/AbandonedCartsPage.jsx';
+import { MissedOrdersPage } from './pages/admin/MissedOrdersPage.jsx';
+import { PageTimePage } from './pages/admin/PageTimePage.jsx';
 import { FoundersPage } from './pages/admin/FoundersPage.jsx';
 import { CouponsPage } from './pages/admin/CouponsPage.jsx';
 import { SiteSettingsPage } from './pages/admin/SiteSettingsPage.jsx';
@@ -73,6 +75,8 @@ export function App() {
         <Route path="finance" element={<FinancePage />} />
         <Route path="labels" element={<LabelsPage />} />
         <Route path="abandoned-carts" element={<AbandonedCartsPage />} />
+        <Route path="missed-orders" element={<MissedOrdersPage />} />
+        <Route path="page-time" element={<PageTimePage />} />
         <Route path="founders" element={<FoundersPage />} />
         <Route path="coupons" element={<CouponsPage />} />
         <Route path="site-settings" element={<SiteSettingsPage />} />

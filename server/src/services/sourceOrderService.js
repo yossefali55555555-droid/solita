@@ -41,6 +41,7 @@ function buildSourceSet(n, now) {
   assign('couponCode', n.couponCode);
   assign('couponDiscount', n.couponDiscount);
   assign('cod.isCod', n.isCod);
+  for (const [k, v] of Object.entries(n.session || {})) assign(`session.${k}`, v);
   assign('sourceCreatedAt', n.sourceCreatedAt);
   assign('sourceUpdatedAt', n.sourceUpdatedAt);
   return set;

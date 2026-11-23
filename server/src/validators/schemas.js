@@ -92,6 +92,11 @@ export const adminStatusBody = z.discriminatedUnion('status', [
   }),
 ]);
 
+export const noteBody = z.strictObject({
+  text: trimmed(1000).min(1, 'اكتب الملاحظة'),
+  type: z.enum(['public', 'private']),
+});
+
 export const testFlagBody = z.strictObject({ isTest: z.boolean() });
 
 export const bulkOrdersBody = z.discriminatedUnion('action', [

@@ -174,6 +174,41 @@ const orderSchema = new mongoose.Schema(
     dashboardHiddenAt: { type: Date, default: null },
     dashboardHiddenBy: { type: ObjectId, ref: 'User', default: null },
 
+    // ---- Visit session (EasyOrders `metadata.tracking`, refreshed on every source update) ----
+    session: {
+      firstVisitAt: { type: Date },
+      firstOrderAt: { type: Date },
+      ordersCount: { type: Number },
+      sessionsCount: { type: Number },
+      visitDurationSeconds: { type: Number },
+      pagesVisited: { type: [String], default: undefined },
+      referrer: { type: String, maxlength: 300 },
+      ipCountry: { type: String, maxlength: 10 },
+      utmSource: { type: String, maxlength: 200 },
+      utmCampaign: { type: String, maxlength: 200 },
+      // Any other `metadata` keys EasyOrders sends, kept (size-limited) so nothing is lost.
+      extra: { type: mongoose.Schema.Types.Mixed },
+    },
+
+    // ---- Order notes (public = shown to the customer on the tracking page, private = team only) ----
+    notes: {
+      type: [
+        new mongoose.Schema(
+          {
+            text: { type: String, required: true, maxlength: 1000 },
+            type: { type: String, enum: ['public', 'private'], required: true },
+            by: { type: ObjectId, ref: 'User' },
+            byName: { type: String, maxlength: 120 },
+            at: { type: Date, default: Date.now },
+            sync: { type: String, enum: ['synced', 'failed', 'local'], default: 'local' },
+            syncError: { type: String, maxlength: 300 },
+          },
+          { _id: true },
+        ),
+      ],
+      default: [],
+    },
+
     // Marked as a test order by an admin: every number, list and queue ignores it.
     isTest: { type: Boolean, default: false },
     testMarkedAt: { type: Date, default: null },

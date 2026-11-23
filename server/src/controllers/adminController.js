@@ -77,6 +77,14 @@ export async function changeOrderStatus(req, res) {
   res.json(await orders.adminChangeStatus(req.user, req.valid.params.id, req.valid.body));
 }
 
+export async function addOrderNoteCtl(req, res) {
+  res.json(await orders.addNote(req.user, req.valid.params.id, req.valid.body));
+}
+
+export async function retryOrderNoteCtl(req, res) {
+  res.json(await orders.retryNote(req.user, req.valid.params.id, req.params.noteId));
+}
+
 export async function setOrderTest(req, res) {
   res.json({ order: await orders.setTestFlag(req.user, req.valid.params.id, req.valid.body.isTest) });
 }

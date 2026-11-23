@@ -18,6 +18,8 @@ import { SiteSettings } from './SiteSettings.js';
 import { Founder } from './Founder.js';
 import { CouponAssignment } from './CouponAssignment.js';
 import { CouponAttempt } from './CouponAttempt.js';
+import { MissedOrder } from './MissedOrder.js';
+import { PageStat } from './PageStat.js';
 
 export {
   publicUser,
@@ -41,6 +43,8 @@ export {
   Founder,
   CouponAssignment,
   CouponAttempt,
+  MissedOrder,
+  PageStat,
 };
 
 export const allModels = [
@@ -64,4 +68,6 @@ export const allModels = [
   Founder,
   CouponAssignment,
   CouponAttempt,
+  MissedOrder,
+  PageStat,
 ];

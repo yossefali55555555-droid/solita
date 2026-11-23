@@ -191,6 +191,20 @@ export async function updateOrderStatus(orderId, status) {
   return { httpStatus: result.status };
 }
 
+/**
+ * Add a note to an order (POST /api/v1/external-apps/order-notes, permission
+ * orders:update). `type` public notes are visible to the customer.
+ */
+export async function addOrderNote({ orderId, storeId, note, type }) {
+  const result = await request('POST', '/api/v1/external-apps/order-notes', {
+    order_id: orderId,
+    store_id: storeId,
+    note,
+    type,
+  });
+  return { httpStatus: result.status };
+}
+
 export function isEasyOrdersConfigured() {
   return getConfig().easyOrders.apiConfigured;
 }
