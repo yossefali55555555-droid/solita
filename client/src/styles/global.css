@@ -1410,3 +1410,6 @@ input[dir='ltr'].input {
 .plain-list { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 10px; }
 ol.plain-list { list-style: decimal; padding-inline-start: 20px; }
 .note-form { display: grid; gap: 10px; margin-bottom: 16px; }
+
+.dropzone { border: 2px dashed var(--border, #c9c4b8); border-radius: 12px; padding: 22px 16px; text-align: center; cursor: pointer; margin: 12px 0; background: rgba(0, 0, 0, 0.02); transition: background 0.15s, border-color 0.15s; }
+.dropzone:hover, .dropzone:focus-visible, .dropzone--over { border-color: #4a5140; background: rgba(74, 81, 64, 0.08); outline: none; }

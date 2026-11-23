@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Badge, Button, Card, Modal, PageHeader, Pagination } from '../../components/ui.jsx';
 import { useToast } from '../../components/Toast.jsx';
@@ -7,6 +7,7 @@ import { useAction, useAsync, useDebouncedValue } from '../../hooks/useAsync.js'
 import { api } from '../../services/api.js';
 import { formatDateTime } from '../../utils/format.js';
 import { whatsappLink } from '../../features/whatsapp/whatsapp.js';
+import { fileToImportText } from '../../utils/spreadsheet.js';
 
 const FILTER_KEYS = ['status', 'priority', 'reason', 'test', 'q', 'page'];
 
@@ -20,34 +21,56 @@ const PRIORITY = {
 const missedMessage = (name) =>
   `أهلاً ${name ? name.split(/\s+/)[0] : ''}،\nمعك فريق سوليتا. لاحظنا أنك حاولت إتمام طلبك ولم يكتمل.\nهل واجهتك مشكلة؟ يسعدنا مساعدتك في إتمامه.`.replace('أهلاً ،', 'أهلاً،');
 
-function ImportModal({ open, onClose, onDone }) {
+function ImportModal({ open, onClose, onDone, prefill }) {
   const toast = useToast();
-  const [text, setText] = useState('');
-  const [error, setError] = useState('');
+  const [text, setText] = useState(prefill?.text || '');
+  const [fileName, setFileName] = useState(prefill?.name || '');
+  const [error, setError] = useState(prefill?.error || '');
   const [result, setResult] = useState(null);
+  const [reading, setReading] = useState(false);
+  const [over, setOver] = useState(false);
+  const input = useRef(null);
+
   const [run, running] = useAction(async () => {
     setError('');
     try {
       const res = await api.post('/admin/missed-orders/import', { text });
       setResult(res);
       setText('');
+      setFileName('');
       toast.success(`${res.created} جديدة، ${res.existing} موجودة من قبل`);
       onDone();
     } catch (err) {
       setError(err.details?.[0]?.message || err.message);
     }
   });
+
   const readFile = async (file) => {
     if (!file) return;
     setResult(null);
     setError('');
-    setText(await file.text());
+    setReading(true);
+    try {
+      setText(await fileToImportText(file));
+      setFileName(file.name);
+    } catch (err) {
+      setText('');
+      setFileName('');
+      setError(err.message || 'تعذر قراءة الملف');
+    } finally {
+      setReading(false);
+    }
   };
+
   const close = () => {
     setResult(null);
     setError('');
+    setText('');
+    setFileName('');
     onClose();
   };
+  const rowCount = text ? Math.max(0, text.split('\n').filter((l) => l.trim()).length - 1) : 0;
+
   return (
     <Modal
       open={open}
@@ -56,16 +79,28 @@ function ImportModal({ open, onClose, onDone }) {
       footer={
         <>
           <Button variant="secondary" onClick={close}>إغلاق</Button>
-          <Button loading={running} disabled={text.trim().length < 10} onClick={run}>استيراد</Button>
+          <Button loading={running} disabled={text.trim().length < 10 || reading} onClick={run}>استيراد</Button>
         </>
       }
     >
       <ol className="plain-list">
         <li>في EasyOrders افتح «الطلبات المفقودة» واضغط «تصدير».</li>
-        <li>اختر الملف هنا (أو الصق محتواه). يمكنك استيراد نفس الملف أكثر من مرة: الصفوف الموجودة لا تتكرر ولا تتغير حالتها.</li>
+        <li>اسحب الملف (xlsx أو csv) وأفلته هنا، أو اضغط لاختياره. يمكنك استيراد نفس الملف أكثر من مرة: الصفوف الموجودة لا تتكرر ولا تتغير حالتها.</li>
       </ol>
-      <input type="file" accept=".csv,.txt,.tsv,text/csv,text/plain" onChange={(e) => readFile(e.target.files?.[0])} aria-label="ملف التصدير" />
-      <textarea className="input" rows={6} dir="ltr" placeholder="أو الصق محتوى الملف هنا" value={text} onChange={(e) => setText(e.target.value)} aria-label="محتوى الملف" />
+      <div
+        className={`dropzone ${over ? 'dropzone--over' : ''}`}
+        role="button"
+        tabIndex={0}
+        onClick={() => input.current?.click()}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && input.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => { e.preventDefault(); setOver(false); readFile(e.dataTransfer.files?.[0]); }}
+      >
+        {reading ? 'جاري قراءة الملف…' : fileName ? <><strong>{fileName}</strong> · {rowCount} صف جاهز للاستيراد</> : 'اسحب الملف هنا وأفلته (xlsx / csv / txt) أو اضغط للاختيار'}
+        <input ref={input} type="file" hidden accept=".xlsx,.csv,.txt,.tsv,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => { readFile(e.target.files?.[0]); e.target.value = ''; }} aria-label="ملف التصدير" />
+      </div>
+      <textarea className="input" rows={5} dir="ltr" placeholder="أو الصق محتوى الجدول هنا" value={text} onChange={(e) => { setText(e.target.value); setFileName(''); }} aria-label="محتوى الملف" />
       {error && <div className="alert alert--danger" role="alert">{error}</div>}
       {result && (
         <div className="alert alert--info" role="status">
@@ -88,6 +123,26 @@ export function MissedOrdersPage() {
   const { data, error, loading, reload } = useAsync(() => api.get('/admin/missed-orders', query), [key]);
   const [selected, setSelected] = useState(() => new Set());
   const [importOpen, setImportOpen] = useState(false);
+  const [prefill, setPrefill] = useState(null);
+
+  // Drop a file anywhere on the page to import it.
+  useEffect(() => {
+    const hasFiles = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
+    const over = (e) => { if (hasFiles(e)) e.preventDefault(); };
+    const drop = (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      const file = e.dataTransfer.files?.[0];
+      if (!file) return;
+      fileToImportText(file)
+        .then((text) => setPrefill({ text, name: file.name, key: Date.now() }))
+        .catch((err) => setPrefill({ text: '', name: '', error: err.message || 'تعذر قراءة الملف', key: Date.now() }))
+        .finally(() => setImportOpen(true));
+    };
+    window.addEventListener('dragover', over);
+    window.addEventListener('drop', drop);
+    return () => { window.removeEventListener('dragover', over); window.removeEventListener('drop', drop); };
+  }, []);
 
   const update = (k, v) => {
     const next = new URLSearchParams(params);
@@ -138,10 +193,10 @@ export function MissedOrdersPage() {
     <>
       <PageHeader
         title="الطلبات المفقودة"
-        subtitle="عملاء ضغطوا «إتمام الطلب» وحصلت لهم مشكلة. EasyOrders لا يرسلها تلقائيًا، فتُستورد من ملف التصدير."
+        subtitle="عملاء ضغطوا «إتمام الطلب» وحصلت لهم مشكلة. EasyOrders لا يرسلها تلقائيًا، فتُستورد من ملف التصدير (اسحب الملف وأفلته في أي مكان بالصفحة)."
         actions={<Button onClick={() => setImportOpen(true)}>استيراد ملف التصدير</Button>}
       />
-      <ImportModal open={importOpen} onClose={() => setImportOpen(false)} onDone={() => reload({ silent: true })} />
+      {importOpen && <ImportModal key={prefill?.key || 'manual'} open prefill={prefill} onClose={() => { setImportOpen(false); setPrefill(null); }} onDone={() => reload({ silent: true })} />}
 
       <div className="tabs" role="tablist">
         {[
