@@ -20,6 +20,9 @@ export async function listOrders(filters, { skip, limit }) {
   // Cleared orders are hidden from the dashboard list unless asked for.
   if (filters.cleared === 'only') query.dashboardHiddenAt = { $ne: null };
   else if (filters.cleared !== 'include') query.dashboardHiddenAt = null;
+  // Orders an admin marked as test are hidden by default.
+  if (filters.test === 'only') query.isTest = true;
+  else if (filters.test !== 'include') query.isTest = { $ne: true };
   if (filters.q) {
     const q = filters.q.trim();
     const rx = new RegExp(escapeRegex(q), 'i');
@@ -239,6 +242,64 @@ export async function clearSourceConflict(admin, orderId) {
   if (!order) throw notFound('لا يوجد تعارض نشط لهذا الطلب');
   await recordEvent({ order: order._id, type: 'source_conflict_acknowledged', actor: userActor(admin) });
   return order;
+}
+
+// ---------------------------------------------------------------- test flag + bulk
+
+/**
+ * Mark (or unmark) orders as test orders. The orders stay in the database
+ * but every list, number, cash/profit figure and label queue ignores them.
+ * Reversible at any time from the "test orders" filter.
+ */
+export async function setTestFlag(admin, orderId, isTest) {
+  const now = new Date();
+  const updated = await Order.findOneAndUpdate(
+    { _id: orderId },
+    isTest
+      ? { $set: { isTest: true, testMarkedAt: now, testMarkedBy: admin._id } }
+      : { $set: { isTest: false, testMarkedAt: null, testMarkedBy: null } },
+    { returnDocument: 'after' },
+  ).lean();
+  if (!updated) throw notFound('الطلب غير موجود');
+  await recordEvent({
+    order: updated._id,
+    type: isTest ? 'order_marked_test' : 'order_unmarked_test',
+    actor: userActor(admin),
+    next: { isTest },
+  });
+  return updated;
+}
+
+/**
+ * Apply one action to many orders. Each order goes through the same service
+ * function (and the same checks) as the single-order action; failures are
+ * reported per order and never stop the rest.
+ */
+export async function bulkAction(admin, { ids, action, courierId, reason, syncToEasyOrders }) {
+  const unique = [...new Set(ids.map(String))];
+  const done = [];
+  const failed = [];
+  for (const id of unique) {
+    try {
+      if (action === 'mark_test') await setTestFlag(admin, id, true);
+      else if (action === 'unmark_test') await setTestFlag(admin, id, false);
+      else if (action === 'assign') await assignOrder(admin, id, { courierId });
+      else if (action === 'unassign') await assignOrder(admin, id, { courierId: null });
+      else if (action === 'cancel') await adminChangeStatus(admin, id, { status: 'cancelled', reason, syncToEasyOrders: Boolean(syncToEasyOrders) });
+      else if (action === 'reopen') await adminChangeStatus(admin, id, { status: 'new', reason });
+      else if (action === 'hide') await hideOrder(admin, id);
+      done.push(id);
+    } catch (err) {
+      failed.push({ id, message: err?.message || 'تعذر تنفيذ العملية' });
+    }
+  }
+  return { done: done.length, failed };
+}
+
+async function hideOrder(admin, orderId) {
+  const res = await Order.updateOne({ _id: orderId }, { $set: { dashboardHiddenAt: new Date(), dashboardHiddenBy: admin._id } });
+  if (!res.matchedCount) throw notFound('الطلب غير موجود');
+  await recordEvent({ order: orderId, type: 'order_hidden_from_dashboard', actor: userActor(admin) });
 }
 
 // ---------------------------------------------------------------- dashboard clear

@@ -1,3 +1,4 @@
+import { NOT_TEST } from '../models/Order.js';
 import mongoose from 'mongoose';
 import { DeliveryReview, Order, User, publicUser } from '../models/index.js';
 import { conflict, isDuplicateKeyError, notFound } from '../utils/errors.js';
@@ -55,7 +56,7 @@ export async function listCouriers({ q, active }, { skip, limit }) {
   ]);
   const ids = users.map((u) => u._id);
   const counts = await Order.aggregate([
-    { $match: { assignedTo: { $in: ids } } },
+    { $match: { ...NOT_TEST, assignedTo: { $in: ids } } },
     { $group: { _id: { courier: '$assignedTo', status: '$deliveryStatus' }, n: { $sum: 1 } } },
   ]);
   const stats = {};

@@ -55,6 +55,8 @@ export function buildRouter() {
 
   a.get('/orders', validate({ query: s.listOrdersQuery }), admin.listOrders);
   a.get('/orders/cleared/count', admin.clearedOrdersCount);
+  a.post('/orders/bulk', validate({ body: s.bulkOrdersBody }), admin.bulkOrders);
+  a.post('/orders/:id/test', validate({ params: idParams, body: s.testFlagBody }), admin.setOrderTest);
   a.post('/orders/clear', validate({ body: s.clearOrdersBody }), admin.clearOrders);
   a.post('/orders/restore-cleared', admin.restoreClearedOrders);
   a.get('/orders/:id', id, admin.getOrder);

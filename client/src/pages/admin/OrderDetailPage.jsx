@@ -20,6 +20,25 @@ import { FAILURE_REASON_LABELS, PAYMENT_STATUS_LABELS, SOURCE_STATUS_LABELS, lab
 import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
 import { PrintPortal } from '../../features/labels/LabelSheets.jsx';
 import { OrderWhatsAppButtons } from '../../features/whatsapp/OrderWhatsAppButtons.jsx';
+import { trackingUrl } from '../../features/whatsapp/orderMessages.js';
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Fallback for browsers that block the clipboard API.
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  }
+}
 
 function parcelState(p) {
   if (p.warehouseAt) return `وصل المخزن ${formatDateTime(p.warehouseAt)}`;
@@ -160,6 +179,22 @@ export function OrderDetailPage() {
     }
   });
 
+  const [copyTracking] = useAction(async () => {
+    const ok = await copyText(trackingUrl(detail.data.order));
+    if (ok) toast.success('تم نسخ لينك صفحة التتبع');
+    else toast.error('تعذر النسخ، انسخ اللينك يدويًا');
+  });
+
+  const [toggleTest, togglingTest] = useAction(async (isTest) => {
+    try {
+      await api.post(`/admin/orders/${id}/test`, { isTest });
+      toast.success(isTest ? 'تم تحديد الطلب كتجريبي، لن يدخل في أي أرقام' : 'تم إلغاء علامة التجريبي');
+      refresh();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  });
+
   const [ackConflict] = useAction(async () => {
     try {
       await api.post(`/admin/orders/${id}/conflict/acknowledge`);
@@ -184,7 +219,23 @@ export function OrderDetailPage() {
           </>
         }
         subtitle={`تاريخ الطلب: ${formatDateTime(order.sourceCreatedAt || order.createdAt)}`}
+        actions={
+          <Button variant="secondary" onClick={copyTracking}>
+            نسخ لينك صفحة التتبع
+          </Button>
+        }
       />
+
+      {order.isTest && (
+        <div className="alert alert--warning row-between" role="status">
+          <span>
+            <strong>طلب تجريبي:</strong> السيستم يتجاهله في كل الأرقام والقوائم ولا يظهر في صفحة الطلبات إلا بفلتر «التجريبية».
+          </span>
+          <Button size="sm" variant="secondary" loading={togglingTest} onClick={() => toggleTest(false)}>
+            إلغاء علامة التجريبي
+          </Button>
+        </div>
+      )}
 
       <div className="badge-row" aria-label="حالات الطلب">
         <SourceStatusBadge status={order.sourceStatus} />
@@ -330,6 +381,11 @@ export function OrderDetailPage() {
             {['failed', 'cancelled', 'returned'].includes(order.deliveryStatus) && (
               <Button variant="secondary" onClick={() => { setFormError(''); setReopenOpen(true); }}>
                 إعادة فتح الطلب
+              </Button>
+            )}
+            {!order.isTest && (
+              <Button variant="secondary" loading={togglingTest} onClick={() => toggleTest(true)}>
+                تحديد كطلب تجريبي
               </Button>
             )}
             {order.deliveryStatus === 'pending_delivery_review' && order.currentReview && (

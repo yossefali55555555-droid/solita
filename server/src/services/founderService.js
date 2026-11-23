@@ -1,3 +1,4 @@
+import { NOT_TEST } from '../models/Order.js';
 import { Founder, Order, SiteSettings } from '../models/index.js';
 import { FOUNDER_BENEFIT_MONTHS } from '../models/Founder.js';
 import { mergeWithDefaults } from '../validators/siteSettings.js';
@@ -66,7 +67,7 @@ export async function assignFounderForOrder(order) {
 async function friendOrderCounts(codes) {
   if (!codes.length) return new Map();
   const rows = await Order.aggregate([
-    { $match: { couponCode: { $in: codes }, sourceStatus: { $nin: ['canceled'] }, deliveryStatus: { $ne: 'cancelled' } } },
+    { $match: { ...NOT_TEST, couponCode: { $in: codes }, sourceStatus: { $nin: ['canceled'] }, deliveryStatus: { $ne: 'cancelled' } } },
     { $group: { _id: '$couponCode', orders: { $sum: 1 } } },
   ]);
   return new Map(rows.map((r) => [r._id, r.orders]));

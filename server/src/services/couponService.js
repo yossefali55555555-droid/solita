@@ -1,3 +1,4 @@
+import { NOT_TEST } from '../models/Order.js';
 import { CouponAssignment, CouponAttempt, Founder, Order, StorefrontCart, User } from '../models/index.js';
 import { COUPON_VALID_DAYS } from '../models/CouponAssignment.js';
 import { isDuplicateKeyError, notFound, unprocessable } from '../utils/errors.js';
@@ -411,7 +412,7 @@ export async function listCoupons() {
   const codes = rows.map((r) => r.code);
   const useRows = codes.length
     ? await Order.aggregate([
-        { $match: { couponCode: { $in: codes }, sourceStatus: { $ne: 'canceled' }, deliveryStatus: { $ne: 'cancelled' } } },
+        { $match: { ...NOT_TEST, couponCode: { $in: codes }, sourceStatus: { $ne: 'canceled' }, deliveryStatus: { $ne: 'cancelled' } } },
         { $group: { _id: '$couponCode', uses: { $sum: 1 } } },
       ])
     : [];
