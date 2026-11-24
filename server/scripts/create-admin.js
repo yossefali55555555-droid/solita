@@ -10,6 +10,7 @@
  *  - The password is hashed with Argon2id and never printed.
  *  - An existing courier account is NEVER promoted to administrator.
  *  - An existing admin is left untouched unless --reset-password is given.
+ *  - Only one administrator may exist (moderators phase 1): creating a second one is refused.
  */
 import '../src/config/loadEnv.js';
 import readline from 'node:readline';
@@ -91,7 +92,7 @@ async function main() {
 
   const existing = await User.findOne({ phone: input.phone });
   if (existing && existing.role !== 'admin') {
-    throw new Error('This phone number belongs to a courier account. Couriers are never promoted to administrators. Use a different number.');
+    throw new Error('This phone number belongs to a courier or moderator account. Such accounts are never promoted to administrator. Use a different number.');
   }
   if (existing) {
     if (!resetPassword) {
@@ -109,6 +110,10 @@ async function main() {
   }
   if (resetPassword) throw new Error('No administrator with this phone number exists.');
 
+  const otherAdmin = await User.findOne({ role: 'admin' }).select('name').lean();
+  if (otherAdmin) {
+    throw new Error(`An administrator already exists (${otherAdmin.name}). Only one administrator is allowed. To reset its password run: npm run admin:create -- --reset-password`);
+  }
   if (input.email && (await User.exists({ email: input.email }))) {
     throw new Error('This email is already used by another account.');
   }

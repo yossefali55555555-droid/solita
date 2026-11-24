@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { allModels } from '../models/index.js';
+import { allModels, User } from '../models/index.js';
+import { ensureSingleAdminIndex } from './migrations/moderatorsPhase1.js';
 
 /**
  * Create (or verify) every collection and index. Safe to run repeatedly:
@@ -23,8 +24,12 @@ export async function initDatabase({ log = () => {} } = {}) {
       created = true;
     }
     await model.createIndexes();
+    // One-admin index: checked migration step (skipped with a reason while
+    // several admins exist), never part of the schema's own indexes.
+    const singleAdmin = model === User ? await ensureSingleAdminIndex() : undefined;
+    if (singleAdmin?.status === 'skipped') log(`WARNING users: one-admin index not built (${singleAdmin.reason})`);
     const indexes = await model.collection.indexes();
-    report.push({ collection: name, created, indexes: indexes.map((i) => i.name) });
+    report.push({ collection: name, created, indexes: indexes.map((i) => i.name), ...(singleAdmin ? { singleAdmin } : {}) });
     log(`${created ? 'created ' : 'verified'} ${name} (${indexes.length} indexes)`);
   }
   return report;

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { CashRemittance, Expense, Order, OrderEvent, SyncOperation } from '../src/models/index.js';
-import { createAssignedOrder, createOrder, createUser, enableEasyOrdersApi, loginAs, mockEasyOrders } from './helpers.js';
+import { adminUser, createAssignedOrder, createOrder, createUser, enableEasyOrdersApi, loginAs, mockEasyOrders } from './helpers.js';
 
 async function failedOrder(reason = 'payment_refused', note) {
-  const admin = await createUser('admin');
+  const admin = await adminUser();
   const courier = await createUser('courier');
   const order = await createAssignedOrder(courier, admin, {}, 'out_for_delivery');
   const courierApi = await loginAs(courier);

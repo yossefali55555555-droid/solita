@@ -66,11 +66,12 @@ describe('authorization', () => {
     expect((await User.findById(created.body.courier.id)).role).toBe('courier');
   });
 
-  it('does not allow admin courier routes to modify an administrator account', async () => {
+  it('does not allow admin courier routes to modify an administrator or moderator account', async () => {
     const admin = await createUser('admin');
-    const otherAdmin = await createUser('admin');
+    const moderator = await createUser('moderator');
     const api = await loginAs(admin);
-    expect((await api.patch(`/api/admin/couriers/${otherAdmin._id}/active`, { isActive: false })).status).toBe(404);
+    expect((await api.patch(`/api/admin/couriers/${admin._id}/active`, { isActive: false })).status).toBe(404);
+    expect((await api.patch(`/api/admin/couriers/${moderator._id}/active`, { isActive: false })).status).toBe(404);
   });
 
   it('enforces unique normalized phone numbers and optional unique email', async () => {
