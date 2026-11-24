@@ -24,7 +24,7 @@ const REASONS = {
 
 function statusOf(c) {
   if (c.bound === false) return ['muted', 'مش مربوط بعملاء'];
-  if (!c.phoneNormalized) return ['muted', 'متاح'];
+  if (!c.assigned) return ['muted', 'متاح'];
   if (c.sentAt && c.expiresAt && new Date(c.expiresAt) < new Date()) return ['danger', 'منتهي'];
   if (c.sentAt) return ['success', 'اتبعت للعميل'];
   return ['warning', 'مخصص ولم يُرسل'];
@@ -283,12 +283,14 @@ export function CouponsPage() {
                         {c.code.toUpperCase()}
                       </td>
                       <td>
-                        {c.phoneNormalized ? (
+                        {c.assigned ? (
                           <>
                             {c.customerName || <span className="muted">—</span>}
-                            <div className="muted mono small" dir="ltr">
-                              {c.phoneNormalized}
-                            </div>
+                            {c.phoneNormalized && (
+                              <div className="muted mono small" dir="ltr">
+                                {c.phoneNormalized}
+                              </div>
+                            )}
                             {c.order?.easyOrdersShortId || c.order?.easyOrdersId ? <div className="muted small">طلب {orderNumber(c.order)}</div> : null}
                           </>
                         ) : (
@@ -343,7 +345,7 @@ export function CouponsPage() {
                               تعديل
                             </Button>
                           ) : null}
-                          {c.bound !== false && !c.phoneNormalized ? (
+                          {c.bound !== false && !c.assigned ? (
                             manual.id === c._id ? (
                               <div className="badge-row">
                                 <input className="input" dir="ltr" placeholder="01xxxxxxxxx" value={manual.phone} onChange={(e) => setManual({ ...manual, phone: e.target.value })} />
@@ -367,7 +369,7 @@ export function CouponsPage() {
                               </Button>
                             )
                           ) : null}
-                          {c.phoneNormalized ? (
+                          {c.assigned ? (
                             dates.id === c._id ? (
                               <div className="badge-stack">
                                 <label className="checkbox">
@@ -415,7 +417,7 @@ export function CouponsPage() {
                               </Button>
                             )
                           ) : null}
-                          {c.phoneNormalized ? (
+                          {c.assigned ? (
                             <Button
                               size="sm"
                               variant="ghost"

@@ -91,6 +91,32 @@ export async function apiRequest(method, path, { body, query, retryCsrf = true }
   throw new ApiError(res.status, error.code || 'ERROR', error.message || 'حدث خطأ غير متوقع', error.details);
 }
 
+/** GET a file (e.g. the server-built CSV) and hand it to the browser as a download. */
+export async function downloadFile(path, { query, filename = 'download' } = {}) {
+  const url = new URL(`${BASE_URL}/api${path}`, window.location.origin);
+  for (const [k, v] of Object.entries(query || {})) {
+    if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
+  }
+  let res;
+  try {
+    res = await fetch(url, { credentials: 'include' });
+  } catch {
+    throw new ApiError(0, 'NETWORK_ERROR', 'تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.');
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new ApiError(res.status, data?.error?.code || 'ERROR', data?.error?.message || 'تعذر تنزيل الملف', data?.error?.details);
+  }
+  const blob = await res.blob();
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+}
+
 export const api = {
   get: (path, query) => apiRequest('GET', path, { query }),
   post: (path, body) => apiRequest('POST', path, { body }),

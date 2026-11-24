@@ -14,11 +14,17 @@ export function RequireRole({ role, children }) {
   if (user.mustChangePassword && location.pathname !== '/change-password') {
     return <Navigate to="/change-password" replace />;
   }
-  if (role && user.role !== role) return <Navigate to={homeFor(user)} replace />;
+  if (role && !roleMatches(role, user)) return <Navigate to={homeFor(user)} replace />;
   return children;
+}
+
+/** "staff" = administrator or moderator (the admin area); otherwise the exact role. */
+function roleMatches(role, user) {
+  if (role === 'staff') return user.role === 'admin' || user.role === 'moderator';
+  return user.role === role;
 }
 
 export function homeFor(user) {
   if (!user) return '/login';
-  return user.role === 'admin' ? '/admin' : '/courier';
+  return user.role === 'courier' ? '/courier' : '/admin';
 }

@@ -4,6 +4,7 @@ import request from 'supertest';
 import { PERMISSION_META, ROUTER_SCOPE, adminOnly, staffRouter } from '../src/middleware/permissions.js';
 import { DANGEROUS, FIELD_KEYS, SECTION_KEYS } from '../src/constants/permissions.js';
 import { errorHandler } from '../src/middleware/errorHandler.js';
+import { User } from '../src/models/index.js';
 import { createUser, getTestApp, loginAs, client } from './helpers.js';
 
 /**
@@ -77,11 +78,14 @@ describe('route permission metadata (default deny)', () => {
     expect(missing).toEqual([]);
   });
 
-  it('maps all 85 existing admin routes, each admin-only in phase 1', () => {
-    expect(staffRoutes).toHaveLength(85);
-    expect(staffRoutes.every((r) => r.meta?.adminOnly === true && !r.meta.unmapped)).toBe(true);
-    // Permission middleware is the only metadata-bearing handler and comes first.
-    for (const r of staffRoutes) expect(r.handlers.filter((h) => h[PERMISSION_META])).toHaveLength(1);
+  it('maps all 86 admin routes: requirePermission everywhere, adminOnly only for init-db', () => {
+    expect(staffRoutes).toHaveLength(86);
+    for (const r of staffRoutes) {
+      expect(r.meta?.unmapped, `${r.method} ${r.path}`).toBeFalsy();
+      expect(r.meta?.adminOnly === true, `${r.method} ${r.path}`).toBe(r.path === '/system/init-db');
+      // Permission middleware is the only metadata-bearing handler and comes first.
+      expect(r.handlers.filter((h) => h[PERMISSION_META])).toHaveLength(1);
+    }
   });
 
   it('records a valid planned permission for every admin route except init-db', () => {
@@ -124,22 +128,110 @@ describe('route permission metadata (default deny)', () => {
   });
 });
 
-describe('phase 1: no behaviour change, moderators refused everywhere', () => {
+describe('phase 2: every route x (none / view / edit / edit + grants)', () => {
   const allGrants = {
     sections: Object.fromEntries(SECTION_KEYS.map((k) => [k, 'edit'])),
     dangerous: Object.keys(DANGEROUS),
     fields: FIELD_KEYS.map((key) => ({ key, until: null })),
   };
 
-  it('a moderator holding every permission gets 403 on all 85 admin routes, whatever the request claims', async () => {
-    const moderator = await createUser('moderator', { permissions: allGrants });
+  const forbidden = (res) => res.status === 403 && res.body.error?.code === 'FORBIDDEN';
+
+  /** Permissions that satisfy a route's sections at `level`, optionally with its grants. */
+  function grantsFor(plan, level, withGrants) {
+    const sections = {};
+    // "any of these sections" routes (couriers-brief) need only the first one.
+    const needed = plan.sections.length > 1 ? [plan.sections[0]] : plan.sections;
+    for (const sec of needed) sections[sec] = level;
+    for (const [sec, lvl] of Object.entries(plan.also)) sections[sec] = lvl;
+    return {
+      sections,
+      dangerous: withGrants && plan.dangerous ? [plan.dangerous] : [],
+      fields: withGrants ? plan.fields.map((key) => ({ key, until: null })) : [],
+    };
+  }
+
+  const routesWithPlan = staffRoutes.filter((r) => r.path !== '/system/init-db');
+
+  it('refuses a moderator without permissions on every route, and ignores what the request claims', async () => {
+    const moderator = await createUser('moderator');
     const api = await loginAs(moderator);
     for (const r of staffRoutes) {
-      const req = send(api, r, { role: 'admin', isAdmin: true, permissions: allGrants }).set('x-role', 'admin');
-      const res = await req;
-      expect(res.status, `${r.method} ${r.path}`).toBe(403);
-      expect(res.body.error?.code).toBe('FORBIDDEN');
+      const res = await send(api, r, { role: 'admin', isAdmin: true, permissions: allGrants }).set('x-role', 'admin');
+      expect(forbidden(res), `${r.method} ${r.path} -> ${res.status}`).toBe(true);
     }
+  });
+
+  it('follows each route plan: view / edit without grants / edit with grants', async () => {
+    const moderator = await createUser('moderator');
+    const api = await loginAs(moderator);
+    const set = (permissions) => User.updateOne({ _id: moderator._id }, { $set: { permissions } });
+    for (const r of routesWithPlan) {
+      const { plan } = r.meta;
+      const label = `${r.method} ${r.path}`;
+      const hasGrants = Boolean(plan.dangerous) || plan.fields.length > 0;
+
+      // view only
+      await set(grantsFor(plan, 'view', true));
+      const viewRes = await send(api, r, {});
+      expect(forbidden(viewRes), `${label} with view`).toBe(plan.level === 'edit');
+
+      // edit, but no dangerous / mandatory field grant
+      await set(grantsFor(plan, 'edit', false));
+      const bareRes = await send(api, r, {});
+      expect(forbidden(bareRes), `${label} with edit, no grants`).toBe(hasGrants);
+
+      // edit + the grants the route lists
+      await set(grantsFor(plan, 'edit', true));
+      const fullRes = await send(api, r, {});
+      expect(forbidden(fullRes), `${label} with edit + grants`).toBe(false);
+    }
+  });
+
+  it('a section at the wrong place does not help (orders edit cannot reach cash, and the reverse)', async () => {
+    const moderator = await createUser('moderator', { permissions: { sections: { orders: 'edit' }, dangerous: [], fields: [] } });
+    const api = await loginAs(moderator);
+    expect(forbidden(await api.get('/api/admin/cash/overview'))).toBe(true);
+    expect(forbidden(await api.get('/api/admin/finance/summary'))).toBe(true);
+    expect(forbidden(await api.get('/api/admin/customers'))).toBe(true);
+    expect(forbidden(await api.get('/api/admin/orders'))).toBe(false);
+  });
+
+  it('a moderator with every permission is still refused on init-db (administrator only)', async () => {
+    const moderator = await createUser('moderator', { permissions: allGrants });
+    const api = await loginAs(moderator);
+    expect(forbidden(await api.post('/api/admin/system/init-db', {}))).toBe(true);
+  });
+
+  it('bulk order actions need the same dangerous grant as their single-order twins', async () => {
+    const moderator = await createUser('moderator', { permissions: { sections: { orders: 'edit' }, dangerous: [], fields: [] } });
+    const api = await loginAs(moderator);
+    const id = fakeId;
+    const cases = [
+      [{ action: 'mark_test', ids: [id] }, 'markTest'],
+      [{ action: 'unmark_test', ids: [id] }, 'markTest'],
+      [{ action: 'cancel', ids: [id], reason: 'اختبار', syncToEasyOrders: false }, 'changeOrderStatus'],
+      [{ action: 'reopen', ids: [id], reason: 'اختبار' }, 'changeOrderStatus'],
+      [{ action: 'hide', ids: [id] }, 'clearOrders'],
+    ];
+    for (const [body, grant] of cases) {
+      expect(forbidden(await api.post('/api/admin/orders/bulk', body)), `${body.action} without ${grant}`).toBe(true);
+      await User.updateOne({ _id: moderator._id }, { $set: { 'permissions.dangerous': [grant] } });
+      expect(forbidden(await api.post('/api/admin/orders/bulk', body)), `${body.action} with ${grant}`).toBe(false);
+      await User.updateOne({ _id: moderator._id }, { $set: { 'permissions.dangerous': [] } });
+    }
+    // Plain bulk actions (assign / unassign) need no grant.
+    expect(forbidden(await api.post('/api/admin/orders/bulk', { action: 'unassign', ids: [id] }))).toBe(false);
+  });
+
+  it('an expired temporary phone grant stops working at once (no cron)', async () => {
+    const moderator = await createUser('moderator', {
+      permissions: { sections: { warehouse: 'view' }, dangerous: [], fields: [{ key: 'customerPhone', until: new Date(Date.now() + 60_000) }] },
+    });
+    const api = await loginAs(moderator);
+    expect(forbidden(await api.get(`/api/admin/labels/view?ids=${fakeId}`))).toBe(false);
+    await User.updateOne({ _id: moderator._id }, { $set: { 'permissions.fields.0.until': new Date(Date.now() - 1000) } });
+    expect(forbidden(await api.get(`/api/admin/labels/view?ids=${fakeId}`))).toBe(true);
   });
 
   it('couriers get 403 and anonymous requests get 401 on all admin routes', async () => {

@@ -14,6 +14,7 @@ import {
 import { Timeline } from '../../components/Timeline.jsx';
 import { ConfirmReturnModal } from '../../components/ConfirmReturnModal.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { FAILURE_REASON_LABELS, PAYMENT_STATUS_LABELS, SOURCE_STATUS_LABELS, label } from '../../utils/labels.js';
@@ -116,6 +117,7 @@ const ASSIGNABLE = ['new', 'assigned', 'out_for_delivery', 'failed'];
 const CANCELLABLE = ['new', 'assigned', 'out_for_delivery', 'failed'];
 
 export function OrderDetailPage() {
+  const perms = usePermissions();
   const { id } = useParams();
   const toast = useToast();
   const detail = useAsync(() => api.get(`/admin/orders/${id}`), [id]);
@@ -232,9 +234,11 @@ export function OrderDetailPage() {
           <span>
             <strong>طلب تجريبي:</strong> السيستم يتجاهله في كل الأرقام والقوائم ولا يظهر في صفحة الطلبات إلا بفلتر «التجريبية».
           </span>
-          <Button size="sm" variant="secondary" loading={togglingTest} onClick={() => toggleTest(false)}>
-            إلغاء علامة التجريبي
-          </Button>
+          {perms.danger('markTest') && (
+            <Button size="sm" variant="secondary" loading={togglingTest} onClick={() => toggleTest(false)}>
+              إلغاء علامة التجريبي
+            </Button>
+          )}
         </div>
       )}
 
@@ -338,7 +342,7 @@ export function OrderDetailPage() {
         <Card title="المندوب والتعيين">
           <DefinitionList
             items={[
-              ['المندوب الحالي', order.assignedTo ? `${order.assignedTo.name} (${order.assignedTo.phone})` : 'غير معيّن'],
+              ['المندوب الحالي', order.assignedTo ? `${order.assignedTo.name}${order.assignedTo.phone ? ` (${order.assignedTo.phone})` : ''}` : 'غير معيّن'],
               ['عيّنه', order.assignedBy?.name],
               ['وقت التعيين', formatDateTime(order.assignedAt)],
             ]}
@@ -375,7 +379,7 @@ export function OrderDetailPage() {
 
         <Card title="إجراءات الطلب">
           <div className="action-list">
-            {CANCELLABLE.includes(order.deliveryStatus) && (
+            {perms.danger('changeOrderStatus') && CANCELLABLE.includes(order.deliveryStatus) && (
               <Button variant="danger" onClick={() => { setFormError(''); setCancelOpen(true); }}>
                 إلغاء الطلب
               </Button>
@@ -385,12 +389,12 @@ export function OrderDetailPage() {
                 تأكيد المرتجع (وتحديث EasyOrders)
               </Button>
             )}
-            {['failed', 'cancelled', 'returned'].includes(order.deliveryStatus) && (
+            {perms.danger('changeOrderStatus') && ['failed', 'cancelled', 'returned'].includes(order.deliveryStatus) && (
               <Button variant="secondary" onClick={() => { setFormError(''); setReopenOpen(true); }}>
                 إعادة فتح الطلب
               </Button>
             )}
-            {!order.isTest && (
+            {perms.danger('markTest') && !order.isTest && (
               <Button variant="secondary" loading={togglingTest} onClick={() => toggleTest(true)}>
                 تحديد كطلب تجريبي
               </Button>

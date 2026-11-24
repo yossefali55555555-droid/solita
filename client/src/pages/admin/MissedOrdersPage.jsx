@@ -4,7 +4,8 @@ import { Badge, Button, Card, Modal, PageHeader, Pagination } from '../../compon
 import { useToast } from '../../components/Toast.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
 import { useAction, useAsync, useDebouncedValue } from '../../hooks/useAsync.js';
-import { api } from '../../services/api.js';
+import { api, downloadFile } from '../../services/api.js';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { formatDateTime } from '../../utils/format.js';
 import { whatsappLink } from '../../features/whatsapp/whatsapp.js';
 import { fileToImportText } from '../../utils/spreadsheet.js';
@@ -182,6 +183,19 @@ export function MissedOrdersPage() {
       toast.error(err.message);
     }
   });
+  const perms = usePermissions();
+  const canExport = perms.field('export') && perms.field('customerPhone');
+  // The file is built on the server (export + phone grants) from the same filters as the list.
+  const [exportFile, exporting] = useAction(async () => {
+    try {
+      await downloadFile('/admin/missed-orders/export', {
+        query: { status: filters.status, priority: filters.priority, reason: filters.reason, test: filters.test, q: filters.q },
+        filename: 'missed-orders.csv',
+      });
+    } catch (err) {
+      toast.error(err.message);
+    }
+  });
   const editNote = (item) => {
     const note = window.prompt('ملاحظة عن هذا العميل', item.note || '');
     if (note !== null) patch(item._id, { note });
@@ -194,7 +208,12 @@ export function MissedOrdersPage() {
       <PageHeader
         title="الطلبات المفقودة"
         subtitle="عملاء ضغطوا «إتمام الطلب» وحصلت لهم مشكلة. EasyOrders لا يرسلها تلقائيًا، فتُستورد من ملف التصدير (اسحب الملف وأفلته في أي مكان بالصفحة)."
-        actions={<Button onClick={() => setImportOpen(true)}>استيراد ملف التصدير</Button>}
+        actions={
+          <>
+            {canExport && <Button variant="secondary" loading={exporting} onClick={exportFile}>تصدير إلى إكسل</Button>}
+            <Button onClick={() => setImportOpen(true)}>استيراد ملف التصدير</Button>
+          </>
+        }
       />
       {importOpen && <ImportModal key={prefill?.key || 'manual'} open prefill={prefill} onClose={() => { setImportOpen(false); setPrefill(null); }} onDone={() => reload({ silent: true })} />}
 
@@ -273,7 +292,7 @@ export function MissedOrdersPage() {
               <tbody>
                 {data.items.map((i) => {
                   const p = PRIORITY[i.priority];
-                  const wa = i.priority !== 'unreachable' ? whatsappLink(i.phoneNormalized || i.phone, missedMessage(i.name)) : '';
+                  const wa = i.priority !== 'unreachable' && (i.phoneNormalized || i.phone) ? whatsappLink(i.phoneNormalized || i.phone, missedMessage(i.name)) : '';
                   return (
                     <tr key={i._id} className={selected.has(i._id) ? 'is-selected' : ''}>
                       <td><input type="checkbox" aria-label={`تحديد ${i.name}`} checked={selected.has(i._id)} onChange={() => toggle(i._id)} /></td>

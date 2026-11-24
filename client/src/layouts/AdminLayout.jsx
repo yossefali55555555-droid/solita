@@ -1,31 +1,34 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthContext.jsx';
+import { usePermissions } from '../features/auth/permissions.js';
 import { DemoBanner, Logo } from '../components/ui.jsx';
 
 // Ordered from the most to the least important for the day-to-day work:
 // orders and delivery first, then money, then recovering customers, then analytics and marketing, system last.
+// `section` = the permission that opens the page; entries the user cannot open are hidden.
 const NAV = [
-  { to: '/admin', label: 'نظرة عامة', end: true },
-  { to: '/admin/orders', label: 'الطلبات' },
-  { to: '/admin/missed-orders', label: 'الطلبات المفقودة' },
-  { to: '/admin/labels', label: 'طباعة البوليصة' },
-  { to: '/admin/reviews', label: 'طلبات التسليم بانتظار المراجعة' },
-  { to: '/admin/returns', label: 'مراجعة الرفض والمرتجعات' },
-  { to: '/admin/couriers', label: 'المندوبون' },
-  { to: '/admin/cash', label: 'النقدية والتسويات' },
-  { to: '/admin/customers', label: 'العملاء' },
-  { to: '/admin/abandoned-carts', label: 'السلات المتروكة' },
-  { to: '/admin/finance', label: 'الأرباح والمصروفات' },
-  { to: '/admin/page-time', label: 'حركة الصفحات' },
-  { to: '/admin/coupons', label: 'الكوبونات' },
-  { to: '/admin/founders', label: 'أوائل سوليتا' },
-  { to: '/admin/sync', label: 'المزامنة مع EasyOrders' },
-  { to: '/admin/site-settings', label: 'إعدادات الموقع' },
+  { to: '/admin', label: 'نظرة عامة', end: true, section: 'dashboard' },
+  { to: '/admin/orders', label: 'الطلبات', section: 'orders' },
+  { to: '/admin/missed-orders', label: 'الطلبات المفقودة', section: 'missedOrders' },
+  { to: '/admin/labels', label: 'طباعة البوليصة', section: 'warehouse' },
+  { to: '/admin/reviews', label: 'طلبات التسليم بانتظار المراجعة', section: 'reviews' },
+  { to: '/admin/returns', label: 'مراجعة الرفض والمرتجعات', section: 'warehouse' },
+  { to: '/admin/couriers', label: 'المندوبون', section: 'couriers' },
+  { to: '/admin/cash', label: 'النقدية والتسويات', section: 'cash' },
+  { to: '/admin/customers', label: 'العملاء', section: 'customers' },
+  { to: '/admin/abandoned-carts', label: 'السلات المتروكة', section: 'storefront' },
+  { to: '/admin/finance', label: 'الأرباح والمصروفات', section: 'finance' },
+  { to: '/admin/page-time', label: 'حركة الصفحات', section: 'storefront' },
+  { to: '/admin/coupons', label: 'الكوبونات', section: 'coupons' },
+  { to: '/admin/founders', label: 'أوائل سوليتا', section: 'founders' },
+  { to: '/admin/sync', label: 'المزامنة مع EasyOrders', section: 'sync' },
+  { to: '/admin/site-settings', label: 'إعدادات الموقع', section: 'siteSettings' },
 ];
 
 export function AdminLayout() {
   const { user, logout, mockMode } = useAuth();
+  const perms = usePermissions();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -45,7 +48,7 @@ export function AdminLayout() {
           <span className="sidebar__product">إدارة الطلبات والمندوبين</span>
         </div>
         <nav className="sidebar__nav" aria-label="القائمة الرئيسية">
-          {NAV.map((item) => (
+          {NAV.filter((item) => perms.can(item.section)).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -60,7 +63,7 @@ export function AdminLayout() {
         <div className="sidebar__footer">
           <div className="sidebar__user">
             <strong>{user?.name}</strong>
-            <span className="muted">مشرف</span>
+            <span className="muted">{user?.role === 'moderator' ? 'مودريتور' : 'مشرف'}</span>
           </div>
           <button type="button" className="btn btn--ghost btn--sm" onClick={handleLogout}>
             تسجيل الخروج
@@ -80,7 +83,7 @@ export function AdminLayout() {
             ☰
           </button>
           <Logo size={56} />
-          <span className="topbar__title">لوحة المشرف</span>
+          <span className="topbar__title">{user?.role === 'moderator' ? 'لوحة المودريتور' : 'لوحة المشرف'}</span>
         </header>
         {mockMode && <DemoBanner />}
         <main id="main" className="admin-content">

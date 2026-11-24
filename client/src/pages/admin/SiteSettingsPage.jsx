@@ -5,6 +5,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { formatDateTime } from '../../utils/format.js';
+import { usePermissions } from '../../features/auth/permissions.js';
 
 /**
  * «إعدادات الموقع»: everything on the storefront that EasyOrders itself
@@ -93,6 +94,7 @@ function Toggle({ checked, onChange, children }) {
 
 export function SiteSettingsPage() {
   const toast = useToast();
+  const perms = usePermissions();
   const { data, error, loading, reload } = useAsync(() => api.get('/admin/site-settings'), []);
   // The draft belongs to the loaded data; a reload (after saving) starts a fresh draft.
   const [draft, setDraft] = useState({ base: null, value: null });
@@ -397,6 +399,7 @@ export function SiteSettingsPage() {
       </Card>
 
       <Card title="رسالة واتساب للسلات المتروكة (داخل اللوحة فقط)">
+        {!perms.isAdmin && <p className="muted small">نصوص واتساب الجاهزة يعدّلها الأدمن فقط.</p>}
         <Field label="نص الرسالة" hint="{name} الاسم الأول، {items} المنتجات والمقاسات، {total} الإجمالي. لا تظهر على الموقع.">
           {(id) => (
             <textarea
@@ -404,6 +407,7 @@ export function SiteSettingsPage() {
               className="input"
               rows={5}
               value={form.admin.cartWhatsappTemplate}
+              readOnly={!perms.isAdmin}
               onChange={(e) => set(['admin', 'cartWhatsappTemplate'])(e.target.value)}
             />
           )}
@@ -421,6 +425,7 @@ export function SiteSettingsPage() {
               className="input"
               rows={8}
               value={form.admin.couponWhatsappTemplate}
+              readOnly={!perms.isAdmin}
               onChange={(e) => set(['admin', 'couponWhatsappTemplate'])(e.target.value)}
             />
           )}
@@ -432,6 +437,7 @@ export function SiteSettingsPage() {
               className="input"
               rows={9}
               value={form.admin.confirmWhatsappTemplate}
+              readOnly={!perms.isAdmin}
               onChange={(e) => set(['admin', 'confirmWhatsappTemplate'])(e.target.value)}
             />
           )}

@@ -5,6 +5,7 @@ import { isDuplicateKeyError, notFound, unprocessable } from '../utils/errors.js
 import { normalizePhone } from '../utils/phone.js';
 import { logger } from '../utils/logger.js';
 import { notify } from './notificationService.js';
+import { FULL_VIEWER } from './visibilityService.js';
 
 /**
  * Customer-bound coupons. Every code lives in EasyOrders; here it is tied to
@@ -254,13 +255,16 @@ export async function couponForOrder(orderId) {
   return row;
 }
 
-export async function assignManually(id, { phone, name }, user = null) {
+export async function assignManually(id, { phone, name }, user = null, viewer = FULL_VIEWER) {
   const p = normalizePhone(phone);
   if (!MOBILE_RE.test(p)) throw unprocessable('رقم الهاتف غير صالح');
   const row = await CouponAssignment.findById(id);
   if (!row) throw notFound('الكود غير موجود');
   if (row.phoneNormalized) throw unprocessable('هذا الكود مخصص لعميل بالفعل');
-  if (await CouponAssignment.exists({ phoneNormalized: p })) throw unprocessable('هذا العميل لديه كود بالفعل');
+  if (await CouponAssignment.exists({ phoneNormalized: p })) {
+    // Without the phone grant the message must not confirm that the number is a known customer.
+    throw unprocessable(viewer.phone ? 'هذا العميل لديه كود بالفعل' : 'تعذّر تخصيص الكود لهذا الرقم');
+  }
   const assignedAt = new Date();
   remember(row, 'assign', user);
   Object.assign(row, { phoneNormalized: p, customerName: name || '', assignedAt, expiresAt: expiryFrom(assignedAt), assignedVia: 'manual' });
@@ -403,7 +407,7 @@ export async function syncExchange(coupons) {
 
 // ---------------------------------------------------------------- lists
 
-export async function listCoupons() {
+export async function listCoupons(viewer = FULL_VIEWER) {
   const rows = await CouponAssignment.find()
     .sort({ seq: 1 })
     .populate('order', 'easyOrdersShortId easyOrdersId')
@@ -420,10 +424,12 @@ export async function listCoupons() {
   const flagged = await Order.find({ 'couponFlag.active': true })
     .sort({ createdAt: -1 })
     .limit(50)
-    .select('easyOrdersShortId easyOrdersId couponCode couponFlag customer.name customer.phone sourceStatus')
+    .select(viewer.phone ? 'easyOrdersShortId easyOrdersId couponCode couponFlag customer.name customer.phone sourceStatus' : 'easyOrdersShortId easyOrdersId couponCode couponFlag customer.name sourceStatus')
     .lean();
   const items = rows.map(({ history, ...r }) => ({
     ...r,
+    // The page needs to know a code is taken even when the number itself is hidden.
+    assigned: Boolean(r.phoneNormalized),
     uses: uses.get(r.code) || 0,
     lastChange: history?.length ? { at: history.at(-1).at, action: history.at(-1).action, label: ACTION_LABELS[history.at(-1).action] || history.at(-1).action } : null,
     // The few EasyOrders settings the page shows and edits (the full object stays in `eo`).
@@ -457,13 +463,17 @@ export async function listCoupons() {
   };
 }
 
-export async function listAttempts({ limit = 100 } = {}) {
-  const attempts = await CouponAttempt.find().sort({ createdAt: -1 }).limit(limit).lean();
+export async function listAttempts({ limit = 100 } = {}, viewer = FULL_VIEWER) {
+  const attempts = await CouponAttempt.find()
+    .select(viewer.phone ? '-__v' : '-phoneTyped -phoneNormalized -ownerPhone')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
   const visitors = [...new Set(attempts.map((a) => a.visitorId).filter(Boolean))];
   const carts = visitors.length
     ? await StorefrontCart.find({ visitorId: { $in: visitors } })
         .sort({ lastActivityAt: -1 })
-        .select('visitorId customer.name customer.phone customer.phoneNormalized')
+        .select(viewer.phone ? 'visitorId customer.name customer.phone customer.phoneNormalized' : 'visitorId customer.name')
         .lean()
     : [];
   const contact = new Map();

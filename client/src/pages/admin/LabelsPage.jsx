@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button, Card, PageHeader, Pagination } from '../../components/ui.jsx';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
 import { DeliveryStatusBadge, DemoBadge, SourceStatusBadge } from '../../components/StatusBadges.jsx';
 import { useToast } from '../../components/Toast.jsx';
@@ -17,6 +18,7 @@ const TABS = [
 
 export function LabelsPage() {
   const toast = useToast();
+  const perms = usePermissions();
   const [params, setParams] = useSearchParams();
   const tab = params.get('tab') || 'pending';
   const page = params.get('page') || '1';
@@ -61,13 +63,16 @@ export function LabelsPage() {
   const allSelected = items.length > 0 && items.slice(0, 40).every((o) => selected.has(o._id));
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(items.slice(0, 40).map((o) => o._id)));
 
+  // A label carries the customer's number, so printing needs the phone grant (the server enforces it too).
+  const canPrint = perms.field('customerPhone');
+
   return (
     <>
       <PageHeader
         title="طباعة البوليصة"
         subtitle="ملصق لكل جزمة (4 ملصقات في ورقة A4) وعليه QR يمسحه المندوب عند الاستلام وعند العميل، ويُمسح عند رجوع المرتجع للمخزن."
         actions={
-          <Button onClick={print} loading={printing} disabled={!selected.size}>
+          <Button onClick={print} loading={printing} disabled={!selected.size || !canPrint}>
             طباعة {selected.size ? `(${selected.size})` : ''}
           </Button>
         }

@@ -4,6 +4,7 @@ import { FOUNDER_BENEFIT_MONTHS } from '../models/Founder.js';
 import { mergeWithDefaults } from '../validators/siteSettings.js';
 import { isDuplicateKeyError, notFound, unprocessable } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
+import { FULL_VIEWER } from './visibilityService.js';
 
 /**
  * Founders ("أوائل سوليتا"): the first `cap` customers (by delivery approval
@@ -73,9 +74,9 @@ async function friendOrderCounts(codes) {
   return new Map(rows.map((r) => [r._id, r.orders]));
 }
 
-export async function listFounders() {
+export async function listFounders(viewer = FULL_VIEWER) {
   const [founders, cfg] = await Promise.all([
-    Founder.find().sort({ number: 1 }).populate('order', 'easyOrdersShortId easyOrdersId totalAmount').lean(),
+    Founder.find().select(viewer.phone ? '-__v' : '-phone -phoneNormalized').sort({ number: 1 }).populate('order', 'easyOrdersShortId easyOrdersId totalAmount').lean(),
     founderSettings(),
   ]);
   const friend = await friendOrderCounts(founders.map((f) => f.friendCode).filter(Boolean));

@@ -6,6 +6,7 @@ import { isDuplicateKeyError, notFound, unprocessable } from '../utils/errors.js
 import { toMinor } from '../utils/money.js';
 import { logger } from '../utils/logger.js';
 import { recordPageEvents } from './pageStatService.js';
+import { FULL_VIEWER } from './visibilityService.js';
 
 /**
  * Storefront integration: anonymous visitors, abandoned carts and the
@@ -309,7 +310,7 @@ export async function expireStaleCarts({ now = new Date() } = {}) {
 // ---------- Admin ----------
 const RANGE_DAYS = { today: 0, '3d': 2, '7d': 6, '30d': 29 };
 
-export async function listCarts(query, { skip, limit }, { now = new Date() } = {}) {
+export async function listCarts(query, { skip, limit }, { now = new Date(), viewer = FULL_VIEWER } = {}) {
   const filter = { itemsCount: { $gt: 0 } };
   const status = query.status || 'active';
   if (status === 'active') filter.status = { $in: ACTIVE };
@@ -323,6 +324,7 @@ export async function listCarts(query, { skip, limit }, { now = new Date() } = {
 
   const [items, total] = await Promise.all([
     StorefrontCart.find(filter)
+      .select(viewer.phone ? '-__v' : '-customer.phone -customer.phoneNormalized')
       .sort({ lastActivityAt: -1 })
       .skip(skip)
       .limit(limit)

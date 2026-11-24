@@ -3,6 +3,7 @@ import { Order } from '../models/index.js';
 import { badRequest, conflict, unprocessable } from '../utils/errors.js';
 import { recordEvent, userActor } from './auditService.js';
 import { notify } from './notificationService.js';
+import { FULL_VIEWER } from './visibilityService.js';
 
 /**
  * Shipping labels (البوليصة) and parcel QR codes.
@@ -152,9 +153,9 @@ export function parcelsAfterAssignment(order, nextCourierId) {
 // ---------------------------------------------------------------- print queue
 
 const QUEUE_FIELDS =
-  'easyOrdersId easyOrdersShortId customer.name customer.phone customer.government items totalAmount cod paymentStatus sourceStatus deliveryStatus assignedTo labels parcels isDemo createdAt';
+  'easyOrdersId easyOrdersShortId customer.name customer.government items totalAmount cod paymentStatus sourceStatus deliveryStatus assignedTo labels parcels isDemo createdAt';
 
-export async function listPrintQueue({ tab = 'pending' }, { skip, limit }) {
+export async function listPrintQueue({ tab = 'pending' }, { skip, limit }, viewer = FULL_VIEWER) {
   const notCancelled = { sourceStatus: { $ne: 'canceled' }, ...NOT_TEST };
   const queries = {
     pending: { 'labels.printedAt': null, deliveryStatus: { $in: ['new', 'assigned'] }, dashboardHiddenAt: null, ...notCancelled },
@@ -164,7 +165,7 @@ export async function listPrintQueue({ tab = 'pending' }, { skip, limit }) {
   const query = queries[tab] || queries.pending;
   const sort = tab === 'printed' ? { 'labels.printedAt': -1, _id: -1 } : { createdAt: 1, _id: 1 };
   const [items, total, pending, reprint] = await Promise.all([
-    Order.find(query).sort(sort).skip(skip).limit(limit).select(QUEUE_FIELDS).populate('assignedTo', 'name').lean(),
+    Order.find(query).sort(sort).skip(skip).limit(limit).select(viewer.phone ? `${QUEUE_FIELDS} customer.phone` : QUEUE_FIELDS).populate('assignedTo', 'name').lean(),
     Order.countDocuments(query),
     Order.countDocuments(queries.pending),
     Order.countDocuments(queries.reprint),

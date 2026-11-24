@@ -7,6 +7,7 @@ import { assignFounderForOrder } from './founderService.js';
 import { assignCouponOnDelivery } from './couponService.js';
 import { enqueueStatusSync, processOperation } from './syncService.js';
 import { assertParcelScan, assertReadyToStart } from './labelService.js';
+import { FULL_VIEWER } from './visibilityService.js';
 
 /**
  * Courier delivery workflow and mandatory supervisor approval.
@@ -260,7 +261,11 @@ export async function submitDeliveryReport(courier, orderId, { collectedAmount, 
 
 // ---------------------------------------------------------------- supervisor review
 
-export async function listReviews({ status, courier }, { skip, limit }) {
+// Order fields shown with a review; customer contact only for viewers who may see numbers.
+const REVIEW_ORDER_BASE = 'easyOrdersId easyOrdersShortId totalAmount currency paymentMethod sourceStatus deliveryStatus cod sourceConflict isDemo';
+const REVIEW_CUSTOMER_NO_PHONE = 'customer.name customer.government customer.area customer.address customer.notes';
+
+export async function listReviews({ status, courier }, { skip, limit }, viewer = FULL_VIEWER) {
   const query = {};
   if (status) query.status = status;
   if (courier) query.courier = courier;
@@ -271,14 +276,14 @@ export async function listReviews({ status, courier }, { skip, limit }) {
       .limit(limit)
       .populate('courier', 'name phone')
       .populate('reviewer', 'name')
-      .populate('order', 'easyOrdersId easyOrdersShortId customer totalAmount currency paymentMethod sourceStatus deliveryStatus cod sourceConflict isDemo')
+      .populate('order', viewer.phone ? `${REVIEW_ORDER_BASE} customer` : `${REVIEW_ORDER_BASE} ${REVIEW_CUSTOMER_NO_PHONE}`)
       .lean(),
     DeliveryReview.countDocuments(query),
   ]);
   return { items, total };
 }
 
-export async function getReview(reviewId) {
+export async function getReview(reviewId, viewer = FULL_VIEWER) {
   const review = await DeliveryReview.findById(reviewId)
     .populate('courier', 'name phone')
     .populate('reviewer', 'name')
@@ -286,7 +291,10 @@ export async function getReview(reviewId) {
     .lean();
   if (!review) throw notFound('تقرير التسليم غير موجود');
   const [order, history] = await Promise.all([
-    Order.findById(review.order).populate('assignedTo', 'name phone').lean(),
+    Order.findById(review.order)
+      .select(viewer.phone ? '-__v' : '-customer.phone -customer.phoneNormalized -customer.alternativePhone')
+      .populate('assignedTo', 'name phone')
+      .lean(),
     DeliveryReview.find({ order: review.order })
       .sort({ submittedAt: -1 })
       .populate('courier', 'name')
