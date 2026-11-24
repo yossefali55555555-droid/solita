@@ -27,7 +27,14 @@ export async function createUser(role = 'courier', overrides = {}) {
     isActive: overrides.isActive ?? true,
     mustChangePassword: overrides.mustChangePassword ?? false,
     email: overrides.email,
+    status: overrides.status,
+    permissions: overrides.permissions,
   });
+}
+
+/** The single administrator (only one may exist): reuse it or create it. */
+export async function adminUser() {
+  return (await User.findOne({ role: 'admin' })) || createUser('admin');
 }
 
 /** A supertest agent that keeps cookies and sends the CSRF header. */

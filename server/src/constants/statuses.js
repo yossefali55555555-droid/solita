@@ -110,7 +110,11 @@ export const REMITTANCE_STATUSES = Object.freeze([
   'cancelled', // voided before reconciliation (orders released)
 ]);
 
-export const ROLES = Object.freeze(['admin', 'courier']);
+export const ROLES = Object.freeze(['admin', 'moderator', 'courier']);
+/** Roles that use the admin interface (/api/admin). */
+export const STAFF_ROLES = Object.freeze(['admin', 'moderator']);
+/** Account lifecycle. 'invited' is separate from 'disabled' (accepting an invite never re-enables a disabled account). */
+export const ACCOUNT_STATUSES = Object.freeze(['active', 'invited', 'disabled']);
 
 /** Derive a payment status from the EasyOrders status (source-controlled). */
 export function paymentStatusFromSource(sourceStatus, previous = 'unpaid') {

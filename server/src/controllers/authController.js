@@ -4,6 +4,12 @@ import { sessionCookieName, sessionCookieOptions } from '../middleware/auth.js';
 import { createCsrfToken, csrfCookieName, isValidCsrfToken, setCsrfCookie } from '../middleware/csrf.js';
 import { changeOwnPassword, login, logout } from '../services/authService.js';
 import { listNotifications, markAllRead } from '../services/notificationService.js';
+import { effectivePermissions } from '../services/permissionService.js';
+
+/** The signed-in user + effective permissions (null for couriers). */
+function sessionUser(user) {
+  return { ...publicUser(user), templateName: user.templateName || null, permissions: effectivePermissions(user) };
+}
 
 function issueCsrf(req, res) {
   const existing = req.cookies?.[csrfCookieName()];
@@ -23,7 +29,7 @@ export async function postLogin(req, res) {
   // Rotate the CSRF token at login.
   const csrfToken = createCsrfToken();
   setCsrfCookie(res, csrfToken);
-  res.json({ user: publicUser(user), csrfToken, mockMode: getConfig().mockMode });
+  res.json({ user: sessionUser(user), csrfToken, mockMode: getConfig().mockMode });
 }
 
 export async function postLogout(req, res) {
@@ -33,7 +39,7 @@ export async function postLogout(req, res) {
 }
 
 export function getMe(req, res) {
-  res.json({ user: publicUser(req.user), mockMode: getConfig().mockMode, csrfToken: issueCsrf(req, res) });
+  res.json({ user: sessionUser(req.user), mockMode: getConfig().mockMode, csrfToken: issueCsrf(req, res) });
 }
 
 export async function postChangePassword(req, res) {
@@ -45,7 +51,7 @@ export async function postChangePassword(req, res) {
     userAgent: req.get('user-agent'),
   });
   res.cookie(sessionCookieName(), token, sessionCookieOptions(expiresAt));
-  res.json({ user: publicUser(user) });
+  res.json({ user: sessionUser(user) });
 }
 
 export async function getNotifications(req, res) {

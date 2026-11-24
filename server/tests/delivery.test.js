@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DeliveryReview, Notification, Order, OrderEvent, SyncOperation } from '../src/models/index.js';
+import { DeliveryReview, Notification, Order, OrderEvent, SyncOperation, User } from '../src/models/index.js';
 import { approveReview } from '../src/services/deliveryService.js';
 import {
   createAssignedOrder,
@@ -118,8 +118,8 @@ describe('supervisor review', () => {
     enableEasyOrdersApi();
     const calls = mockEasyOrders(() => ({ status: 200, body: {} }));
     const { adminApi, reviewId } = await submitted();
-    const admin2 = await createUser('admin');
-    const adminApi2 = await loginAs(admin2);
+    // Only one admin may exist: race two sessions of the same admin instead.
+    const adminApi2 = await loginAs(await User.findOne({ role: 'admin' }));
     const [r1, r2] = await Promise.all([
       adminApi.post(`/api/admin/delivery-reviews/${reviewId}/approve`),
       adminApi2.post(`/api/admin/delivery-reviews/${reviewId}/approve`),
