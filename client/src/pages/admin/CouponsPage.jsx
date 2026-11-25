@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { Link } from 'react-router-dom';
 import { Badge, Button, Card, PageHeader } from '../../components/ui.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
@@ -99,6 +100,7 @@ function parseImport(text) {
 
 export function CouponsPage() {
   const toast = useToast();
+  const perms = usePermissions();
   const { data, error, loading, reload } = useAsync(() => api.get('/admin/coupons'), []);
   const attempts = useAsync(() => api.get('/admin/coupons/attempts'), []);
   const [codes, setCodes] = useState('');
@@ -345,7 +347,7 @@ export function CouponsPage() {
                               تعديل
                             </Button>
                           ) : null}
-                          {c.bound !== false && !c.assigned ? (
+                          {c.bound !== false && !c.assigned && perms.field('customerPhone') ? (
                             manual.id === c._id ? (
                               <div className="badge-row">
                                 <input className="input" dir="ltr" placeholder="01xxxxxxxxx" value={manual.phone} onChange={(e) => setManual({ ...manual, phone: e.target.value })} />

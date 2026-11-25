@@ -259,14 +259,15 @@ describe('side channels', () => {
     expect((await holderApi.get(`/api/admin/customers/${encodeURIComponent(key)}`)).status).toBe(200);
   });
 
-  it('a coupon cannot be used to find out whether a number is a customer', async () => {
+  it('assigning a coupon to a number needs the phone grant (no probing of numbers)', async () => {
     const ids = await seed();
     const pool = await CouponAssignment.findOne({ phoneNormalized: null });
     const moderator = await createUser('moderator', { permissions: { sections: { coupons: 'edit' }, ...noGrants } });
     const api = await loginAs(moderator);
     const res = await api.post(`/api/admin/coupons/${pool._id}/assign`, { phone: PHONE, name: 'x' });
-    expect(res.status).toBe(422);
-    expect(res.body.error.message).not.toContain('لديه كود');
+    // Assigning takes a number, so it needs the phone grant: no way to probe numbers without it.
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
     expect(ids.coupon.phoneNormalized).toBe(PHONE);
     const holder = await createUser('moderator', { permissions: { sections: { coupons: 'edit' }, dangerous: [], fields: [{ key: 'customerPhone', until: null }] } });
     const holderApi = await loginAs(holder);

@@ -136,7 +136,7 @@ export function buildRouter() {
   a.patch('/coupons/:id/dates', requirePermission('coupons', 'edit'), validate({ params: idParams, body: couponDatesBody }), couponCtl.editDates);
   a.post('/coupons/:id/undo', requirePermission('coupons', 'edit'), id, couponCtl.undoChange);
   a.patch('/coupons/:id/settings', requirePermission('coupons', 'edit'), validate({ params: idParams, body: couponSettingsBody }), couponCtl.updateSettings);
-  a.post('/coupons/:id/assign', requirePermission('coupons', 'edit'), validate({ params: idParams, body: assignCouponBody }), couponCtl.assignCoupon);
+  a.post('/coupons/:id/assign', requirePermission('coupons', 'edit', { fields: ['customerPhone'] }), validate({ params: idParams, body: assignCouponBody }), couponCtl.assignCoupon);
   a.post('/coupons/:id/release', requirePermission('coupons', 'edit'), id, couponCtl.releaseCoupon);
   a.post('/coupons/:id/sent', requirePermission('coupons', 'edit', { fields: ['customerPhone'] }), id, couponCtl.couponSent);
   a.post('/orders/:id/coupon', requirePermission('coupons', 'edit', { fields: ['customerPhone'], also: { orders: 'view' } }), id, couponCtl.orderCoupon);
