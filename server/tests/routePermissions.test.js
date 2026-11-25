@@ -16,7 +16,7 @@ import { createUser, getTestApp, loginAs, client } from './helpers.js';
 // Areas that keep their own access rules (unchanged by the moderators work).
 const EXEMPT_SCOPES = new Set(['auth', 'webhooks', 'courier', 'public', 'couponSync']);
 // Single routes outside any router, with their own protection.
-const EXEMPT_ROUTES = new Set(['app GET /api/health', 'api GET /cron/process']);
+const EXEMPT_ROUTES = new Set(['app GET /api/health', 'api GET /cron/process', 'api GET /cron/digest']);
 
 function scopeOf(layer, parentScope) {
   const tagged = layer.handle[ROUTER_SCOPE];

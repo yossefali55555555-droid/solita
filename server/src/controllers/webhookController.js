@@ -1,3 +1,4 @@
+import { sendDailyDigest } from '../services/alertService.js';
 import { getConfig } from '../config/env.js';
 import { receiveWebhook } from '../services/webhookService.js';
 import { processBackgroundWork } from '../jobs/processBackgroundWork.js';
@@ -49,12 +50,27 @@ export const ordersWebhook = handler('orders');
 export const statusWebhook = handler('status');
 
 /** Vercel Cron entry point (Authorization: Bearer <CRON_SECRET>). */
-export async function cronProcess(req, res) {
+function cronAuthorized(req, res) {
   const secret = getConfig().cronSecret;
-  if (!secret) return res.status(503).json({ error: { code: 'CRON_NOT_CONFIGURED', message: 'CRON_SECRET is not set' } });
+  if (!secret) {
+    res.status(503).json({ error: { code: 'CRON_NOT_CONFIGURED', message: 'CRON_SECRET is not set' } });
+    return false;
+  }
   const header = req.get('authorization') || '';
   if (!safeEqual(header, `Bearer ${secret}`)) {
-    return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+    res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+    return false;
   }
+  return true;
+}
+
+export async function cronProcess(req, res) {
+  if (!cronAuthorized(req, res)) return;
   res.json(await processBackgroundWork({ timeBudgetMs: 22_000 }));
+}
+
+/** Daily alert digest for the administrator (SPEC (ح)); sends nothing when nothing is new. */
+export async function cronDigest(req, res) {
+  if (!cronAuthorized(req, res)) return;
+  res.json(await sendDailyDigest());
 }

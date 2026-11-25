@@ -55,6 +55,13 @@ export async function client() {
   return api;
 }
 
+/** Identity check before a dangerous action (phase 3 step-up): password for accounts without 2FA. */
+export async function stepUp(api, action, password = PASSWORD) {
+  const res = await api.post('/api/auth/step-up', { action, password });
+  if (res.status !== 200) throw new Error(`step-up failed: ${res.status} ${JSON.stringify(res.body)}`);
+  return res;
+}
+
 export async function loginAs(user, password = PASSWORD) {
   const api = await client();
   const res = await api.post('/api/auth/login', { identifier: user.phone, password });

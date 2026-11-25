@@ -12,6 +12,15 @@ const sessionSchema = new mongoose.Schema(
     expiresAt: { type: Date, required: true },
     lastSeenAt: { type: Date },
     userAgent: { type: String, maxlength: 300 },
+    // Phase 3: when 2FA was checked at sign-in, the last identity check
+    // (sign-in or step-up, for the 10-minute rule) and a one-shot step-up
+    // for one dangerous action (60 seconds).
+    mfaVerifiedAt: { type: Date, default: null },
+    reauthAt: { type: Date, default: null },
+    stepUp: {
+      action: { type: String, maxlength: 60 },
+      at: { type: Date },
+    },
   },
   { timestamps: true },
 );

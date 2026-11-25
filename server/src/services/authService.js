@@ -6,6 +6,9 @@ import { normalizePhone } from '../utils/phone.js';
 import { sha256 } from '../utils/sanitize.js';
 import { hashPassword, verifyAgainstDummy, verifyPassword } from './passwordService.js';
 import { recordEvent, SYSTEM_ACTOR, userActor } from './auditService.js';
+import { actorLabel, raiseAlert } from './alertService.js';
+import { bumpCounter, clearCounter, readCounter } from './counterService.js';
+import { createPreAuth, getSecurity, isMfaEnabled, verifyPreAuth } from './mfaService.js';
 
 /** Active = not deactivated (couriers: isActive) and status "active" (staff). */
 export function isAccountActive(user) {
@@ -28,29 +31,94 @@ function findByIdentifier(identifier) {
   return User.findOne(query).select('+passwordHash +failedLoginCount +lockedUntil');
 }
 
-export async function login({ identifier, password, userAgent }) {
+const ADMIN_FAIL_WINDOW_MS = LOCK_MS;
+const ADMIN_ACCOUNT_ALERT_AT = 5;
+
+async function createSession(user, { userAgent, mfaVerifiedAt = null } = {}) {
+  const token = crypto.randomBytes(32).toString('base64url');
+  const ttl = SESSION_TTL_MS[user.role] || SESSION_TTL_MS.admin;
+  const expiresAt = new Date(Date.now() + ttl);
+  const now = new Date();
+  await Session.create({
+    tokenHash: sha256(token),
+    user: user._id,
+    expiresAt,
+    lastSeenAt: now,
+    userAgent: userAgent ? String(userAgent).slice(0, 300) : undefined,
+    mfaVerifiedAt,
+    reauthAt: now,
+  });
+  return { token, expiresAt };
+}
+
+/**
+ * Wrong password. Couriers/moderators: 8 → the account is locked 15 min (as
+ * before). Administrator: counted per account + IP (SPEC (هـ)), so someone
+ * who only knows the owner's phone number cannot lock the owner out; the
+ * account-wide count only raises an alert.
+ */
+async function registerFailedPassword(user, ip) {
+  if (user.role === 'admin') {
+    const perIp = await bumpCounter(`adminfail:${user._id}:${ip || 'unknown'}`, ADMIN_FAIL_WINDOW_MS);
+    const total = await bumpCounter(`adminfail:${user._id}:all`, ADMIN_FAIL_WINDOW_MS);
+    if (perIp === MAX_FAILED_LOGINS) {
+      await raiseAlert({
+        type: 'login_locked',
+        severity: 'security',
+        actor: user,
+        message: `أُوقف الدخول 15 دقيقة لحساب ${actorLabel(user)} من عنوان واحد بعد ${MAX_FAILED_LOGINS} محاولات خاطئة.`,
+      });
+    } else if (total === ADMIN_ACCOUNT_ALERT_AT) {
+      await raiseAlert({
+        type: 'admin_password_failures',
+        severity: 'security',
+        actor: user,
+        message: `محاولات كلمة مرور خاطئة متكررة على حساب ${actorLabel(user)} خلال 15 دقيقة.`,
+      });
+    }
+    return;
+  }
+  const failed = (user.failedLoginCount || 0) + 1;
+  const update = { failedLoginCount: failed };
+  if (failed >= MAX_FAILED_LOGINS) {
+    update.lockedUntil = new Date(Date.now() + LOCK_MS);
+    update.failedLoginCount = 0;
+  }
+  await User.updateOne({ _id: user._id }, { $set: update });
+  if (update.lockedUntil) {
+    await raiseAlert({
+      type: 'login_locked',
+      actor: user,
+      message: `أُوقف الدخول 15 دقيقة لحساب ${actorLabel(user)} بعد ${MAX_FAILED_LOGINS} محاولات خاطئة.`,
+    });
+  }
+}
+
+async function adminLockedFromIp(user, ip) {
+  if (user.role !== 'admin') return false;
+  return (await readCounter(`adminfail:${user._id}:${ip || 'unknown'}`, ADMIN_FAIL_WINDOW_MS)) >= MAX_FAILED_LOGINS;
+}
+
+const LOCKED_MESSAGE = 'تم إيقاف تسجيل الدخول مؤقتاً بسبب محاولات متكررة. حاول لاحقاً.';
+
+/**
+ * Stage one of sign-in. Returns { user, token, expiresAt } (signed in), or
+ * { mfaRequired: true, preauthToken, preauthExpiresAt } when the account is
+ * the administrator with 2FA on (stage two: completeMfaLogin).
+ */
+export async function login({ identifier, password, userAgent, ip }) {
   const user = await findByIdentifier(identifier);
   if (!user) {
     await verifyAgainstDummy(password);
     throw unauthorized(INVALID_CREDENTIALS, 'INVALID_CREDENTIALS');
   }
-  if (user.lockedUntil && user.lockedUntil > new Date()) {
-    throw new AppError(
-      429,
-      'ACCOUNT_LOCKED',
-      'تم إيقاف تسجيل الدخول مؤقتاً بسبب محاولات متكررة. حاول لاحقاً.',
-    );
+  if ((user.lockedUntil && user.lockedUntil > new Date()) || (await adminLockedFromIp(user, ip))) {
+    throw new AppError(429, 'ACCOUNT_LOCKED', LOCKED_MESSAGE);
   }
 
   const ok = await verifyPassword(user.passwordHash, password);
   if (!ok) {
-    const failed = (user.failedLoginCount || 0) + 1;
-    const update = { failedLoginCount: failed };
-    if (failed >= MAX_FAILED_LOGINS) {
-      update.lockedUntil = new Date(Date.now() + LOCK_MS);
-      update.failedLoginCount = 0;
-    }
-    await User.updateOne({ _id: user._id }, { $set: update });
+    await registerFailedPassword(user, ip);
     throw unauthorized(INVALID_CREDENTIALS, 'INVALID_CREDENTIALS');
   }
 
@@ -61,23 +129,35 @@ export async function login({ identifier, password, userAgent }) {
   }
   if (!isAccountActive(user)) throw forbidden('هذا الحساب غير مفعل. تواصل مع المشرف.', 'ACCOUNT_INACTIVE');
 
+  if (user.role === 'admin' && isMfaEnabled(await getSecurity(user._id))) {
+    const pre = await createPreAuth(user, { ip, userAgent });
+    return { mfaRequired: true, preauthToken: pre.token, preauthExpiresAt: pre.expiresAt };
+  }
+  return finishLogin(user, { userAgent, ip });
+}
+
+async function finishLogin(user, { userAgent, ip, mfaVerifiedAt = null }) {
   await User.updateOne(
     { _id: user._id },
     { $set: { failedLoginCount: 0, lastLoginAt: new Date() }, $unset: { lockedUntil: 1 } },
   );
-
-  const token = crypto.randomBytes(32).toString('base64url');
-  const ttl = SESSION_TTL_MS[user.role] || SESSION_TTL_MS.admin;
-  const expiresAt = new Date(Date.now() + ttl);
-  await Session.create({
-    tokenHash: sha256(token),
-    user: user._id,
-    expiresAt,
-    lastSeenAt: new Date(),
-    userAgent: userAgent ? String(userAgent).slice(0, 300) : undefined,
-  });
-
+  if (user.role === 'admin') await clearCounter(`adminfail:${user._id}:${ip || 'unknown'}`, ADMIN_FAIL_WINDOW_MS);
+  const { token, expiresAt } = await createSession(user, { userAgent, mfaVerifiedAt });
   return { user, token, expiresAt };
+}
+
+/** Stage two: a correct TOTP or recovery code → the real 12-hour session. */
+export async function completeMfaLogin({ preauthToken, code, userAgent, ip }) {
+  const result = await verifyPreAuth(preauthToken, code);
+  const { user } = result;
+  if (!isAccountActive(user)) throw forbidden('هذا الحساب غير مفعل. تواصل مع المشرف.', 'ACCOUNT_INACTIVE');
+  const signed = await finishLogin(user, { userAgent: userAgent || result.userAgent, ip: ip || result.ip, mfaVerifiedAt: new Date() });
+  return { ...signed, usedRecovery: result.usedRecovery, recoveryLeft: result.recoveryLeft };
+}
+
+/** Re-issue a session after the user's own password change (all others were revoked). */
+export async function reissueSession(user, previousSession, { userAgent }) {
+  return createSession(user, { userAgent, mfaVerifiedAt: previousSession?.mfaVerifiedAt || null });
 }
 
 /** Resolve a session token to an active user, or null. */

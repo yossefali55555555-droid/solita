@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { requireAuth, requirePasswordUpToDate, requireRole } from '../middleware/auth.js';
-import { loginRateLimiter, webhookRateLimiter } from '../middleware/rateLimit.js';
+import { requireAuth, requirePasswordUpToDate, requireRecentReauth, requireRole } from '../middleware/auth.js';
+import { loginRateLimiter, mfaRateLimiter, webhookRateLimiter } from '../middleware/rateLimit.js';
 import { validate } from '../middleware/validate.js';
 import { idParams } from '../validators/common.js';
 import * as s from '../validators/schemas.js';
@@ -27,6 +27,23 @@ export function buildRouter() {
   authRoutes.post('/change-password', requireAuth, validate({ body: s.changePasswordBody }), auth.postChangePassword);
   authRoutes.get('/notifications', requireAuth, auth.getNotifications);
   authRoutes.post('/notifications/read', requireAuth, auth.postNotificationsRead);
+  // Phase 3: second stage of the admin sign-in, step-up, and the admin's
+  // own security page (2FA, recovery codes, personal email, alerts).
+  authRoutes.post('/2fa/verify', mfaRateLimiter(), validate({ body: s.mfaCodeBody }), auth.postMfaVerify);
+  authRoutes.post('/step-up', requireAuth, requireRole(...STAFF_ROLES), validate({ body: s.stepUpBody }), auth.postStepUp);
+  const sec = tagRouter(Router(), 'auth');
+  const recent = requireRecentReauth();
+  sec.use(requireRole('admin'), requirePasswordUpToDate);
+  sec.get('/', auth.getSecurity);
+  sec.post('/2fa/setup', recent, auth.postMfaSetup);
+  sec.post('/2fa/confirm', validate({ body: s.mfaCodeBody }), auth.postMfaConfirm);
+  sec.post('/recovery-codes', recent, auth.postRecoveryCodes);
+  sec.post('/email', recent, validate({ body: s.securityEmailBody }), auth.postSecurityEmail);
+  sec.post('/email/verify', validate({ body: s.mfaCodeBody }), auth.postSecurityEmailVerify);
+  sec.post('/email/test', auth.postSecurityEmailTest);
+  sec.get('/alerts', auth.getAlerts);
+  sec.post('/alerts/read', auth.postAlertsRead);
+  authRoutes.use('/security', sec);
   api.use('/auth', authRoutes);
 
   // ---------------- Webhooks (secret header, no cookies/CSRF) ----------------
@@ -38,6 +55,7 @@ export function buildRouter() {
 
   // ---------------- Cron (Bearer CRON_SECRET) ----------------
   api.get('/cron/process', webhook.cronProcess);
+  api.get('/cron/digest', webhook.cronDigest); // end-of-day alert email (18:00 UTC)
 
   // ---------------- Admin ----------------
   // Every route starts with its permission metadata (middleware/permissions.js):
@@ -67,7 +85,7 @@ export function buildRouter() {
   a.post('/orders/:id/notes/:noteId/retry', requirePermission('orders', 'edit'), id, admin.retryOrderNoteCtl);
   a.post('/orders/:id/test', requirePermission('orders', 'edit', { dangerous: 'markTest' }), validate({ params: idParams, body: s.testFlagBody }), admin.setOrderTest);
   a.post('/orders/clear', requirePermission('orders', 'edit', { dangerous: 'clearOrders' }), validate({ body: s.clearOrdersBody }), admin.clearOrders);
-  a.post('/orders/restore-cleared', requirePermission('orders', 'edit', { dangerous: 'clearOrders' }), admin.restoreClearedOrders);
+  a.post('/orders/restore-cleared', requirePermission('orders', 'edit', { dangerous: 'clearOrders', stepUp: 'recent' }), admin.restoreClearedOrders);
   a.get('/orders/:id', requirePermission('orders', 'view'), id, admin.getOrder);
   a.patch('/orders/:id/assignment', requirePermission('orders', 'edit'), validate({ params: idParams, body: s.assignmentBody }), admin.assignOrder);
   a.patch('/orders/:id/status', requirePermission('orders', 'edit', { dangerous: 'changeOrderStatus' }), validate({ params: idParams, body: s.adminStatusBody }), admin.changeOrderStatus);
@@ -90,7 +108,7 @@ export function buildRouter() {
 
   a.get('/cash/overview', requirePermission('cash', 'view'), admin.cashOverview);
   a.post('/cash/reset', requirePermission('cash', 'edit', { dangerous: 'resetCash' }), validate({ body: s.cashResetBody }), admin.resetCash);
-  a.post('/cash/reset/undo', requirePermission('cash', 'edit', { dangerous: 'resetCash' }), admin.undoCashReset);
+  a.post('/cash/reset/undo', requirePermission('cash', 'edit', { dangerous: 'resetCash', stepUp: 'recent' }), admin.undoCashReset);
   a.get('/cash/eligible-orders', requirePermission('cash', 'view'), validate({ query: s.eligibleOrdersQuery }), admin.eligibleOrders);
   a.get('/cash/remittances', requirePermission('cash', 'view'), validate({ query: s.listRemittancesQuery }), admin.listRemittances);
   a.post('/cash/remittances', requirePermission('cash', 'edit'), validate({ body: s.adminCreateRemittanceBody }), admin.createRemittance);
@@ -113,7 +131,7 @@ export function buildRouter() {
 
   a.get('/finance/summary', requirePermission('finance', 'view'), validate({ query: s.profitQuery }), admin.profitSummary);
   a.post('/finance/reset', requirePermission('finance', 'edit', { dangerous: 'resetFinance' }), validate({ body: s.financeResetBody }), admin.resetFinance);
-  a.post('/finance/reset/undo', requirePermission('finance', 'edit', { dangerous: 'resetFinance' }), admin.undoFinanceReset);
+  a.post('/finance/reset/undo', requirePermission('finance', 'edit', { dangerous: 'resetFinance', stepUp: 'recent' }), admin.undoFinanceReset);
   a.get('/finance/expenses', requirePermission('finance', 'view'), validate({ query: s.listExpensesQuery }), admin.listExpenses);
   a.post('/finance/expenses', requirePermission('finance', 'edit'), validate({ body: s.createExpenseBody }), admin.createExpense);
   a.patch('/finance/expenses/:id', requirePermission('finance', 'edit'), validate({ params: idParams, body: s.updateExpenseBody }), admin.updateExpense);

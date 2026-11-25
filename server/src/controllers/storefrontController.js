@@ -5,6 +5,7 @@ import * as siteSettings from '../services/siteSettingsService.js';
 import * as pageStats from '../services/pageStatService.js';
 import * as missed from '../services/missedOrderService.js';
 import { recordEvent, userActor } from '../services/auditService.js';
+import { actorLabel, raiseAlert } from '../services/alertService.js';
 
 // ---------- Abandoned carts ----------
 export async function listCarts(req, res) {
@@ -76,6 +77,14 @@ export async function exportMissed(req, res) {
     next: { rows: count },
     metadata: { filters: req.valid.query },
   });
+  if (req.user.role !== 'admin') {
+    await raiseAlert({
+      type: 'staff_export',
+      key: `staff_export:${req.user._id}:${Date.now()}`, // every export is its own line
+      actor: req.user,
+      message: `${actorLabel(req.user)} صدّر ملف الطلبات الفائتة (${count} صفًا) ومعه أرقام العملاء.`,
+    });
+  }
   res.set({
     'Content-Type': 'text/csv; charset=utf-8',
     'Content-Disposition': 'attachment; filename="missed-orders.csv"',

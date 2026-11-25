@@ -305,3 +305,17 @@ export const profitQuery = z.object({
   from: isoDate.optional(),
   to: isoDate.optional(),
 });
+
+// ---------------- Admin security (moderators phase 3) ----------------
+const codeField = z.string().trim().min(6, 'أدخل الكود').max(40);
+export const mfaCodeBody = z.object({ code: codeField });
+export const stepUpBody = z
+  .object({
+    action: z.string().trim().min(1).max(60),
+    code: z.string().trim().max(40).optional(),
+    password: z.string().max(200).optional(),
+  })
+  .refine((v) => v.code || v.password, { message: 'أدخل الكود أو كلمة المرور', path: ['code'] });
+export const securityEmailBody = z.object({
+  email: z.email('أدخل إيميلًا صحيحًا').max(200).transform((v) => v.trim().toLowerCase()),
+});

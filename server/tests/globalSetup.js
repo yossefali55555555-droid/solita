@@ -1,4 +1,4 @@
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
 
 /**
  * Starts one throw-away in-memory MongoDB for the whole test run. Tests never
@@ -9,7 +9,8 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 let server;
 
 export async function setup({ provide }) {
-  server = await MongoMemoryServer.create();
+  // A one-node replica set, so transactions (admin transfer) work in tests.
+  server = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   provide('mongoUri', server.getUri());
 }
 

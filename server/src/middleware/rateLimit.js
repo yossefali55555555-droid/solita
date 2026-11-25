@@ -70,6 +70,20 @@ export function loginRateLimiter() {
   });
 }
 
+/** Second stage of the admin sign-in: wrong codes per IP (the pre-auth record also burns after 5). */
+export function mfaRateLimiter() {
+  return rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 15,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    skipSuccessfulRequests: true,
+    store: new MongoRateLimitStore('mfa'),
+    message: tooMany('محاولات تحقق كثيرة. انتظر 15 دقيقة ثم حاول مرة أخرى.'),
+    passOnStoreError: false,
+  });
+}
+
 export function webhookRateLimiter() {
   return rateLimit({
     windowMs: 60 * 1000,

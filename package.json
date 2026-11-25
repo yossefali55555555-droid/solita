@@ -20,6 +20,9 @@
     "check": "npm run lint && npm run test && npm run build",
     "db:init": "npm run db:init -w server",
     "admin:create": "npm run admin:create -w server",
+    "admin:reset-2fa": "npm run admin:reset-2fa -w server",
+    "admin:transfer": "npm run admin:transfer -w server",
+    "mfa:keygen": "npm run mfa:keygen -w server",
     "sync:run": "npm run sync:run -w server"
   },
   "devDependencies": {
