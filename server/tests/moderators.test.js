@@ -186,7 +186,8 @@ describe('one administrator only', () => {
 describe('requirePermission (used from phase 2)', () => {
   const run = (mw, user) =>
     new Promise((resolve) => {
-      mw({ user }, {}, (err) => resolve(err || null));
+      // A session that passed an identity check just now (step-up "recent").
+      mw({ user, authSession: { _id: 'session', reauthAt: new Date() } }, { json() {} }, (err) => resolve(err || null));
     });
   const mod = (permissions) => ({ _id: new mongoose.Types.ObjectId(), role: 'moderator', permissions });
 

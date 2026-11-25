@@ -20,6 +20,9 @@ import { CouponAssignment } from './CouponAssignment.js';
 import { CouponAttempt } from './CouponAttempt.js';
 import { MissedOrder } from './MissedOrder.js';
 import { PageStat } from './PageStat.js';
+import { AccountSecurity } from './AccountSecurity.js';
+import { PreAuth } from './PreAuth.js';
+import { SecurityAlert } from './SecurityAlert.js';
 
 export {
   publicUser,
@@ -45,6 +48,9 @@ export {
   CouponAttempt,
   MissedOrder,
   PageStat,
+  AccountSecurity,
+  PreAuth,
+  SecurityAlert,
 };
 
 export const allModels = [
@@ -70,4 +76,7 @@ export const allModels = [
   CouponAttempt,
   MissedOrder,
   PageStat,
+  AccountSecurity,
+  PreAuth,
+  SecurityAlert,
 ];

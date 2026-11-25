@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CashRemittance, Expense, Order, OrderEvent } from '../src/models/index.js';
 import { normalizeEasyOrdersOrder } from '../src/integrations/easyorders/normalize.js';
 import { upsertOrderFromSource } from '../src/services/sourceOrderService.js';
-import { createAssignedOrder, createOrder, createUser, loginAs, orderPayload } from './helpers.js';
+import { createAssignedOrder, createOrder, createUser, loginAs, orderPayload, stepUp } from './helpers.js';
 
 describe('clear orders from the dashboard', () => {
   it('hides orders from the list and overview without deleting them', async () => {
@@ -12,7 +12,11 @@ describe('clear orders from the dashboard', () => {
     const a = await createOrder();
     await createOrder();
 
+    await stepUp(api, 'clearOrders');
+
     expect((await api.post('/api/admin/orders/clear', { confirm: 'no' })).status).toBe(400);
+
+    await stepUp(api, 'clearOrders');
 
     const res = await api.post('/api/admin/orders/clear', { confirm: 'مسح' });
     expect(res.status).toBe(200);
@@ -33,6 +37,7 @@ describe('clear orders from the dashboard', () => {
     const api = await loginAs(admin);
     const payload = orderPayload();
     await upsertOrderFromSource(normalizeEasyOrdersOrder(payload), { via: 'test' });
+    await stepUp(api, 'clearOrders');
     await api.post('/api/admin/orders/clear', { confirm: 'مسح' });
 
     await upsertOrderFromSource(
@@ -55,6 +60,8 @@ describe('clear orders from the dashboard', () => {
     const courierApi = await loginAs(courier);
     await createOrder();
     expect((await courierApi.post('/api/admin/orders/clear', { confirm: 'مسح' })).status).toBe(403);
+
+    await stepUp(api, 'clearOrders');
 
     await api.post('/api/admin/orders/clear', { confirm: 'مسح' });
     const res = await api.post('/api/admin/orders/restore-cleared');
@@ -82,7 +89,9 @@ describe('cash reset', () => {
     expect(before.handedOver).toBe(105000);
 
     expect((await courierApi.post('/api/admin/cash/reset', { confirm: 'تصفير' })).status).toBe(403);
+    await stepUp(api, 'resetCash');
     expect((await api.post('/api/admin/cash/reset', { confirm: 'x' })).status).toBe(400);
+    await stepUp(api, 'resetCash');
     expect((await api.post('/api/admin/cash/reset', { confirm: 'تصفير' })).status).toBe(200);
 
     const after = (await api.get('/api/admin/cash/overview')).body;
@@ -126,7 +135,9 @@ describe('profits & expenses reset', () => {
     expect(before.netProfit).toBe(85000);
 
     expect((await courierApi.post('/api/admin/finance/reset', { confirm: 'تصفير' })).status).toBe(403);
+    await stepUp(api, 'resetFinance');
     expect((await api.post('/api/admin/finance/reset', { confirm: 'x' })).status).toBe(400);
+    await stepUp(api, 'resetFinance');
     expect((await api.post('/api/admin/finance/reset', { confirm: 'تصفير' })).status).toBe(200);
 
     const after = (await api.get('/api/admin/finance/summary')).body;

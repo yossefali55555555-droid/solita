@@ -29,6 +29,8 @@ import { PageTimePage } from './pages/admin/PageTimePage.jsx';
 import { FoundersPage } from './pages/admin/FoundersPage.jsx';
 import { CouponsPage } from './pages/admin/CouponsPage.jsx';
 import { SiteSettingsPage } from './pages/admin/SiteSettingsPage.jsx';
+import { SecurityPage } from './pages/admin/SecurityPage.jsx';
+import { StepUpPrompt } from './features/auth/StepUpPrompt.jsx';
 import { CourierOrdersPage } from './pages/courier/CourierOrdersPage.jsx';
 import { CourierOrderPage } from './pages/courier/CourierOrderPage.jsx';
 import { CourierCashPage } from './pages/courier/CourierCashPage.jsx';
@@ -54,6 +56,7 @@ function AdminHome() {
 
 export function App() {
   return (
+    <>
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<LoginPage />} />
@@ -93,6 +96,7 @@ export function App() {
         <Route path="founders" element={guard('founders', <FoundersPage />)} />
         <Route path="coupons" element={guard('coupons', <CouponsPage />)} />
         <Route path="site-settings" element={guard('siteSettings', <SiteSettingsPage />)} />
+        <Route path="security" element={<SecurityPage />} />
       </Route>
       <Route
         path="/courier"
@@ -110,5 +114,7 @@ export function App() {
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    <StepUpPrompt />
+    </>
   );
 }

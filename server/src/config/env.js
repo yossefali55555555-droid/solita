@@ -51,7 +51,22 @@ const envSchema = z.object({
   EASYORDERS_STATUS_WEBHOOK_SECRET: optionalString,
   CRON_SECRET: optionalString,
   MOCK_MODE: booleanString,
+  // Admin 2FA (moderators phase 3). 32 random bytes as base64/base64url/hex,
+  // made with `npm run mfa:keygen` and pasted into Vercel by the owner.
+  MFA_ENCRYPTION_KEY: optionalString,
+  MFA_ENCRYPTION_KEY_VERSION: z.coerce.number().int().min(1).max(999).optional().default(1),
+  // Alert emails via Gmail SMTP with an app password (owner sets both in Vercel).
+  GMAIL_SMTP_USER: optionalString,
+  GMAIL_SMTP_APP_PASSWORD: optionalString,
 });
+
+/** 32-byte key from base64 / base64url / hex, or null when it is not one. */
+export function parseEncryptionKey(value) {
+  if (!value) return null;
+  const v = value.trim();
+  const candidates = /^[0-9a-fA-F]{64}$/.test(v) ? [Buffer.from(v, 'hex')] : [Buffer.from(v, 'base64'), Buffer.from(v, 'base64url')];
+  return candidates.find((b) => b.length === 32) || null;
+}
 
 export class ConfigError extends Error {
   constructor(problems) {
@@ -128,6 +143,11 @@ export function loadConfig(env = process.env, { forceMock } = {}) {
     }
   }
 
+  // A bad 2FA key never stops the site (the admin can still sign in with a
+  // recovery code); 2FA setup simply reports it.
+  const mfaKey = parseEncryptionKey(e.MFA_ENCRYPTION_KEY);
+  const mfaKeyProblem = e.MFA_ENCRYPTION_KEY && !mfaKey ? 'MFA_ENCRYPTION_KEY must be 32 bytes (base64 or hex)' : null;
+
   if (problems.length) throw new ConfigError(problems);
 
   return Object.freeze({
@@ -150,6 +170,12 @@ export function loadConfig(env = process.env, { forceMock } = {}) {
     mockMode,
     cookieSecure: isProduction,
     cronSecret: e.CRON_SECRET,
+    mfa: Object.freeze({ key: mfaKey, keyVersion: e.MFA_ENCRYPTION_KEY_VERSION, keyProblem: mfaKeyProblem }),
+    mail: Object.freeze({
+      user: e.GMAIL_SMTP_USER,
+      pass: e.GMAIL_SMTP_APP_PASSWORD ? e.GMAIL_SMTP_APP_PASSWORD.replace(/\s+/g, '') : undefined,
+      configured: Boolean(e.GMAIL_SMTP_USER && e.GMAIL_SMTP_APP_PASSWORD),
+    }),
     easyOrders: Object.freeze({
       apiKey: e.EASYORDERS_API_KEY,
       baseUrl: e.EASYORDERS_API_BASE_URL.replace(/\/+$/, ''),

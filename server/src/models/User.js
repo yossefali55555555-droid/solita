@@ -78,7 +78,8 @@ const secondAdmin = () => new AppError(409, 'SECOND_ADMIN_FORBIDDEN', SECOND_ADM
 
 userSchema.pre('validate', async function oneAdminOnDocument() {
   if (this.role !== 'admin' || !(this.isNew || this.isModified('role'))) return;
-  if (await this.constructor.exists({ role: 'admin', _id: { $ne: this._id } })) throw secondAdmin();
+  // Read inside the caller's transaction, if any (admin transfer script).
+  if (await this.constructor.exists({ role: 'admin', _id: { $ne: this._id } }).session(this.$session() || null)) throw secondAdmin();
 });
 
 function setsAdminRole(update) {

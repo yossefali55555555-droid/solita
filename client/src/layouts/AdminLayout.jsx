@@ -24,6 +24,7 @@ const NAV = [
   { to: '/admin/founders', label: 'أوائل سوليتا', section: 'founders' },
   { to: '/admin/sync', label: 'المزامنة مع EasyOrders', section: 'sync' },
   { to: '/admin/site-settings', label: 'إعدادات الموقع', section: 'siteSettings' },
+  { to: '/admin/security', label: 'الأمان والتنبيهات', adminOnly: true },
 ];
 
 export function AdminLayout() {
@@ -48,7 +49,7 @@ export function AdminLayout() {
           <span className="sidebar__product">إدارة الطلبات والمندوبين</span>
         </div>
         <nav className="sidebar__nav" aria-label="القائمة الرئيسية">
-          {NAV.filter((item) => perms.can(item.section)).map((item) => (
+          {NAV.filter((item) => (item.adminOnly ? user?.role === 'admin' : perms.can(item.section))).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -57,6 +58,15 @@ export function AdminLayout() {
               onClick={() => setOpen(false)}
             >
               {item.label}
+              {item.adminOnly && user?.security?.unreadAlerts > 0 && (
+                <span className="badge badge--danger" aria-label="تنبيهات جديدة">
+                  {' '}
+                  {user.security.unreadAlerts}
+                </span>
+              )}
+              {item.adminOnly && user?.security && !user.security.mfaEnabled && (
+                <span className="badge badge--warning"> غير محمي</span>
+              )}
             </NavLink>
           ))}
         </nav>

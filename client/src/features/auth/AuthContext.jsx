@@ -44,12 +44,23 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // Returns the user, or { mfaRequired: true } when the admin account has
+  // 2FA on (then verifyMfa(code) completes the sign-in).
   const login = useCallback(async (identifier, password) => {
     const data = await api.post('/auth/login', { identifier, password });
+    if (data.mfaRequired) return { mfaRequired: true };
     setCsrfToken(data.csrfToken);
     setUser(data.user);
     setMockMode(Boolean(data.mockMode));
     return data.user;
+  }, []);
+
+  const verifyMfa = useCallback(async (code) => {
+    const data = await api.post('/auth/2fa/verify', { code });
+    setCsrfToken(data.csrfToken);
+    setUser(data.user);
+    setMockMode(Boolean(data.mockMode));
+    return data;
   }, []);
 
   const logout = useCallback(async () => {
@@ -61,8 +72,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, setUser, mockMode, status, login, logout, refresh }),
-    [user, mockMode, status, login, logout, refresh],
+    () => ({ user, setUser, mockMode, status, login, verifyMfa, logout, refresh }),
+    [user, mockMode, status, login, verifyMfa, logout, refresh],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

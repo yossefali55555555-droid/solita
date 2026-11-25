@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { Session, User } from '../src/models/index.js';
-import { PASSWORD, client, createUser, getTestApp, loginAs } from './helpers.js';
+import { PASSWORD, client, createUser, getTestApp, loginAs, stepUp } from './helpers.js';
 
 describe('authentication', () => {
   it('logs in with a secure HttpOnly session cookie and never returns the password hash', async () => {
@@ -108,6 +108,7 @@ describe('authentication', () => {
     const admin = await createUser('admin');
     const courier = await createUser('courier');
     const adminApi = await loginAs(admin);
+    await stepUp(adminApi, 'resetCourierPassword');
     const reset = await adminApi.post(`/api/admin/couriers/${courier._id}/password`, { newPassword: 'TempPass12345' });
     expect(reset.status).toBe(200);
 

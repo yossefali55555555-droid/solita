@@ -38,6 +38,17 @@ async function ensureCsrf() {
   return csrfToken;
 }
 
+/**
+ * Step-up (phase 3): a dangerous action may answer 403 STEP_UP_REQUIRED.
+ * The app registers a handler that asks for the authenticator code (or the
+ * password), calls POST /auth/step-up and resolves; the request is then sent
+ * again once. Cancelling rejects and the original error is shown.
+ */
+let stepUpHandler = null;
+export function setStepUpHandler(fn) {
+  stepUpHandler = fn;
+}
+
 const listeners = new Set();
 /** Subscribe to 401 responses (session expired). */
 export function onUnauthorized(fn) {
@@ -45,7 +56,7 @@ export function onUnauthorized(fn) {
   return () => listeners.delete(fn);
 }
 
-export async function apiRequest(method, path, { body, query, retryCsrf = true } = {}) {
+export async function apiRequest(method, path, { body, query, retryCsrf = true, retryStepUp = true } = {}) {
   const url = new URL(`${BASE_URL}/api${path}`, window.location.origin);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
@@ -83,7 +94,12 @@ export async function apiRequest(method, path, { body, query, retryCsrf = true }
       .catch(() => {});
     return apiRequest(method, path, { body, query, retryCsrf: false });
   }
-  if (res.status === 401 && !path.startsWith('/auth/login')) listeners.forEach((fn) => fn());
+  if (res.status === 403 && error.code === 'STEP_UP_REQUIRED' && retryStepUp && stepUpHandler) {
+    const confirmed = await stepUpHandler(error.details || {}).catch(() => false);
+    if (confirmed) return apiRequest(method, path, { body, query, retryCsrf, retryStepUp: false });
+  }
+  const signInStep = path.startsWith('/auth/login') || path.startsWith('/auth/2fa/') || path.startsWith('/auth/step-up');
+  if (res.status === 401 && !signInStep) listeners.forEach((fn) => fn());
   // No JSON body on a 5xx means the API itself is not running (e.g. the dev proxy got no answer).
   if (!data && res.status >= 500) {
     throw new ApiError(res.status, 'SERVER_UNAVAILABLE', 'الخادم لا يستجيب. تأكد أن خادم الـ API يعمل ثم حاول مرة أخرى.');
