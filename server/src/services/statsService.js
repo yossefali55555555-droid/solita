@@ -2,24 +2,30 @@ import { DeliveryReview, Order, SyncOperation, WebhookEvent } from '../models/in
 import { NOT_TEST } from '../models/Order.js';
 import { getConfig } from '../config/env.js';
 import { cashOverview } from './cashService.js';
+import { FULL_VIEWER } from './visibilityService.js';
 
 // Orders cleared from the dashboard are left out of the overview counts.
 const VISIBLE = { dashboardHiddenAt: null, ...NOT_TEST };
 
-/** Real, database-backed overview numbers (no hardcoded statistics). */
-export async function getOverview() {
+/**
+ * Real, database-backed overview numbers (no hardcoded statistics). Each block
+ * is only computed for a viewer who has the permission of its section.
+ */
+export async function getOverview(viewer = FULL_VIEWER) {
+  const none = Promise.resolve(null);
   const [byDelivery, unassigned, pendingReviews, syncFailures, webhookFailures, total, cash] = await Promise.all([
-    Order.aggregate([{ $match: VISIBLE }, { $group: { _id: '$deliveryStatus', n: { $sum: 1 } } }]),
-    Order.countDocuments({ ...VISIBLE, assignedTo: null, deliveryStatus: { $in: ['new', 'failed'] } }),
-    DeliveryReview.countDocuments({ status: 'pending' }),
-    SyncOperation.countDocuments({ state: { $in: ['failed', 'needs_reconciliation'] } }),
-    WebhookEvent.countDocuments({ status: { $in: ['failed', 'pending_retry'] } }),
-    Order.countDocuments(VISIBLE),
-    cashOverview(),
+    viewer.can('orders') ? Order.aggregate([{ $match: VISIBLE }, { $group: { _id: '$deliveryStatus', n: { $sum: 1 } } }]) : none,
+    viewer.can('orders') ? Order.countDocuments({ ...VISIBLE, assignedTo: null, deliveryStatus: { $in: ['new', 'failed'] } }) : none,
+    viewer.can('reviews') ? DeliveryReview.countDocuments({ status: 'pending' }) : none,
+    viewer.can('sync') ? SyncOperation.countDocuments({ state: { $in: ['failed', 'needs_reconciliation'] } }) : none,
+    viewer.can('sync') ? WebhookEvent.countDocuments({ status: { $in: ['failed', 'pending_retry'] } }) : none,
+    viewer.can('orders') ? Order.countDocuments(VISIBLE) : none,
+    viewer.can('cash') ? cashOverview() : none,
   ]);
-  const d = Object.fromEntries(byDelivery.map((x) => [x._id, x.n]));
-  return {
-    orders: {
+  const stats = {};
+  if (byDelivery) {
+    const d = Object.fromEntries(byDelivery.map((x) => [x._id, x.n]));
+    stats.orders = {
       total,
       new: d.new || 0,
       unassigned,
@@ -30,17 +36,20 @@ export async function getOverview() {
       failed: d.failed || 0,
       cancelled: d.cancelled || 0,
       returned: d.returned || 0,
-    },
-    pendingReviews,
-    sync: { failures: syncFailures, webhookFailures },
-    cash: {
+    };
+  }
+  if (pendingReviews !== null) stats.pendingReviews = pendingReviews;
+  if (syncFailures !== null) stats.sync = { failures: syncFailures, webhookFailures };
+  if (cash) {
+    stats.cash = {
       expected: cash.expectedDelivered,
       handedOver: cash.handedOver,
       verified: cash.verified,
       outstanding: cash.outstanding,
       discrepancy: cash.discrepancy,
-    },
-  };
+    };
+  }
+  return stats;
 }
 
 /** Integration readiness (admin only; never exposes secret values). */

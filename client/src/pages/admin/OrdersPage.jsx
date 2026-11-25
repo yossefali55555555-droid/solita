@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Badge, Button, Card, ConfirmDialog, Field, PageHeader, Pagination } from '../../components/ui.jsx';
 import { ConfirmWordModal } from '../../components/ConfirmWordModal.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
 import { EasyOrdersSync } from '../../components/EasyOrdersSync.jsx';
 import { DeliveryStatusBadge, DemoBadge, OrderSyncBadge, SourceStatusBadge } from '../../components/StatusBadges.jsx';
@@ -38,6 +39,7 @@ export function OrdersPage() {
   const unconfirmedCount = useAsync(() => api.get('/admin/orders', { unconfirmed: 'true', limit: 1 }), []);
   const cleared = useAsync(() => api.get('/admin/orders/cleared/count'), []);
   const toast = useToast();
+  const perms = usePermissions();
   const [clearOpen, setClearOpen] = useState(false);
 
 
@@ -83,6 +85,8 @@ export function OrdersPage() {
       else pageIds.forEach((i) => next.add(i));
       return next;
     });
+  // Bulk actions that need the same dangerous grant as their single-order twins (the server checks too).
+  const BULK_DANGEROUS = { mark_test: 'markTest', unmark_test: 'markTest', cancel: 'changeOrderStatus', reopen: 'changeOrderStatus', hide: 'clearOrders' };
   const BULK_LABELS = {
     assign: 'تعيين لمندوب',
     unassign: 'سحب التعيين',
@@ -135,7 +139,7 @@ export function OrdersPage() {
         actions={
           <>
             <EasyOrdersSync onChange={() => reload({ silent: true })} />
-            <Button variant="danger" onClick={() => setClearOpen(true)}>مسح الطلبات من اللوحة</Button>
+            {perms.danger('clearOrders') && <Button variant="danger" onClick={() => setClearOpen(true)}>مسح الطلبات من اللوحة</Button>}
           </>
         }
       />
@@ -146,7 +150,7 @@ export function OrdersPage() {
             <Button size="sm" variant="secondary" onClick={() => update('cleared', filters.cleared === 'only' ? '' : 'only')}>
               {filters.cleared === 'only' ? 'إخفاء الطلبات الممسوحة' : 'عرض الطلبات الممسوحة'}
             </Button>
-            <Button size="sm" variant="secondary" loading={restoring} onClick={restore}>استرجاع كل الطلبات الممسوحة</Button>
+            {perms.danger('clearOrders') && <Button size="sm" variant="secondary" loading={restoring} onClick={restore}>استرجاع كل الطلبات الممسوحة</Button>}
           </span>
         </div>
       )}
@@ -237,7 +241,7 @@ export function OrdersPage() {
             <strong>{selected.size}</strong> طلب محدد
           </span>
           <span className="page-header__actions">
-            {Object.entries(BULK_LABELS).map(([action, text]) => (
+            {Object.entries(BULK_LABELS).filter(([action]) => !BULK_DANGEROUS[action] || perms.danger(BULK_DANGEROUS[action])).map(([action, text]) => (
               <Button
                 key={action}
                 size="sm"

@@ -4,6 +4,7 @@ import { Order } from '../models/Order.js';
 import { EGYPT_MOBILE_REGEX, normalizePhone } from '../utils/phone.js';
 import { escapeRegex } from '../utils/sanitize.js';
 import { notFound, unprocessable } from '../utils/errors.js';
+import { assertCanSearch, FULL_VIEWER } from './visibilityService.js';
 
 /**
  * Missed orders imported from the EasyOrders export (CSV, or text copied
@@ -203,7 +204,7 @@ export async function importMissedOrders(admin, text) {
   return { created, existing: unique.length - created, skipped, total: rows.length };
 }
 
-function buildQuery(filters) {
+function buildQuery(filters, viewer = FULL_VIEWER) {
   const query = {};
   const status = filters.status || 'open';
   if (status === 'open') Object.assign(query, { contactedAt: null, dismissedAt: null });
@@ -213,8 +214,9 @@ function buildQuery(filters) {
   if (filters.reason) query.reason = filters.reason;
   if (filters.q) {
     const rx = new RegExp(escapeRegex(filters.q.trim()), 'i');
+    // Searching by number is only for viewers who may see numbers (otherwise it confirms them).
     const phone = normalizePhone(filters.q);
-    query.$or = [{ name: rx }, { phone: rx }, ...(phone.length >= 4 ? [{ phoneNormalized: new RegExp(escapeRegex(phone)) }] : [])];
+    query.$or = [{ name: rx }, ...(viewer.phone ? [{ phone: rx }, ...(phone.length >= 4 ? [{ phoneNormalized: new RegExp(escapeRegex(phone)) }] : [])] : [])];
   }
   return query;
 }
@@ -238,8 +240,22 @@ export function classifyMissed(item, { orderedLater, testPhones, repeats }) {
 
 const PRIORITY_LABELS = { hot: 'يستاهل التواصل', done: 'اشترى بعدها', unreachable: 'مفيش رقم صالح', likely_test: 'غالبًا تجربة' };
 
-export async function listMissedOrders(filters, { skip, limit }) {
-  const query = buildQuery(filters);
+/** Hide the number from a row (the classification below already used it). */
+function stripPhones(row, viewer) {
+  if (viewer.phone || !row) return row;
+  const rest = { ...row };
+  delete rest.phone;
+  delete rest.phoneNormalized;
+  return rest;
+}
+
+/**
+ * The filtered, classified rows (newest first, at most 3000) plus the
+ * counters. Shared by the list and the server-side export.
+ */
+async function loadMissed(filters, viewer) {
+  assertCanSearch(viewer, filters.q);
+  const query = buildQuery(filters, viewer);
   const [all, counts, reasons] = await Promise.all([
     MissedOrder.find(query).sort({ eoDate: -1, _id: -1 }).limit(3000).populate('contactedBy', 'name').lean(),
     MissedOrder.aggregate([
@@ -270,12 +286,56 @@ export async function listMissedOrders(filters, { skip, limit }) {
   const filtered = filters.priority && filters.priority !== 'all' ? all.filter((i) => i.priority === filters.priority) : all;
   const c = Object.fromEntries(counts.map((x) => [x._id.c, x.n]));
   return {
-    items: filtered.slice(skip, skip + limit),
-    total: filtered.length,
+    rows: filtered,
     counts: { open: c.open || 0, contacted: c.contacted || 0, dismissed: c.dismissed || 0 },
     priorityCounts,
     reasons: reasons.filter(Boolean).map((r) => ({ value: r, label: reasonLabel(r) })),
   };
+}
+
+/** A viewer without the export grant gets small pages (no bulk copying of the list). */
+export const MAX_PAGE_WITHOUT_EXPORT = 50;
+
+export async function listMissedOrders(filters, { skip, limit }, viewer = FULL_VIEWER) {
+  const { rows, counts, priorityCounts, reasons } = await loadMissed(filters, viewer);
+  const size = viewer.export ? limit : Math.min(limit, MAX_PAGE_WITHOUT_EXPORT);
+  return {
+    items: rows.slice(skip, skip + size).map((r) => stripPhones(r, viewer)),
+    total: rows.length,
+    counts,
+    priorityCounts,
+    reasons,
+  };
+}
+
+const CSV_COLUMNS = [
+  ['التاريخ', (r) => (r.eoDate ? cairoFmt.format(new Date(r.eoDate)) : '')],
+  ['الاسم', (r) => r.name],
+  ['الهاتف', (r) => r.phoneNormalized || r.phone],
+  ['السبب', (r) => r.reasonLabel],
+  ['حالة EasyOrders', (r) => r.eoStatus],
+  ['الأولوية', (r) => r.priorityLabel],
+  ['تم التواصل', (r) => (r.contactedAt ? 'نعم' : 'لا')],
+  ['ملاحظة', (r) => r.note],
+];
+
+/** A cell starting with = + - @ would be run as a formula by Excel. */
+function csvCell(value) {
+  let s = String(value ?? '').replace(/\r?\n/g, ' ');
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Server-side export of the missed orders the filters select (the same
+ * filters as the list). Needs the export + customerPhone grants (route). The
+ * file is a UTF-8 CSV with a BOM, which Excel opens directly.
+ */
+export async function exportMissedOrders(filters, viewer) {
+  const { rows } = await loadMissed(filters, viewer);
+  const lines = [CSV_COLUMNS.map(([h]) => csvCell(h)).join(',')];
+  for (const r of rows) lines.push(CSV_COLUMNS.map(([, f]) => csvCell(f(r))).join(','));
+  return { count: rows.length, csv: `\uFEFF${lines.join('\r\n')}\r\n` };
 }
 
 /** Apply one update to many rows at once (select several, mark them all). */
@@ -290,7 +350,7 @@ export async function bulkUpdateMissed(admin, ids, body) {
   return { updated: res.modifiedCount };
 }
 
-export async function updateMissedOrder(admin, id, body) {
+export async function updateMissedOrder(admin, id, body, viewer = FULL_VIEWER) {
   const set = {};
   if (body.contacted === true) Object.assign(set, { contactedAt: new Date(), contactedBy: admin._id });
   if (body.contacted === false) Object.assign(set, { contactedAt: null, contactedBy: null });
@@ -300,5 +360,5 @@ export async function updateMissedOrder(admin, id, body) {
   if (body.isTest !== undefined) set.isTest = body.isTest;
   const updated = await MissedOrder.findByIdAndUpdate(id, { $set: set }, { returnDocument: 'after' }).lean();
   if (!updated) throw notFound('السجل غير موجود');
-  return updated;
+  return stripPhones(updated, viewer);
 }

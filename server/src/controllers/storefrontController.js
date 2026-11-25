@@ -4,11 +4,12 @@ import * as founders from '../services/founderService.js';
 import * as siteSettings from '../services/siteSettingsService.js';
 import * as pageStats from '../services/pageStatService.js';
 import * as missed from '../services/missedOrderService.js';
+import { recordEvent, userActor } from '../services/auditService.js';
 
 // ---------- Abandoned carts ----------
 export async function listCarts(req, res) {
   const page = paginationParams(req.valid.query);
-  const { items, total } = await storefront.listCarts(req.valid.query, page);
+  const { items, total } = await storefront.listCarts(req.valid.query, page, { viewer: req.viewer });
   res.json(paginated(items, total, page));
 }
 
@@ -25,8 +26,8 @@ export async function behaviourSummary(_req, res) {
 }
 
 // ---------- Founders ----------
-export async function listFounders(_req, res) {
-  res.json(await founders.listFounders());
+export async function listFounders(req, res) {
+  res.json(await founders.listFounders(req.viewer));
 }
 
 export async function updateFounder(req, res) {
@@ -52,7 +53,7 @@ export async function importMissed(req, res) {
 
 export async function listMissed(req, res) {
   const page = paginationParams(req.valid.query);
-  const { items, total, counts, priorityCounts, reasons } = await missed.listMissedOrders(req.valid.query, page);
+  const { items, total, counts, priorityCounts, reasons } = await missed.listMissedOrders(req.valid.query, page, req.viewer);
   res.json({ ...paginated(items, total, page), counts, priorityCounts, reasons });
 }
 
@@ -62,5 +63,23 @@ export async function bulkMissed(req, res) {
 }
 
 export async function updateMissed(req, res) {
-  res.json({ item: await missed.updateMissedOrder(req.user, req.valid.params.id, req.valid.body) });
+  res.json({ item: await missed.updateMissedOrder(req.user, req.valid.params.id, req.valid.body, req.viewer) });
+}
+
+// GET /missed-orders/export: CSV built on the server (route needs export + customerPhone).
+// The row count is written to the audit trail before the file is sent.
+export async function exportMissed(req, res) {
+  const { count, csv } = await missed.exportMissedOrders(req.valid.query, req.viewer);
+  await recordEvent({
+    type: 'missed_orders_exported',
+    actor: userActor(req.user),
+    next: { rows: count },
+    metadata: { filters: req.valid.query },
+  });
+  res.set({
+    'Content-Type': 'text/csv; charset=utf-8',
+    'Content-Disposition': 'attachment; filename="missed-orders.csv"',
+    'Cache-Control': 'no-store',
+  });
+  res.send(csv);
 }

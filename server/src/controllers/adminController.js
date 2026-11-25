@@ -14,12 +14,14 @@ import * as finance from '../services/financeService.js';
 import * as labels from '../services/labelService.js';
 import { getOverview, getSystemStatus } from '../services/statsService.js';
 import { processBackgroundWork } from '../jobs/processBackgroundWork.js';
-import { notFound } from '../utils/errors.js';
+import { forbidden, notFound } from '../utils/errors.js';
+import { hasDangerous } from '../services/permissionService.js';
+import { serializeFor } from '../services/visibilityService.js';
 import { OrderEvent } from '../models/index.js';
 
 // ---------- Overview ----------
-export async function overview(_req, res) {
-  res.json({ stats: await getOverview(), system: getSystemStatus() });
+export async function overview(req, res) {
+  res.json(serializeFor(req.viewer, 'overview', { stats: await getOverview(req.viewer), system: getSystemStatus() }));
 }
 
 // ---------- Couriers ----------
@@ -61,12 +63,12 @@ export async function courierEvents(req, res) {
 // ---------- Orders ----------
 export async function listOrders(req, res) {
   const page = paginationParams(req.valid.query);
-  const { items, total } = await orders.listOrders(req.valid.query, page);
+  const { items, total } = await orders.listOrders(req.valid.query, page, req.viewer);
   res.json(paginated(items, total, page));
 }
 
 export async function getOrder(req, res) {
-  res.json(await orders.getOrderForAdmin(req.valid.params.id));
+  res.json(await orders.getOrderForAdmin(req.valid.params.id, req.viewer));
 }
 
 export async function assignOrder(req, res) {
@@ -89,7 +91,18 @@ export async function setOrderTest(req, res) {
   res.json({ order: await orders.setTestFlag(req.user, req.valid.params.id, req.valid.body.isTest) });
 }
 
+// A bulk action needs the same dangerous grant as its single-order twin.
+const BULK_DANGEROUS = {
+  mark_test: 'markTest',
+  unmark_test: 'markTest',
+  cancel: 'changeOrderStatus',
+  reopen: 'changeOrderStatus',
+  hide: 'clearOrders',
+};
+
 export async function bulkOrders(req, res) {
+  const needed = BULK_DANGEROUS[req.valid.body.action];
+  if (needed && !hasDangerous(req.user, needed)) throw forbidden();
   res.json(await orders.bulkAction(req.user, req.valid.body));
 }
 
@@ -116,12 +129,12 @@ export async function orderEvents(req, res) {
 // ---------- Delivery reviews ----------
 export async function listReviews(req, res) {
   const page = paginationParams(req.valid.query);
-  const { items, total } = await delivery.listReviews(req.valid.query, page);
+  const { items, total } = await delivery.listReviews(req.valid.query, page, req.viewer);
   res.json(paginated(items, total, page));
 }
 
 export async function getReview(req, res) {
-  res.json(await delivery.getReview(req.valid.params.id));
+  res.json(await delivery.getReview(req.valid.params.id, req.viewer));
 }
 
 export async function approveReview(req, res) {
@@ -226,7 +239,7 @@ export async function remittanceEvents(req, res) {
 // ---------- Returns review ----------
 export async function listReturns(req, res) {
   const page = paginationParams(req.valid.query);
-  const { items, total } = await returns.listReturns(req.valid.query, page);
+  const { items, total } = await returns.listReturns(req.valid.query, page, req.viewer);
   res.json(paginated(items, total, page));
 }
 
@@ -237,12 +250,12 @@ export async function confirmReturn(req, res) {
 // ---------- Customers ----------
 export async function listCustomers(req, res) {
   const page = paginationParams(req.valid.query);
-  const { items, total } = await customers.listCustomers(req.valid.query, page);
-  res.json(paginated(items, total, page));
+  const { items, total } = await customers.listCustomers(req.valid.query, page, req.viewer);
+  res.json(serializeFor(req.viewer, 'customer', paginated(items, total, page)));
 }
 
 export async function getCustomer(req, res) {
-  res.json(await customers.getCustomer(req.valid.params.key));
+  res.json(serializeFor(req.viewer, 'customer', await customers.getCustomer(req.valid.params.key, req.viewer)));
 }
 
 // ---------- Expenses & profit ----------
@@ -273,13 +286,13 @@ export async function deleteExpense(req, res) {
 }
 
 export async function profitSummary(req, res) {
-  res.json(await finance.getProfitSummary(req.valid.query));
+  res.json(serializeFor(req.viewer, 'profit', await finance.getProfitSummary(req.valid.query)));
 }
 
 // ---------- Labels (البوليصة) ----------
 export async function labelQueue(req, res) {
   const page = paginationParams({ limit: 50, ...req.valid.query });
-  const { items, total, counts } = await labels.listPrintQueue(req.valid.query, page);
+  const { items, total, counts } = await labels.listPrintQueue(req.valid.query, page, req.viewer);
   res.json({ ...paginated(items, total, page), counts });
 }
 

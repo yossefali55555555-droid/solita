@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { DANGEROUS, FIELD_KEYS, LEVELS, SECTION_KEYS } from '../constants/permissions.js';
 import { hasDangerous, hasField, hasSection, isAdmin, isStaff } from '../services/permissionService.js';
+import { FULL_VIEWER, guardResponse, viewerFor } from '../services/visibilityService.js';
 import { forbidden, unauthorized } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 
@@ -8,13 +9,13 @@ import { logger } from '../utils/logger.js';
  * Per-route permission metadata + enforcement for /api/admin.
  *
  * Every staff route must start with exactly one of:
- *   adminOnly(...)          administrator only (phase 1: all 85 existing routes)
+ *   adminOnly(...)          administrator only (never grantable: init-db)
  *   requirePermission(...)  section level (+ dangerous / field grants)
  *
- * Both take the same arguments, so phase 2 opens a route to moderators by
- * renaming adminOnly → requirePermission. A route registered without
- * metadata is denied to everyone, admin included (default deny), and the
- * route-permission test fails.
+ * Both take the same arguments. A route registered without metadata is
+ * denied to everyone, admin included (default deny), and the route-permission
+ * test fails. After a route passes, `req.viewer` says which fields the user
+ * may see and the response is guarded (services/visibilityService.js).
  */
 
 export const PERMISSION_META = Symbol.for('solita.permissionMeta');
@@ -59,6 +60,7 @@ export function adminOnly(section, level, opts = {}) {
     if (denied) return next(denied);
     if (!isAdmin(req.user)) return next(forbidden());
     req.permission = meta;
+    req.viewer = FULL_VIEWER;
     next();
   };
   mw[PERMISSION_META] = meta;
@@ -74,17 +76,19 @@ export function adminOnly(section, level, opts = {}) {
 export function requirePermission(section, level, opts = {}) {
   const plan = describe(section, level, opts);
   const meta = { adminOnly: false, plan };
-  const mw = function sectionPermission(req, _res, next) {
+  const mw = function sectionPermission(req, res, next) {
     const denied = staffGate(req);
     if (denied) return next(denied);
     req.permission = meta;
-    if (isAdmin(req.user)) return next();
     const user = req.user;
     const now = new Date();
+    req.viewer = viewerFor(user, now);
+    if (isAdmin(user)) return next();
     if (!plan.sections.some((s) => hasSection(user, s, plan.level))) return next(forbidden());
     for (const [s, l] of Object.entries(plan.also)) if (!hasSection(user, s, l)) return next(forbidden());
     if (plan.dangerous && !hasDangerous(user, plan.dangerous)) return next(forbidden());
     for (const f of plan.fields) if (!hasField(user, f, now)) return next(forbidden());
+    guardResponse(res, req.viewer);
     next();
   };
   mw[PERMISSION_META] = meta;

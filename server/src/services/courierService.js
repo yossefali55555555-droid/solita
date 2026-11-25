@@ -159,5 +159,6 @@ export async function resetCourierPassword(admin, id, newPassword) {
 /** Compact list for selects (active couriers first; inactive ones still matter for cash records). */
 export async function listCouriersBrief() {
   const users = await User.find({ role: 'courier' }).sort({ isActive: -1, name: 1 }).select('name phone isActive').lean();
-  return users.map((u) => ({ id: String(u._id), name: u.name, phone: u.phone, isActive: u.isActive }));
+  // `role` lets the output guard keep a courier's number for viewers who may see couriers.
+  return users.map((u) => ({ id: String(u._id), name: u.name, phone: u.phone, role: 'courier', isActive: u.isActive }));
 }

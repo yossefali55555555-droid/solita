@@ -4,6 +4,7 @@ import { canTransition } from '../constants/statuses.js';
 import { conflict, notFound, unprocessable } from '../utils/errors.js';
 import { escapeRegex } from '../utils/sanitize.js';
 import { normalizePhone } from '../utils/phone.js';
+import { assertCanSearch, FULL_VIEWER } from './visibilityService.js';
 import { recordEvent, userActor } from './auditService.js';
 import { notify } from './notificationService.js';
 import { enqueueStatusSync, processOperation } from './syncService.js';
@@ -14,10 +15,19 @@ import { addOrderNote, EasyOrdersError } from '../integrations/easyorders/client
 
 const ASSIGNABLE = ['new', 'assigned', 'out_for_delivery', 'failed'];
 const COURIER_FIELDS = 'name phone isActive';
+// Customer contact fields a viewer without the phone grant never loads (projection layer).
+const HIDE_CUSTOMER_PHONES = '-customer.phone -customer.alternativePhone';
+
+/** attachCoupons / attachCustomerHistory need the normalized phone; drop it right after. */
+function dropNormalizedPhone(orders, viewer) {
+  if (viewer.phone) return;
+  for (const o of orders) if (o.customer) delete o.customer.phoneNormalized;
+}
 
 // ---------------------------------------------------------------- queries
 
-export async function listOrders(filters, { skip, limit }) {
+export async function listOrders(filters, { skip, limit }, viewer = FULL_VIEWER) {
+  assertCanSearch(viewer, filters.q);
   const query = {};
   // Cleared orders are hidden from the dashboard list unless asked for.
   if (filters.cleared === 'only') query.dashboardHiddenAt = { $ne: null };
@@ -28,9 +38,13 @@ export async function listOrders(filters, { skip, limit }) {
   if (filters.q) {
     const q = filters.q.trim();
     const rx = new RegExp(escapeRegex(q), 'i');
-    const or = [{ easyOrdersId: rx }, { 'customer.name': rx }, { 'customer.phone': rx }];
-    const phone = normalizePhone(q);
-    if (phone.length >= 4) or.push({ 'customer.phoneNormalized': new RegExp(escapeRegex(phone)) });
+    const or = [{ easyOrdersId: rx }, { 'customer.name': rx }];
+    // Searching by number is only for viewers who may see numbers (otherwise it confirms them).
+    if (viewer.phone) {
+      or.push({ 'customer.phone': rx });
+      const phone = normalizePhone(q);
+      if (phone.length >= 4) or.push({ 'customer.phoneNormalized': new RegExp(escapeRegex(phone)) });
+    }
     if (mongoose.isValidObjectId(q)) or.push({ _id: q });
     const number = q.replace(/^#/, '');
     if (/^\d{1,12}$/.test(number)) or.push({ easyOrdersShortId: Number(number) });
@@ -54,18 +68,21 @@ export async function listOrders(filters, { skip, limit }) {
       .sort({ createdAt: -1, _id: -1 })
       .skip(skip)
       .limit(limit)
-      .select('-deliveryAttempts')
+      .select(viewer.phone ? '-deliveryAttempts' : `-deliveryAttempts ${HIDE_CUSTOMER_PHONES}`)
       .populate('assignedTo', COURIER_FIELDS)
       .lean(),
     Order.countDocuments(query),
   ]);
   await attachCoupons(items);
   await attachCustomerHistory(items);
+  dropNormalizedPhone(items, viewer);
   return { items, total };
 }
 
-export async function getOrderForAdmin(orderId) {
-  const order = await Order.findById(orderId)
+export async function getOrderForAdmin(orderId, viewer = FULL_VIEWER) {
+  const base = Order.findById(orderId);
+  if (!viewer.phone) base.select(HIDE_CUSTOMER_PHONES);
+  const order = await base
     .populate('assignedTo', COURIER_FIELDS)
     .populate('assignedBy', 'name')
     .populate('deliveryAttempts.courier', 'name')
@@ -74,6 +91,7 @@ export async function getOrderForAdmin(orderId) {
   if (!order) throw notFound('الطلب غير موجود');
   await attachCoupons([order]);
   await attachCustomerHistory([order]);
+  dropNormalizedPhone([order], viewer);
   const [reviews, syncOperations] = await Promise.all([
     DeliveryReview.find({ order: orderId })
       .sort({ submittedAt: -1 })

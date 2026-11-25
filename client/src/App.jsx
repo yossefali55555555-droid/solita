@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './features/auth/AuthContext.jsx';
 import { RequireRole, homeFor } from './features/auth/RequireRole.jsx';
+import { RequireSection } from './features/auth/RequireSection.jsx';
+import { firstAllowedPage, usePermissions } from './features/auth/permissions.js';
 import { LoadingState } from './components/States.jsx';
 import { AdminLayout } from './layouts/AdminLayout.jsx';
 import { CourierLayout } from './layouts/CourierLayout.jsx';
@@ -39,6 +41,17 @@ function Home() {
   return <Navigate to={homeFor(user)} replace />;
 }
 
+const guard = (section, page) => <RequireSection section={section}>{page}</RequireSection>;
+
+/** The admin landing page: the dashboard, or the first page a moderator may open. */
+function AdminHome() {
+  const perms = usePermissions();
+  if (perms.can('dashboard')) return <OverviewPage />;
+  const first = firstAllowedPage(perms);
+  if (first) return <Navigate to={first} replace />;
+  return guard('dashboard', null);
+}
+
 export function App() {
   return (
     <Routes>
@@ -55,31 +68,31 @@ export function App() {
       <Route
         path="/admin"
         element={
-          <RequireRole role="admin">
+          <RequireRole role="staff">
             <AdminLayout />
           </RequireRole>
         }
       >
-        <Route index element={<OverviewPage />} />
-        <Route path="orders" element={<OrdersPage />} />
-        <Route path="orders/:id" element={<OrderDetailPage />} />
-        <Route path="reviews" element={<ReviewsPage />} />
-        <Route path="reviews/:id" element={<ReviewDetailPage />} />
-        <Route path="couriers" element={<CouriersPage />} />
-        <Route path="couriers/:id" element={<CourierDetailPage />} />
-        <Route path="cash" element={<CashPage />} />
-        <Route path="sync" element={<SyncPage />} />
-        <Route path="returns" element={<ReturnsPage />} />
-        <Route path="customers" element={<CustomersPage />} />
-        <Route path="customers/:key" element={<CustomerDetailPage />} />
-        <Route path="finance" element={<FinancePage />} />
-        <Route path="labels" element={<LabelsPage />} />
-        <Route path="abandoned-carts" element={<AbandonedCartsPage />} />
-        <Route path="missed-orders" element={<MissedOrdersPage />} />
-        <Route path="page-time" element={<PageTimePage />} />
-        <Route path="founders" element={<FoundersPage />} />
-        <Route path="coupons" element={<CouponsPage />} />
-        <Route path="site-settings" element={<SiteSettingsPage />} />
+        <Route index element={<AdminHome />} />
+        <Route path="orders" element={guard('orders', <OrdersPage />)} />
+        <Route path="orders/:id" element={guard('orders', <OrderDetailPage />)} />
+        <Route path="reviews" element={guard('reviews', <ReviewsPage />)} />
+        <Route path="reviews/:id" element={guard('reviews', <ReviewDetailPage />)} />
+        <Route path="couriers" element={guard('couriers', <CouriersPage />)} />
+        <Route path="couriers/:id" element={guard('couriers', <CourierDetailPage />)} />
+        <Route path="cash" element={guard('cash', <CashPage />)} />
+        <Route path="sync" element={guard('sync', <SyncPage />)} />
+        <Route path="returns" element={guard('warehouse', <ReturnsPage />)} />
+        <Route path="customers" element={guard('customers', <CustomersPage />)} />
+        <Route path="customers/:key" element={guard('customers', <CustomerDetailPage />)} />
+        <Route path="finance" element={guard('finance', <FinancePage />)} />
+        <Route path="labels" element={guard('warehouse', <LabelsPage />)} />
+        <Route path="abandoned-carts" element={guard('storefront', <AbandonedCartsPage />)} />
+        <Route path="missed-orders" element={guard('missedOrders', <MissedOrdersPage />)} />
+        <Route path="page-time" element={guard('storefront', <PageTimePage />)} />
+        <Route path="founders" element={guard('founders', <FoundersPage />)} />
+        <Route path="coupons" element={guard('coupons', <CouponsPage />)} />
+        <Route path="site-settings" element={guard('siteSettings', <SiteSettingsPage />)} />
       </Route>
       <Route
         path="/courier"

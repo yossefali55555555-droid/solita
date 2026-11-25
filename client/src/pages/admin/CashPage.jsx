@@ -6,6 +6,7 @@ import { RemittanceStatusBadge } from '../../components/StatusBadges.jsx';
 import { ConfirmWordModal } from '../../components/ConfirmWordModal.jsx';
 import { Timeline } from '../../components/Timeline.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { REMITTANCE_STATUS_LABELS } from '../../utils/labels.js';
@@ -223,6 +224,7 @@ function RemittanceModal({ remittanceId, onClose, onChanged }) {
 
 export function CashPage() {
   const toast = useToast();
+  const perms = usePermissions();
   const [params, setParams] = useSearchParams();
   const courier = params.get('courier') || '';
   const status = params.get('status') || '';
@@ -275,7 +277,7 @@ export function CashPage() {
         actions={
           <>
             <Button onClick={() => setCreateOpen(true)}>تسجيل استلام نقدية</Button>
-            <Button variant="danger" onClick={() => setResetOpen(true)}>تصفير النقدية</Button>
+            {perms.danger('resetCash') && <Button variant="danger" onClick={() => setResetOpen(true)}>تصفير النقدية</Button>}
           </>
         }
       />
@@ -286,7 +288,7 @@ export function CashPage() {
             <Button size="sm" variant="secondary" onClick={() => update('beforeReset', beforeReset ? '' : 'true')}>
               {beforeReset ? 'إخفاء التسويات القديمة' : 'عرض التسويات قبل التصفير'}
             </Button>
-            <Button size="sm" variant="secondary" loading={undoing} onClick={undoReset}>إلغاء التصفير</Button>
+            {perms.danger('resetCash') && <Button size="sm" variant="secondary" loading={undoing} onClick={undoReset}>إلغاء التصفير</Button>}
           </span>
         </div>
       )}

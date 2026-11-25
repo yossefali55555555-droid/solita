@@ -3,6 +3,7 @@ import { Button, Card, ConfirmDialog, Field, Modal, PageHeader, Pagination, Stat
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
 import { ConfirmWordModal } from '../../components/ConfirmWordModal.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { EXPENSE_CATEGORY_LABELS, label } from '../../utils/labels.js';
@@ -140,6 +141,7 @@ function ExpenseModal({ expense, onClose, onSaved }) {
 
 export function FinancePage() {
   const toast = useToast();
+  const perms = usePermissions();
   const [range, setRange] = useState(() => monthRange(0));
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null); // null | {} (new) | expense
@@ -203,7 +205,7 @@ export function FinancePage() {
         actions={
           <>
             <Button onClick={() => setEditing({})}>+ إضافة مصروف</Button>
-            <Button variant="danger" onClick={() => setResetOpen(true)}>تصفير الأرقام</Button>
+            {perms.danger('resetFinance') && <Button variant="danger" onClick={() => setResetOpen(true)}>تصفير الأرقام</Button>}
           </>
         }
       />
@@ -221,7 +223,7 @@ export function FinancePage() {
             >
               {beforeReset ? 'إخفاء الفواتير القديمة' : 'عرض الفواتير قبل التصفير'}
             </Button>
-            <Button size="sm" variant="secondary" loading={undoing} onClick={undoReset}>إلغاء التصفير</Button>
+            {perms.danger('resetFinance') && <Button size="sm" variant="secondary" loading={undoing} onClick={undoReset}>إلغاء التصفير</Button>}
           </span>
         </div>
       )}
@@ -269,12 +271,14 @@ export function FinancePage() {
               hint={`${formatNumber(s.sales.deliveredOrders)} طلب`}
             />
             <StatCard label="المصروفات" value={formatMoney(s.expenses.total)} tone="warning" hint={`${formatNumber(s.expenses.count)} فاتورة`} />
-            <StatCard label="صافي الربح" value={formatMoney(s.netProfit)} tone={s.netProfit >= 0 ? 'success' : 'danger'} />
-            <StatCard
-              label="النقدية المستلمة من المندوبين"
-              value={formatMoney(s.cash.received)}
-              hint={`صافي النقدية بعد المصروفات: ${formatMoney(s.cash.net)}`}
-            />
+            {s.netProfit !== undefined && <StatCard label="صافي الربح" value={formatMoney(s.netProfit)} tone={s.netProfit >= 0 ? 'success' : 'danger'} />}
+            {s.cash && (
+              <StatCard
+                label="النقدية المستلمة من المندوبين"
+                value={formatMoney(s.cash.received)}
+                hint={`صافي النقدية بعد المصروفات: ${formatMoney(s.cash.net)}`}
+              />
+            )}
             <StatCard label="مرتجعات في الفترة" value={formatNumber(s.sales.returnedOrders)} tone={s.sales.returnedOrders ? 'danger' : 'neutral'} />
           </div>
           <Card title="المصروفات حسب النوع" padded={false}>
@@ -337,9 +341,11 @@ export function FinancePage() {
                         <Button size="sm" variant="secondary" onClick={() => setEditing(e)}>
                           تعديل
                         </Button>
-                        <Button size="sm" variant="danger" onClick={() => setDeleting(e)}>
-                          حذف
-                        </Button>
+                        {perms.danger('deleteExpense') && (
+                          <Button size="sm" variant="danger" onClick={() => setDeleting(e)}>
+                            حذف
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

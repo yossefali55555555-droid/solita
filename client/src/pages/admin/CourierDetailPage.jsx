@@ -5,11 +5,13 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/States.js
 import { DeliveryStatusBadge, ReviewStatusBadge, SourceStatusBadge } from '../../components/StatusBadges.jsx';
 import { Timeline } from '../../components/Timeline.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { formatDateTime, formatMoney, toAsciiDigits, orderNumber } from '../../utils/format.js';
 
 export function CourierDetailPage() {
+  const perms = usePermissions();
   const { id } = useParams();
   const toast = useToast();
   const { data, error, loading, reload } = useAsync(() => api.get(`/admin/couriers/${id}`), [id]);
@@ -80,7 +82,7 @@ export function CourierDetailPage() {
         actions={
           <>
             <Button variant="secondary" onClick={() => { setErrors({}); setForm({ name: courier.name, phone: courier.phone, email: courier.email || '' }); setEditOpen(true); }}>تعديل</Button>
-            <Button variant="secondary" onClick={() => { setErrors({}); setPwOpen(true); }}>إعادة تعيين كلمة المرور</Button>
+            {perms.danger('resetCourierPassword') && <Button variant="secondary" onClick={() => { setErrors({}); setPwOpen(true); }}>إعادة تعيين كلمة المرور</Button>}
             <Button variant={courier.isActive ? 'danger' : 'primary'} onClick={() => setToggleOpen(true)}>
               {courier.isActive ? 'إيقاف الحساب' : 'تفعيل الحساب'}
             </Button>

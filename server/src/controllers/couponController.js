@@ -2,16 +2,16 @@ import * as coupons from '../services/couponService.js';
 import { Order } from '../models/index.js';
 import { notFound } from '../utils/errors.js';
 
-export async function listCoupons(_req, res) {
-  res.json(await coupons.listCoupons());
+export async function listCoupons(req, res) {
+  res.json(await coupons.listCoupons(req.viewer));
 }
 
 export async function addCoupons(req, res) {
   res.status(201).json(await coupons.addToPool(req.valid.body.codes));
 }
 
-export async function listAttempts(_req, res) {
-  res.json({ items: await coupons.listAttempts() });
+export async function listAttempts(req, res) {
+  res.json({ items: await coupons.listAttempts({}, req.viewer) });
 }
 
 export async function importCoupons(req, res) {
@@ -37,7 +37,7 @@ export async function undoChange(req, res) {
 }
 
 export async function assignCoupon(req, res) {
-  res.json({ coupon: await coupons.assignManually(req.valid.params.id, req.valid.body, req.user) });
+  res.json({ coupon: await coupons.assignManually(req.valid.params.id, req.valid.body, req.user, req.viewer) });
 }
 
 export async function releaseCoupon(req, res) {

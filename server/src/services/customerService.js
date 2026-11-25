@@ -3,6 +3,7 @@ import { Order } from '../models/index.js';
 import { notFound } from '../utils/errors.js';
 import { escapeRegex } from '../utils/sanitize.js';
 import { normalizePhone } from '../utils/phone.js';
+import { assertCanSearch, decodeCustomerKey, FULL_VIEWER } from './visibilityService.js';
 
 /**
  * Customers are derived from orders (EasyOrders is the source of customer
@@ -23,31 +24,45 @@ const KEY_EXPR = {
 
 const countIf = (status) => ({ $sum: { $cond: [{ $eq: ['$deliveryStatus', status] }, 1, 0] } });
 
-const GROUP_STAGE = {
-  $group: {
-    _id: KEY_EXPR,
-    name: { $first: '$customer.name' },
-    phone: { $first: '$customer.phone' },
-    government: { $first: '$customer.government' },
-    address: { $first: '$customer.address' },
-    ordersCount: { $sum: 1 },
-    delivered: countIf('delivered'),
-    returned: countIf('returned'),
-    failed: countIf('failed'),
-    cancelled: countIf('cancelled'),
-    totalOrdered: { $sum: '$totalAmount' },
-    totalDelivered: { $sum: { $cond: [{ $eq: ['$deliveryStatus', 'delivered'] }, '$totalAmount', 0] } },
-    firstOrderAt: { $min: { $ifNull: ['$sourceCreatedAt', '$createdAt'] } },
-    lastOrderAt: { $max: { $ifNull: ['$sourceCreatedAt', '$createdAt'] } },
-  },
-};
+/**
+ * Group stage per viewer (projection layer): the number and the money totals
+ * are not even computed for a viewer who may not see them. The group key
+ * stays the phone (it is what groups orders) and is encoded on the way out.
+ */
+function groupStage(viewer) {
+  return {
+    $group: {
+      _id: KEY_EXPR,
+      name: { $first: '$customer.name' },
+      ...(viewer.phone ? { phone: { $first: '$customer.phone' } } : {}),
+      government: { $first: '$customer.government' },
+      address: { $first: '$customer.address' },
+      ordersCount: { $sum: 1 },
+      delivered: countIf('delivered'),
+      returned: countIf('returned'),
+      failed: countIf('failed'),
+      cancelled: countIf('cancelled'),
+      ...(viewer.money
+        ? {
+            totalOrdered: { $sum: '$totalAmount' },
+            totalDelivered: { $sum: { $cond: [{ $eq: ['$deliveryStatus', 'delivered'] }, '$totalAmount', 0] } },
+          }
+        : {}),
+      firstOrderAt: { $min: { $ifNull: ['$sourceCreatedAt', '$createdAt'] } },
+      lastOrderAt: { $max: { $ifNull: ['$sourceCreatedAt', '$createdAt'] } },
+    },
+  };
+}
 
-function searchMatch(q) {
+function searchMatch(q, viewer) {
   if (!q) return { ...NOT_TEST };
   const rx = new RegExp(escapeRegex(q.trim()), 'i');
-  const or = [{ 'customer.name': rx }, { 'customer.phone': rx }];
-  const phone = normalizePhone(q);
-  if (phone.length >= 4) or.push({ 'customer.phoneNormalized': new RegExp(escapeRegex(phone)) });
+  const or = [{ 'customer.name': rx }];
+  if (viewer.phone) {
+    or.push({ 'customer.phone': rx });
+    const phone = normalizePhone(q);
+    if (phone.length >= 4) or.push({ 'customer.phoneNormalized': new RegExp(escapeRegex(phone)) });
+  }
   return { ...NOT_TEST, $or: or };
 }
 
@@ -58,13 +73,16 @@ const SORTS = {
   returns: { returned: -1, failed: -1, lastOrderAt: -1, _id: 1 },
 };
 
-export async function listCustomers({ q, sort = 'recent' } = {}, { skip = 0, limit = 20 } = {}) {
+export async function listCustomers({ q, sort = 'recent' } = {}, { skip = 0, limit = 20 } = {}, viewer = FULL_VIEWER) {
+  assertCanSearch(viewer, q);
+  // Sorting by spend would rank customers by figures the viewer may not see.
+  const order = sort === 'spent' && !viewer.money ? 'recent' : sort;
   const [result] = await Order.aggregate([
-    { $match: searchMatch(q) },
+    { $match: searchMatch(q, viewer) },
     // Newest order first so $first picks the latest name/address.
     { $sort: { sourceCreatedAt: -1, createdAt: -1 } },
-    GROUP_STAGE,
-    { $sort: SORTS[sort] || SORTS.recent },
+    groupStage(viewer),
+    { $sort: SORTS[order] || SORTS.recent },
     { $facet: { items: [{ $skip: skip }, { $limit: limit }], total: [{ $count: 'n' }] } },
   ]);
   const items = (result?.items || []).map(({ _id, ...rest }) => ({ key: _id, ...rest }));
@@ -82,9 +100,16 @@ function matchForKey(key) {
   return { ...NOT_TEST, 'customer.phoneNormalized': key };
 }
 
-export async function getCustomer(key) {
-  const match = matchForKey(key);
-  const [summary] = await Order.aggregate([{ $match: match }, { $sort: { sourceCreatedAt: -1, createdAt: -1 } }, GROUP_STAGE]);
+/**
+ * `key` is the opaque key from the list (c_…). A raw key (the phone itself)
+ * is only accepted from a viewer who may see numbers; everyone else gets the
+ * same "not found" for a wrong, forged or raw key.
+ */
+export async function getCustomer(key, viewer = FULL_VIEWER) {
+  const raw = decodeCustomerKey(key) ?? (viewer.phone ? key : null);
+  if (raw === null) throw notFound('العميل غير موجود');
+  const match = matchForKey(raw);
+  const [summary] = await Order.aggregate([{ $match: match }, { $sort: { sourceCreatedAt: -1, createdAt: -1 } }, groupStage(viewer)]);
   if (!summary) throw notFound('العميل غير موجود');
   const orders = await Order.find(match)
     .sort({ sourceCreatedAt: -1, createdAt: -1 })

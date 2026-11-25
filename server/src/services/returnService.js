@@ -5,6 +5,7 @@ import { logger } from '../utils/logger.js';
 import { recordEvent, userActor } from './auditService.js';
 import { notify } from './notificationService.js';
 import { enqueueStatusSync, processOperation } from './syncService.js';
+import { FULL_VIEWER } from './visibilityService.js';
 
 /**
  * Review of failed / refused deliveries (رفض أو مرتجع).
@@ -19,9 +20,9 @@ import { enqueueStatusSync, processOperation } from './syncService.js';
  */
 
 const ORDER_FIELDS =
-  'easyOrdersId easyOrdersShortId customer totalAmount currency paymentMethod sourceStatus deliveryStatus deliveryAttempts assignedTo returnInfo sync cod labels.printedAt parcels isDemo updatedAt createdAt';
+  'easyOrdersId easyOrdersShortId customer.name customer.government customer.area customer.address customer.notes totalAmount currency paymentMethod sourceStatus deliveryStatus deliveryAttempts assignedTo returnInfo sync cod labels.printedAt parcels isDemo updatedAt createdAt';
 
-export async function listReturns({ status = 'pending' }, { skip, limit }) {
+export async function listReturns({ status = 'pending' }, { skip, limit }, viewer = FULL_VIEWER) {
   const query = status === 'returned' ? { deliveryStatus: 'returned' } : { deliveryStatus: 'failed' };
   const sort = status === 'returned' ? { 'returnInfo.at': -1, _id: -1 } : { updatedAt: 1, _id: 1 };
   const [items, total] = await Promise.all([
@@ -29,7 +30,7 @@ export async function listReturns({ status = 'pending' }, { skip, limit }) {
       .sort(sort)
       .skip(skip)
       .limit(limit)
-      .select(ORDER_FIELDS)
+      .select(viewer.phone ? `${ORDER_FIELDS} customer.phone customer.phoneNormalized customer.alternativePhone customer.email` : ORDER_FIELDS)
       .populate('assignedTo', 'name phone')
       .populate('deliveryAttempts.courier', 'name')
       .populate('returnInfo.by', 'name')

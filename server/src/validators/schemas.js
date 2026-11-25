@@ -249,7 +249,8 @@ export const listCustomersQuery = z.object({
   ...pageQuery,
 });
 
-export const customerKeyParams = z.object({ key: z.string().trim().min(1).max(260) });
+// Opaque key (c_…) from the customer list; a raw key (the phone) is accepted only for viewers who may see numbers.
+export const customerKeyParams = z.object({ key: z.string().trim().min(1).max(700) });
 
 // ---------- Expenses & profit (admin) ----------
 // A calendar day (YYYY-MM-DD), stored at 12:00 UTC so it never shifts a day.

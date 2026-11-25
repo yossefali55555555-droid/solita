@@ -22,41 +22,44 @@ export function OverviewPage() {
   if (error) return <ErrorState error={error} onRetry={reload} />;
   const { stats, system } = data;
   const o = stats.orders;
+  const sync = stats.sync;
 
   return (
     <>
       <PageHeader title="نظرة عامة" subtitle="أرقام فعلية من قاعدة البيانات" />
       <VisitorBehaviourCard showLink />
 
-      <h2 className="section-title">الطلبات</h2>
-      <div className="stats-grid">
-        <StatCard label="إجمالي الطلبات" value={formatNumber(o.total)} to="/admin/orders" />
-        <StatCard label="طلبات جديدة" value={formatNumber(o.new)} to="/admin/orders?deliveryStatus=new" />
-        <StatCard label="غير معيّنة لمندوب" value={formatNumber(o.unassigned)} tone="warning" to="/admin/orders?courier=unassigned" />
-        <StatCard label="معيّنة لمندوب" value={formatNumber(o.assigned)} tone="info" to="/admin/orders?deliveryStatus=assigned" />
-        <StatCard label="خرجت للتوصيل" value={formatNumber(o.outForDelivery)} tone="indigo" to="/admin/orders?deliveryStatus=out_for_delivery" />
-        <StatCard label="بانتظار مراجعة التسليم" value={formatNumber(stats.pendingReviews)} tone="warning" to="/admin/reviews" />
-        <StatCard label="تسليمات معتمدة" value={formatNumber(o.delivered)} tone="success" to="/admin/orders?deliveryStatus=delivered" />
-        <StatCard label="رفض / فشل بانتظار المراجعة" value={formatNumber(o.failed)} tone="danger" to="/admin/returns" />
-        <StatCard label="مرتجعات معتمدة" value={formatNumber(o.returned ?? 0)} tone="warning" to="/admin/returns?status=returned" />
-        <StatCard label="طلبات ملغاة" value={formatNumber(o.cancelled)} to="/admin/orders?deliveryStatus=cancelled" />
-        <StatCard
-          label="أخطاء المزامنة"
-          value={formatNumber(stats.sync.failures + stats.sync.webhookFailures)}
-          tone={stats.sync.failures + stats.sync.webhookFailures ? 'danger' : 'neutral'}
-          to="/admin/sync"
-        />
-      </div>
+      {(o || sync || stats.pendingReviews !== undefined) && <h2 className="section-title">الطلبات والمراجعات</h2>}
+      {(o || sync || stats.pendingReviews !== undefined) && <div className="stats-grid">
+        {o && <StatCard label="إجمالي الطلبات" value={formatNumber(o.total)} to="/admin/orders" />}
+        {o && <StatCard label="طلبات جديدة" value={formatNumber(o.new)} to="/admin/orders?deliveryStatus=new" />}
+        {o && <StatCard label="غير معيّنة لمندوب" value={formatNumber(o.unassigned)} tone="warning" to="/admin/orders?courier=unassigned" />}
+        {o && <StatCard label="معيّنة لمندوب" value={formatNumber(o.assigned)} tone="info" to="/admin/orders?deliveryStatus=assigned" />}
+        {o && <StatCard label="خرجت للتوصيل" value={formatNumber(o.outForDelivery)} tone="indigo" to="/admin/orders?deliveryStatus=out_for_delivery" />}
+        {stats.pendingReviews !== undefined && <StatCard label="بانتظار مراجعة التسليم" value={formatNumber(stats.pendingReviews)} tone="warning" to="/admin/reviews" />}
+        {o && <StatCard label="تسليمات معتمدة" value={formatNumber(o.delivered)} tone="success" to="/admin/orders?deliveryStatus=delivered" />}
+        {o && <StatCard label="رفض / فشل بانتظار المراجعة" value={formatNumber(o.failed)} tone="danger" to="/admin/returns" />}
+        {o && <StatCard label="مرتجعات معتمدة" value={formatNumber(o.returned ?? 0)} tone="warning" to="/admin/returns?status=returned" />}
+        {o && <StatCard label="طلبات ملغاة" value={formatNumber(o.cancelled)} to="/admin/orders?deliveryStatus=cancelled" />}
+        {sync && (
+          <StatCard
+            label="أخطاء المزامنة"
+            value={formatNumber(sync.failures + sync.webhookFailures)}
+            tone={sync.failures + sync.webhookFailures ? 'danger' : 'neutral'}
+            to="/admin/sync"
+          />
+        )}
+      </div>}
 
-      <h2 className="section-title">النقدية (الدفع عند الاستلام)</h2>
-      <div className="stats-grid">
+      {stats.cash && <h2 className="section-title">النقدية (الدفع عند الاستلام)</h2>}
+      {stats.cash && <div className="stats-grid">
         <StatCard label="النقدية المتوقعة من التسليمات المعتمدة" value={formatMoney(stats.cash.expected)} to="/admin/cash" />
         <StatCard label="النقدية المُسلّمة للإدارة" value={formatMoney(stats.cash.handedOver)} tone="info" to="/admin/cash" />
         <StatCard label="المبالغ المتحقق منها" value={formatMoney(stats.cash.verified)} tone="success" to="/admin/cash" />
         <StatCard label="المتبقي دون تسوية" value={formatMoney(stats.cash.outstanding)} tone="warning" to="/admin/cash" />
-      </div>
+      </div>}
 
-      <Card title="جاهزية التكامل">
+      {system && <Card title="جاهزية التكامل">
         <ul className="readiness">
           <ReadinessRow ok={!system.mockMode} label="قاعدة البيانات الحقيقية (MongoDB Atlas)" hint="الوضع التجريبي مفعل" />
           <ReadinessRow ok={system.easyOrders.apiConfigured} label="مفتاح EasyOrders API" hint="أضف EASYORDERS_API_KEY" />
@@ -64,7 +67,7 @@ export function OverviewPage() {
           <ReadinessRow ok={system.cronConfigured} label="المعالجة الدورية (Cron)" hint="أضف CRON_SECRET" />
           <ReadinessRow ok={!system.sessionSecretEphemeral} label="SESSION_SECRET ثابت" hint="أضف SESSION_SECRET" />
         </ul>
-      </Card>
+      </Card>}
     </>
   );
 }

@@ -139,7 +139,7 @@ export function ReviewDetailPage() {
         <Card title="تفاصيل التقرير">
           <DefinitionList
             items={[
-              ['المندوب', `${review.courier?.name} (${review.courier?.phone})`],
+              ['المندوب', `${review.courier?.name}${review.courier?.phone ? ` (${review.courier.phone})` : ''}`],
               ['إجمالي الطلب', formatMoney(order?.totalAmount)],
               ['طريقة الدفع', order?.paymentMethod],
               review.expectedAmount > 0 && ['النقدية المتوقعة', formatMoney(review.expectedAmount)],

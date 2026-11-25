@@ -1,6 +1,9 @@
 import { SiteSettings } from '../models/index.js';
 import { publicFounderCounter } from './founderService.js';
 import { DEFAULT_SITE_SETTINGS, mergeWithDefaults, publicSiteConfig } from '../validators/siteSettings.js';
+import { forbidden } from '../utils/errors.js';
+import { canonicalJson } from '../utils/sanitize.js';
+import { isAdmin } from './permissionService.js';
 
 const KEY = 'site';
 
@@ -18,6 +21,14 @@ export async function getSiteSettings() {
 
 /** Replace the settings with an already validated (siteSettingsSchema) object. */
 export async function updateSiteSettings(user, settings) {
+  // The ready-made WhatsApp texts (settings.admin.*WhatsappTemplate) are for the
+  // administrator only: anyone else may save the page only if they are unchanged.
+  if (!isAdmin(user)) {
+    const current = mergeWithDefaults((await SiteSettings.findOne({ key: KEY }, { settings: 1 }).lean())?.settings);
+    if (canonicalJson(current.admin) !== canonicalJson(settings.admin)) {
+      throw forbidden('تعديل نصوص رسائل واتساب الجاهزة متاح للأدمن فقط', 'WHATSAPP_TEMPLATES_ADMIN_ONLY');
+    }
+  }
   await SiteSettings.updateOne(
     { key: KEY },
     { $set: { settings, updatedBy: user._id }, $inc: { revision: 1 } },
