@@ -29,6 +29,6 @@ describe('size guide', () => {
     const bad = structuredClone(DEFAULT_SIZE_GUIDE);
     bad.sizes.push({ size: 41, visible: true });
     expect((await admin.patch('/api/admin/size-guide', bad)).status).toBeGreaterThanOrEqual(400);
-    expect((await client().patch('/api/admin/size-guide', DEFAULT_SIZE_GUIDE)).status).toBeGreaterThanOrEqual(400);
+    expect((await (await client()).patch('/api/admin/size-guide', DEFAULT_SIZE_GUIDE)).status).toBeGreaterThanOrEqual(400);
   });
 });

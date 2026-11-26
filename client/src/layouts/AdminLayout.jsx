@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import { usePermissions } from '../features/auth/permissions.js';
-import { locate, phoneNav, visibleNav } from '../features/nav/sections.js';
+import { COUNTED_SECTIONS, locate, phoneNav, sectionCount, tabCount, visibleNav } from '../features/nav/sections.js';
 import { DemoBanner, Logo } from '../components/ui.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { api } from '../services/api.js';
@@ -73,15 +73,12 @@ export function AdminLayout() {
   const system = nav.find((s) => s.utility);
   const { bar, more } = phoneNav(nav);
 
-  // Work waiting on someone, shown next to its tab. Only for users who may see the dashboard figures.
-  const overview = useAsync(
-    () => (perms.can('dashboard') ? api.get('/admin/overview') : Promise.resolve(null)),
+  // Work waiting on someone, shown next to its tab. Each figure follows the permission of its page.
+  const navCounts = useAsync(
+    () => (COUNTED_SECTIONS.some((s) => perms.can(s)) ? api.get('/admin/nav-counts') : Promise.resolve(null)),
     [pathname],
   );
-  const stats = overview.data?.stats;
-  const counts = { reviews: stats?.pendingReviews || 0, returns: stats?.orders?.failed || 0 };
-  const sectionCount = (section) =>
-    section.tabs.reduce((sum, tab) => sum + (counts[tab.count] || 0), 0);
+  const counts = navCounts.data?.counts || {};
 
   const alerts = user?.role === 'admin' ? user?.security?.unreadAlerts || 0 : 0;
   const unprotected = user?.role === 'admin' && user?.security && !user.security.mfaEnabled;
@@ -106,7 +103,7 @@ export function AdminLayout() {
           {sections.map((s) => (
             <NavItem key={s.key} to={s.to} active={here.section?.key === s.key} className="appbar__link">
               {s.label}
-              <Count value={sectionCount(s)} />
+              <Count value={sectionCount(s, counts)} />
             </NavItem>
           ))}
         </nav>
@@ -150,7 +147,7 @@ export function AdminLayout() {
           {here.section.tabs.map((tab) => (
             <NavItem key={tab.to} to={tab.to} active={here.tab === tab} className="subnav__link">
               {tab.label}
-              <Count value={counts[tab.count]} />
+              <Count value={tabCount(tab, counts)} />
             </NavItem>
           ))}
         </nav>
@@ -163,6 +160,7 @@ export function AdminLayout() {
             {here.tab.pages.map((p) => (
               <NavItem key={p.to} to={p.to} active={here.page === p} className="seg__btn">
                 {p.label}
+                <Count value={counts[p.count]} />
               </NavItem>
             ))}
           </nav>
@@ -175,7 +173,7 @@ export function AdminLayout() {
         {bar.map((s) => (
           <NavItem key={s.key} to={s.to} active={here.section?.key === s.key} className="bottombar__link">
             {s.label}
-            <Count value={sectionCount(s)} />
+            <Count value={sectionCount(s, counts)} />
           </NavItem>
         ))}
         {more.length > 0 && (
@@ -197,6 +195,7 @@ export function AdminLayout() {
               {s.tabs.map((tab) => (
                 <Link key={tab.to} className="menu__item" to={tab.to} onClick={close}>
                   {tab.label}
+                  <Count value={tabCount(tab, counts)} />
                 </Link>
               ))}
             </div>
