@@ -1,3 +1,4 @@
+import { PageTabs } from '../../components/PageTabs.jsx';
 import { useState } from 'react';
 import { Button, Card, ConfirmDialog, Field, Modal, PageHeader, Pagination, StatCard } from '../../components/ui.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
@@ -257,6 +258,11 @@ export function FinancePage() {
         </div>
       </Card>
 
+      <PageTabs
+        label="الماليات"
+        tabs={[
+          { key: 'summary', label: 'الملخص', content: <>
+
       {summary.loading && !s ? (
         <LoadingState />
       ) : summary.error ? (
@@ -306,6 +312,8 @@ export function FinancePage() {
         </>
       )}
 
+</> },
+          { key: 'expenses', label: 'فواتير المصروفات', content: <>
       <Card title="فواتير المصروفات" padded={false}>
         {expenses.loading && !expenses.data ? (
           <LoadingState />
@@ -356,6 +364,9 @@ export function FinancePage() {
         )}
         <Pagination pagination={expenses.data?.pagination} onPage={setPage} />
       </Card>
+</> },
+        ]}
+      />
 
       {editing && (
         <ExpenseModal

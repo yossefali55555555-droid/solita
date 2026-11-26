@@ -1458,3 +1458,52 @@ ol.plain-list { list-style: decimal; padding-inline-start: 20px; }
 
 .dropzone { border: 2px dashed var(--border, #c9c4b8); border-radius: 12px; padding: 22px 16px; text-align: center; cursor: pointer; margin: 12px 0; background: rgba(0, 0, 0, 0.02); transition: background 0.15s, border-color 0.15s; }
 .dropzone:hover, .dropzone:focus-visible, .dropzone--over { border-color: #4a5140; background: rgba(74, 81, 64, 0.08); outline: none; }
+
+/* ---------- Tabs inside a page (nested levels look lighter) ---------- */
+.ptabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin-block-end: 16px;
+  padding: 4px;
+  background: var(--neutral-bg);
+  border-radius: var(--radius);
+}
+.ptabs__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ptabs__btn.is-active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.ptabs--2 { padding: 0; background: none; }
+.ptabs--2 .ptabs__btn { border-color: var(--border-strong); border-radius: 999px; background: var(--surface); }
+.ptabs--2 .ptabs__btn.is-active { background: var(--brand); border-color: var(--brand); color: var(--brand-contrast); }
+[role='tabpanel'][hidden] { display: none; }
+[role='tabpanel'] > .btn { margin-block-end: 12px; }
+
+/* ---------- «محتاجك» ---------- */
+.needs { list-style: none; margin: 0; padding: 0; }
+.needs__row { display: flex; align-items: center; gap: 14px; padding-block: 10px; }
+.needs__row + .needs__row { border-block-start: 1px solid var(--border); }
+.needs__count {
+  display: grid;
+  place-items: center;
+  min-width: 48px;
+  height: 48px;
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.needs__text { flex: 1; min-width: 0; display: grid; }

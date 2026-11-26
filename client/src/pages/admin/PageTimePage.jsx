@@ -1,3 +1,4 @@
+import { PageTabs } from '../../components/PageTabs.jsx';
 import { useMemo, useState } from 'react';
 import { Badge, Button, Card, PageHeader, StatCard } from '../../components/ui.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
@@ -119,12 +120,11 @@ export function PageTimePage() {
         </div>
       </Card>
 
-      {loading && !data ? (
-        <LoadingState />
-      ) : error ? (
-        <ErrorState error={error} onRetry={reload} />
-      ) : (
-        <>
+      {loading && !data ? <LoadingState /> : error ? <ErrorState error={error} onRetry={reload} /> : null}
+          <PageTabs
+            label="حركة الصفحات"
+            tabs={[
+              { key: 'numbers', label: 'الملخص', content: data && !error ? <>
           <div className="stats-grid">
             <StatCard label="الرئيسية" value={formatNumber(f.home)} hint="مشاهدات صفحة" />
             <StatCard label="صفحات المنتجات" value={formatNumber(f.products)} hint="مشاهدات صفحة" />
@@ -139,6 +139,8 @@ export function PageTimePage() {
           </div>
           <Breakdown title="مصدر الزيارة" data={data.sources} labels={SOURCES} />
 
+</> : null },
+              { key: 'pages', label: 'كل الصفحات', content: data && !error ? <>
           <Card padded={false} title="كل الصفحات">
             {!rows.length ? (
               <EmptyState title="لا توجد بيانات بعد" description="تظهر الصفحات هنا بعد أول زيارات تُسجَّل من المتجر." />
@@ -176,9 +178,8 @@ export function PageTimePage() {
               </div>
             )}
           </Card>
-        </>
-      )}
-
+</> : null },
+              { key: 'how', label: 'الحساب واستبعاد أجهزتك', content: <>
       <Card title="كيف تُحسب الأرقام؟">
         <ul className="plain-list">
           <li><strong>الوقت</strong> هو وقت النشاط الفعلي: التاب ظاهر ويوجد تفاعل (تمرير أو لمس أو نقر) في آخر ١٥ ثانية. ترك الصفحة مفتوحة بلا تفاعل لا يُحسب.</li>
@@ -189,7 +190,6 @@ export function PageTimePage() {
           <li>«عينة صغيرة» = أقل من ٣٠ زيارة مقاسة؛ لا تبنِ قرارًا عليها.</li>
         </ul>
       </Card>
-
       <Card title="استبعاد أجهزتك أنت والفريق">
         <p>
           أنتم تفتحون الموقع من Chrome مثل أي عميل، فيُحسب دخولكم زيارة. للاستبعاد: افتح هذا الرابط <strong>مرة واحدة على كل جهاز</strong> (كمبيوتر، موبايل…) وبعدها يتوقف ذلك المتصفح عن الإرسال:
@@ -197,6 +197,9 @@ export function PageTimePage() {
         <p><a className="link mono" dir="ltr" href={`${STORE_URL}/?notrack=1`} target="_blank" rel="noopener noreferrer">{STORE_URL}/?notrack=1</a></p>
         <p className="muted">للعودة للتسجيل على ذلك الجهاز: <span className="mono" dir="ltr">?notrack=0</span>. لو غيّرت المتصفح أو مسحت بياناته كرّر الخطوة.</p>
       </Card>
+</> },
+            ]}
+          />
     </>
   );
 }

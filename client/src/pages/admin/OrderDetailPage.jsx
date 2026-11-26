@@ -1,3 +1,4 @@
+import { PageTabs } from '../../components/PageTabs.jsx';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button, Card, ConfirmDialog, DefinitionList, Field, Modal, PageHeader } from '../../components/ui.jsx';
@@ -266,79 +267,6 @@ export function OrderDetailPage() {
       )}
 
       <div className="grid-2">
-        <Card title="بيانات العميل">
-          <DefinitionList
-            items={[
-              ['الاسم', c.name],
-              ['الهاتف', c.phone ? <a className="link mono" dir="ltr" href={`tel:${c.phone}`}>{c.phone}</a> : null],
-              c.alternativePhone && ['هاتف بديل', <span className="mono" dir="ltr">{c.alternativePhone}</span>],
-              ['المحافظة', c.government],
-              c.area && ['المنطقة', c.area],
-              ['العنوان', c.address],
-              c.email && ['البريد', c.email],
-              c.notes && ['ملاحظات', c.notes],
-            ]}
-          />
-          <div className="order-whatsapp">
-            <OrderWhatsAppButtons order={order} templates={waTemplates} onChanged={() => detail.reload({ silent: true })} />
-          </div>
-        </Card>
-
-        <Card title="الدفع">
-          <DefinitionList
-            items={[
-              ['طريقة الدفع', order.paymentMethod],
-              ['حالة الدفع', label(PAYMENT_STATUS_LABELS, order.paymentStatus)],
-              ['المنتجات', formatMoney(order.subtotal)],
-              ['الشحن', formatMoney(order.shippingFee)],
-              ['الخصم', formatMoney(order.discount)],
-              ['الإجمالي', <strong>{formatMoney(order.totalAmount)}</strong>],
-              order.cod?.isCod && ['النقدية المتوقعة', formatMoney(order.cod.expectedAmount)],
-              order.cod?.declaredAmount !== null && order.cod?.declaredAmount !== undefined && ['المبلغ المعلن من المندوب', formatMoney(order.cod.declaredAmount)],
-              order.cod?.isCod && ['التسوية النقدية', order.cod.remittance ? 'مضاف لتسوية' : 'لم تتم التسوية'],
-            ]}
-          />
-        </Card>
-      </div>
-
-      <div className="grid-2">
-        <SessionCard order={order} onChanged={refresh} />
-        <CustomerRecordCard history={order.customerHistory} />
-      </div>
-      <NotesCard order={order} onChanged={refresh} />
-
-      <Card title="المنتجات">
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>المنتج</th>
-                <th>الخيارات</th>
-                <th>SKU</th>
-                <th>الكمية</th>
-                <th>سعر الوحدة</th>
-                <th>الإجمالي</th>
-              </tr>
-            </thead>
-            <tbody>
-              {order.items.map((item, i) => (
-                <tr key={item.externalId || i}>
-                  <td>{item.name}</td>
-                  <td>{item.options?.map((o) => `${o.name}: ${o.value}`).join('، ') || '—'}</td>
-                  <td className="mono">{item.sku || '—'}</td>
-                  <td>{item.quantity}</td>
-                  <td className="nowrap">{formatMoney(item.price)}</td>
-                  <td className="nowrap">{formatMoney(item.price * item.quantity)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      <ParcelsCard order={order} onPrinted={refresh} />
-
-      <div className="grid-2">
         <Card title="المندوب والتعيين">
           <DefinitionList
             items={[
@@ -420,6 +348,87 @@ export function OrderDetailPage() {
         </Card>
       </div>
 
+      <PageTabs
+        label="تفاصيل الطلب"
+        tabs={[
+          { key: 'customer', label: 'العميل والدفع', content: <>
+      <div className="grid-2">
+        <Card title="بيانات العميل">
+          <DefinitionList
+            items={[
+              ['الاسم', c.name],
+              ['الهاتف', c.phone ? <a className="link mono" dir="ltr" href={`tel:${c.phone}`}>{c.phone}</a> : null],
+              c.alternativePhone && ['هاتف بديل', <span className="mono" dir="ltr">{c.alternativePhone}</span>],
+              ['المحافظة', c.government],
+              c.area && ['المنطقة', c.area],
+              ['العنوان', c.address],
+              c.email && ['البريد', c.email],
+              c.notes && ['ملاحظات', c.notes],
+            ]}
+          />
+          <div className="order-whatsapp">
+            <OrderWhatsAppButtons order={order} templates={waTemplates} onChanged={() => detail.reload({ silent: true })} />
+          </div>
+        </Card>
+
+        <Card title="الدفع">
+          <DefinitionList
+            items={[
+              ['طريقة الدفع', order.paymentMethod],
+              ['حالة الدفع', label(PAYMENT_STATUS_LABELS, order.paymentStatus)],
+              ['المنتجات', formatMoney(order.subtotal)],
+              ['الشحن', formatMoney(order.shippingFee)],
+              ['الخصم', formatMoney(order.discount)],
+              ['الإجمالي', <strong>{formatMoney(order.totalAmount)}</strong>],
+              order.cod?.isCod && ['النقدية المتوقعة', formatMoney(order.cod.expectedAmount)],
+              order.cod?.declaredAmount !== null && order.cod?.declaredAmount !== undefined && ['المبلغ المعلن من المندوب', formatMoney(order.cod.declaredAmount)],
+              order.cod?.isCod && ['التسوية النقدية', order.cod.remittance ? 'مضاف لتسوية' : 'لم تتم التسوية'],
+            ]}
+          />
+        </Card>
+      </div>
+
+      <div className="grid-2">
+        <SessionCard order={order} onChanged={refresh} />
+        <CustomerRecordCard history={order.customerHistory} />
+      </div>
+      <NotesCard order={order} onChanged={refresh} />
+
+</> },
+          { key: 'products', label: 'المنتجات والطرود', content: <>
+      <Card title="المنتجات">
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>المنتج</th>
+                <th>الخيارات</th>
+                <th>SKU</th>
+                <th>الكمية</th>
+                <th>سعر الوحدة</th>
+                <th>الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.items.map((item, i) => (
+                <tr key={item.externalId || i}>
+                  <td>{item.name}</td>
+                  <td>{item.options?.map((o) => `${o.name}: ${o.value}`).join('، ') || '—'}</td>
+                  <td className="mono">{item.sku || '—'}</td>
+                  <td>{item.quantity}</td>
+                  <td className="nowrap">{formatMoney(item.price)}</td>
+                  <td className="nowrap">{formatMoney(item.price * item.quantity)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <ParcelsCard order={order} onPrinted={refresh} />
+
+</> },
+          { key: 'delivery', label: 'محاولات ومراجعات', content: <>
       <Card title="محاولات التوصيل الفاشلة">
         {!order.deliveryAttempts?.length ? (
           <EmptyState title="لا توجد محاولات فاشلة" />
@@ -459,6 +468,20 @@ export function OrderDetailPage() {
         )}
       </Card>
 
+</> },
+          { key: 'log', label: 'السجل', content: (
+          <PageTabs
+            label="السجل"
+            param="log"
+            level={2}
+            tabs={[
+              { key: 'events', label: 'الأحداث', content: <>
+      <Card title="سجل الأحداث">
+        {events.loading && !events.data ? <LoadingState /> : events.error ? <ErrorState error={events.error} onRetry={events.reload} /> : <Timeline events={events.data.items} />}
+      </Card>
+
+</> },
+              { key: 'sync', label: 'المزامنة', content: <>
       <Card title="المزامنة مع EasyOrders">
         {!syncOperations.length ? (
           <EmptyState title="لا توجد عمليات مزامنة لهذا الطلب" />
@@ -498,9 +521,12 @@ export function OrderDetailPage() {
         )}
       </Card>
 
-      <Card title="سجل الأحداث">
-        {events.loading && !events.data ? <LoadingState /> : events.error ? <ErrorState error={events.error} onRetry={events.reload} /> : <Timeline events={events.data.items} />}
-      </Card>
+</> },
+            ]}
+          />
+        ) },
+        ]}
+      />
 
       <ConfirmDialog
         open={Boolean(confirmAssign)}

@@ -1,3 +1,4 @@
+import { PageTabs } from '../../components/PageTabs.jsx';
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { api } from '../../services/api.js';
@@ -31,13 +32,15 @@ export function SecurityPage() {
       <PageHeader title="الأمان والتنبيهات" subtitle="حماية حساب الأدمن وتنبيهات الإجراءات الحساسة" />
       {status.loading && !status.data && <LoadingState />}
       {status.error && <ErrorState error={status.error} onRetry={status.reload} />}
-      {status.data && (
-        <>
-          <TwoFactorCard data={status.data} onChange={reloadAll} />
-          <EmailCard data={status.data} onChange={reloadAll} />
-        </>
-      )}
-      <AlertsCard state={alerts} onRead={refresh} />
+      <PageTabs
+        label="أقسام الأمان"
+        initial={alerts.data?.unread > 0 ? 'alerts' : undefined}
+        tabs={[
+          status.data && { key: 'mfa', label: 'التحقق بخطوتين', content: <TwoFactorCard data={status.data} onChange={reloadAll} /> },
+          status.data && { key: 'email', label: 'إيميل التنبيهات', content: <EmailCard data={status.data} onChange={reloadAll} /> },
+          { key: 'alerts', label: 'التنبيهات', count: alerts.data?.unread, content: <AlertsCard state={alerts} onRead={refresh} /> },
+        ]}
+      />
     </>
   );
 }

@@ -1,3 +1,5 @@
+import { PageTabs } from '../../components/PageTabs.jsx';
+import { useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import { Button, Card, Field, PageHeader } from '../../components/ui.jsx';
 import { ErrorState, LoadingState } from '../../components/States.jsx';
@@ -35,6 +37,7 @@ const num = (v) => (v === '' ? '' : Number(v));
 
 export function SizeGuidePage() {
   const toast = useToast();
+  const [params, setParams] = useSearchParams();
   const { data, error, loading, reload } = useAsync(() => api.get('/admin/size-guide'), []);
   const [draft, setDraft] = useState({ base: null, value: null });
   const [newSize, setNewSize] = useState('');
@@ -79,10 +82,11 @@ export function SizeGuidePage() {
     setNewSize('');
   };
 
-  const addModel = () =>
+  const addModel = () => {
+    const id = `m${Date.now().toString(36)}`;
     update((f) => {
       f.models.push({
-        id: `m${Date.now().toString(36)}`,
+        id,
         name: 'موديل جديد',
         sub: '',
         color: '#4A5140',
@@ -91,12 +95,28 @@ export function SizeGuidePage() {
         mm: {},
       });
     });
+    const next = new URLSearchParams(params);
+    next.set('model', id);
+    setParams(next, { replace: true });
+  };
 
   const input = (label, value, onChange, props = {}) => (
     <Field label={label}>
       {(id) => <input id={id} className="input" value={value} onChange={(e) => onChange(e.target.value)} {...props} />}
     </Field>
   );
+
+  const textFields = (keys) =>
+    TEXTS.filter(([key]) => keys.includes(key)).map(([key, label, long]) => (
+      <Field key={key} label={label}>
+        {(id) => {
+          const Tag = long ? 'textarea' : 'input';
+          return (
+            <Tag id={id} className="input" rows={long ? 3 : undefined} value={form.texts[key]} onChange={(e) => update((f) => { f.texts[key] = e.target.value; })} />
+          );
+        }}
+      </Field>
+    ));
 
   return (
     <>
@@ -114,6 +134,10 @@ export function SizeGuidePage() {
         </Card>
       )}
 
+      <PageTabs
+        label="أقسام صفحة المقاسات"
+        tabs={[
+          { key: 'sizes', label: 'المقاسات', content: <>
       <Card title="المقاسات">
         <p className="muted small">إضافة مقاس هنا لا تضيفه للمنتج: أضفه أيضًا في خيارات المنتج على EasyOrders.</p>
         {form.sizes.map((s, i) => (
@@ -145,9 +169,22 @@ export function SizeGuidePage() {
         </Button>
         {input('مساحة الراحة (مم)', form.margin, (v) => update((f) => { f.margin = num(v); }), { type: 'number', min: 0, max: 40 })}
       </Card>
+</> },
+          { key: 'models', label: 'الموديلات', content: <>
+      <Button variant="secondary" onClick={addModel}>
+        إضافة موديل
+      </Button>
 
-      {form.models.map((m, i) => (
-        <Card key={m.id} title={`${m.name}${m.sub ? ` — ${m.sub}` : ''}`}>
+          {form.models.length > 0 && (
+            <PageTabs
+              label="الموديلات"
+              param="model"
+              level={2}
+              tabs={form.models.map((m, i) => ({
+                key: m.id,
+                label: `${m.name}${m.sub ? ` — ${m.sub}` : ''}${m.visible ? '' : ' (مخفي)'}`,
+                content: (
+        <Card title={`${m.name}${m.sub ? ` — ${m.sub}` : ''}`}>
           <label className="checkbox">
             <input type="checkbox" checked={m.visible} onChange={(e) => update((f) => { f.models[i].visible = e.target.checked; })} />
             ظاهر على الموقع
@@ -189,22 +226,22 @@ export function SizeGuidePage() {
             </Button>
           </div>
         </Card>
-      ))}
-      <Button variant="secondary" onClick={addModel}>
-        إضافة موديل
-      </Button>
-
-      <Card title="النصوص">
-        {TEXTS.map(([key, label, long]) => (
-          <Field key={key} label={label}>
-            {(id) => {
-              const Tag = long ? 'textarea' : 'input';
-              return (
-                <Tag id={id} className="input" rows={long ? 3 : undefined} value={form.texts[key]} onChange={(e) => update((f) => { f.texts[key] = e.target.value; })} />
-              );
-            }}
-          </Field>
-        ))}
+                ),
+              }))}
+            />
+          )}
+        </> },
+          { key: 'texts', label: 'النصوص', content: (
+          <PageTabs
+            label="النصوص"
+            param="text"
+            level={2}
+            tabs={[
+              { key: 'hero', label: 'أعلى الصفحة', content: <Card>
+              {textFields(['heroTitle', 'heroAccent', 'heroText', 'inputLabel', 'inputHint', 'button'])}
+            </Card> },
+              { key: 'how', label: 'طريقة القياس', content: <Card>
+              {textFields(['howTitle', 'tip'])}
         {form.texts.steps.map((step, i) => (
           <div key={i}>
             {input(`خطوة القياس ${i + 1}`, step, (v) => update((f) => { f.texts.steps[i] = v; }))}
@@ -218,7 +255,21 @@ export function SizeGuidePage() {
             إضافة خطوة
           </Button>
         )}
-      </Card>
+            </Card> },
+              { key: 'table', label: 'الجدول', content: <Card>
+              {textFields(['colFoot', 'colInsole', 'colSize'])}
+            </Card> },
+              { key: 'why', label: 'مساحة الراحة والرسم', content: <Card>
+              {textFields(['whyTitle', 'whyText', 'caption1', 'caption2', 'caption3'])}
+            </Card> },
+              { key: 'product', label: 'صفحة المنتج', content: <Card>
+              {textFields(['ctaText', 'ctaButton'])}
+            </Card> },
+            ]}
+          />
+        ) },
+        ]}
+      />
 
       <div className="sticky-actions">
         <Button onClick={save} loading={saving} disabled={!dirty} size="lg">

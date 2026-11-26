@@ -1,3 +1,4 @@
+import { PageTabs } from '../../components/PageTabs.jsx';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button, Card, DefinitionList, Field, Modal, PageHeader, Pagination, StatCard } from '../../components/ui.jsx';
@@ -313,6 +314,14 @@ export function CashPage() {
             <StatCard label="الفروقات" value={formatMoney(o.discrepancy)} tone={o.discrepancy ? 'danger' : 'neutral'} />
             <StatCard label="المتبقي دون تسوية" value={formatMoney(o.outstanding)} tone="warning" />
           </div>
+        </>
+      )}
+
+      <PageTabs
+        label="النقدية"
+        initial={params.get('courier') || params.get('status') ? 'log' : undefined}
+        tabs={[
+          { key: 'pending', label: 'لم تُسلّم بعد', content: o ? (
           <Card title="نقدية لم تُسلّم بعد (حسب المندوب)">
             {!o.perCourier.length ? <EmptyState title="لا توجد نقدية معلقة لدى المندوبين" /> : (
               <ul className="simple-list">
@@ -325,9 +334,8 @@ export function CashPage() {
               </ul>
             )}
           </Card>
-        </>
-      )}
-
+        ) : null },
+          { key: 'log', label: 'سجل التسويات', content: <>
       <Card title="سجل التسويات" padded={false}>
         <div className="filters filters--inset">
           <select className="input" aria-label="المندوب" value={courier} onChange={(e) => update('courier', e.target.value)}>
@@ -365,6 +373,9 @@ export function CashPage() {
         )}
         <Pagination pagination={list.data?.pagination} onPage={(p) => update('page', String(p))} />
       </Card>
+</> },
+        ]}
+      />
 
       <CreateRemittanceModal
         open={createOpen}

@@ -1,3 +1,4 @@
+import { PageTabs } from '../../components/PageTabs.jsx';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Badge, Button, Card, ConfirmDialog, DefinitionList, Field, Modal, PageHeader, StatCard } from '../../components/ui.jsx';
@@ -113,6 +114,10 @@ export function CourierDetailPage() {
         </Card>
       </div>
 
+      <PageTabs
+        label="تفاصيل المندوب"
+        tabs={[
+          { key: 'orders', label: 'الطلبات الحالية', content: <>
       <Card title={`الطلبات الحالية (${activeOrders.length})`}>
         {!activeOrders.length ? (
           <EmptyState title="لا توجد طلبات مفتوحة" />
@@ -136,6 +141,8 @@ export function CourierDetailPage() {
         )}
       </Card>
 
+</> },
+          { key: 'deliveries', label: 'سجل التسليم', content: <>
       <Card title="سجل التسليم">
         {!recentReviews.length ? (
           <EmptyState title="لا توجد تقارير تسليم" />
@@ -155,9 +162,15 @@ export function CourierDetailPage() {
         )}
       </Card>
 
+</> },
+          { key: 'account', label: 'سجل الحساب', content: <>
       <Card title="سجل الحساب">
         {events.data ? <Timeline events={events.data.items} /> : <LoadingState />}
       </Card>
+
+</> },
+        ]}
+      />
 
       <Modal open={editOpen} title="تعديل بيانات المندوب" onClose={() => setEditOpen(false)}
         footer={<><Button variant="secondary" onClick={() => setEditOpen(false)} disabled={saving}>إلغاء</Button><Button loading={saving} onClick={save}>حفظ</Button></>}>

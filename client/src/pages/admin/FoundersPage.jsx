@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { useState } from 'react';
 import { Badge, Button, Card, PageHeader } from '../../components/ui.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
@@ -88,6 +90,7 @@ function FounderRow({ founder, onSaved }) {
 }
 
 export function FoundersPage() {
+  const perms = usePermissions();
   const { data, error, loading, reload } = useAsync(() => api.get('/admin/founders'), []);
   const s = data?.summary;
 
@@ -96,6 +99,7 @@ export function FoundersPage() {
       <PageHeader
         title="أوائل سوليتا"
         subtitle="أول العملاء الذين تم تسليم طلبهم. يُعطى الرقم تلقائيًا عند الموافقة على التسليم. أنشئ لكل مؤسس كوبونين في EasyOrders (للمؤسس ولصاحبه) وسجّل الكودين هنا، والنسبة والحد الأقصى من «إعدادات الموقع»."
+        actions={perms.can('siteSettings') && <Link className="btn btn--secondary" to="/admin/site-settings?tab=founders">إعدادات المؤسسين</Link>}
       />
       {s ? (
         <Card>

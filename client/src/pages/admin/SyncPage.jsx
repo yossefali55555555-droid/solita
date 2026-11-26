@@ -1,3 +1,4 @@
+import { PageTabs } from '../../components/PageTabs.jsx';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge, Button, Card, PageHeader, Pagination } from '../../components/ui.jsx';
@@ -101,8 +102,10 @@ export function SyncPage() {
         actions={<Button variant="secondary" loading={processing} onClick={processDue}>معالجة العمليات المستحقة الآن</Button>}
       />
 
-      <InitDatabaseCard />
-
+      <PageTabs
+        label="المزامنة"
+        tabs={[
+          { key: 'status', label: 'تحديثات الحالة', content: <>
       <Card title="تحديثات الحالة المرسلة إلى EasyOrders" padded={false}>
         {loading && !data ? (
           <LoadingState />
@@ -153,7 +156,8 @@ export function SyncPage() {
         )}
         <Pagination pagination={data?.pagination} onPage={setPage} />
       </Card>
-
+</> },
+          { key: 'webhooks', label: 'أحداث Webhook', content: <>
       <Card title="أحداث Webhook الواردة غير المعالجة" padded={false}>
         {!data?.webhooks?.length ? (
           <EmptyState title="لا توجد أحداث معلقة" />
@@ -182,6 +186,12 @@ export function SyncPage() {
           </div>
         )}
       </Card>
+</> },
+          { key: 'db', label: 'قاعدة البيانات', content: <InitDatabaseCard /> },
+        ]}
+      />
+
+
     </>
   );
 }
