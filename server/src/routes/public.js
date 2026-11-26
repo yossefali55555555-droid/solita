@@ -63,6 +63,7 @@ export function buildPublicRouter() {
   };
 
   r.get('/site-config', publicConfigRateLimiter(), pub.getSiteConfig);
+  r.get('/size-guide', publicConfigRateLimiter(), pub.getPublicSizeGuide);
   r.post(
     '/events',
     requireStorefrontOrigin,

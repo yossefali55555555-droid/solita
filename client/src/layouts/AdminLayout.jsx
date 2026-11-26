@@ -24,6 +24,7 @@ const NAV = [
   { to: '/admin/founders', label: 'أوائل سوليتا', section: 'founders' },
   { to: '/admin/sync', label: 'المزامنة مع EasyOrders', section: 'sync' },
   { to: '/admin/site-settings', label: 'إعدادات الموقع', section: 'siteSettings' },
+  { to: '/admin/size-guide', label: 'صفحة المقاسات', section: 'siteSettings' },
   { to: '/admin/security', label: 'الأمان والتنبيهات', adminOnly: true },
 ];
 

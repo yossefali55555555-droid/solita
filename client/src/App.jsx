@@ -29,6 +29,7 @@ import { PageTimePage } from './pages/admin/PageTimePage.jsx';
 import { FoundersPage } from './pages/admin/FoundersPage.jsx';
 import { CouponsPage } from './pages/admin/CouponsPage.jsx';
 import { SiteSettingsPage } from './pages/admin/SiteSettingsPage.jsx';
+import { SizeGuidePage } from './pages/admin/SizeGuidePage.jsx';
 import { SecurityPage } from './pages/admin/SecurityPage.jsx';
 import { StepUpPrompt } from './features/auth/StepUpPrompt.jsx';
 import { CourierOrdersPage } from './pages/courier/CourierOrdersPage.jsx';
@@ -96,6 +97,7 @@ export function App() {
         <Route path="founders" element={guard('founders', <FoundersPage />)} />
         <Route path="coupons" element={guard('coupons', <CouponsPage />)} />
         <Route path="site-settings" element={guard('siteSettings', <SiteSettingsPage />)} />
+        <Route path="size-guide" element={guard('siteSettings', <SizeGuidePage />)} />
         <Route path="security" element={<SecurityPage />} />
       </Route>
       <Route

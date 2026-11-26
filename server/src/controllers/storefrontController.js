@@ -2,6 +2,7 @@ import { paginated, paginationParams } from '../utils/pagination.js';
 import * as storefront from '../services/storefrontService.js';
 import * as founders from '../services/founderService.js';
 import * as siteSettings from '../services/siteSettingsService.js';
+import * as sizeGuide from '../services/sizeGuideService.js';
 import * as pageStats from '../services/pageStatService.js';
 import * as missed from '../services/missedOrderService.js';
 import { recordEvent, userActor } from '../services/auditService.js';
@@ -33,6 +34,15 @@ export async function listFounders(req, res) {
 
 export async function updateFounder(req, res) {
   res.json({ founder: await founders.updateFounder(req.valid.params.id, req.valid.body) });
+}
+
+// ---------- Size guide ----------
+export async function getSizeGuide(_req, res) {
+  res.json(await sizeGuide.getSizeGuide());
+}
+
+export async function updateSizeGuide(req, res) {
+  res.json(await sizeGuide.updateSizeGuide(req.user, req.valid.body));
 }
 
 // ---------- Site settings ----------

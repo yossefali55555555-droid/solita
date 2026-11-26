@@ -12,6 +12,7 @@ import * as storefront from '../controllers/storefrontController.js';
 import { pageStatsQuery, importMissedBody, listMissedQuery, updateMissedBody, bulkMissedBody, addCouponsBody, assignCouponBody, couponDatesBody, couponSettingsBody, importCouponsBody, listCartsQuery, updateFounderBody } from '../validators/storefront.js';
 import * as couponCtl from '../controllers/couponController.js';
 import { siteSettingsSchema } from '../validators/siteSettings.js';
+import { sizeGuideSchema } from '../validators/sizeGuide.js';
 import { adminOnly, requirePermission, staffRouter, tagRouter } from '../middleware/permissions.js';
 import { STAFF_ROLES } from '../constants/statuses.js';
 
@@ -161,6 +162,8 @@ export function buildRouter() {
   a.post('/orders/:id/confirmation-sent', requirePermission('orders', 'edit', { fields: ['customerPhone'] }), id, couponCtl.orderConfirmationSent);
   a.get('/founders', requirePermission('founders', 'view'), storefront.listFounders);
   a.patch('/founders/:id', requirePermission('founders', 'edit'), validate({ params: idParams, body: updateFounderBody }), storefront.updateFounder);
+  a.get('/size-guide', requirePermission('siteSettings', 'view'), storefront.getSizeGuide);
+  a.patch('/size-guide', requirePermission('siteSettings', 'edit'), validate({ body: sizeGuideSchema }), storefront.updateSizeGuide);
   a.get('/site-settings', requirePermission('siteSettings', 'view'), storefront.getSiteSettings);
   a.patch('/site-settings', requirePermission('siteSettings', 'edit'), validate({ body: siteSettingsSchema }), storefront.updateSiteSettings);
   api.use('/admin', a);
