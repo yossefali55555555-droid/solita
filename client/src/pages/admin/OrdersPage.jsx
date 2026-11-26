@@ -16,10 +16,25 @@ import { CustomerRiskBadge } from '../../features/orders/OrderInsights.jsx';
 
 const FILTER_KEYS = ['q', 'sourceStatus', 'deliveryStatus', 'courier', 'syncState', 'cleared', 'test', 'unconfirmed', 'couponFlagged', 'from', 'to', 'page'];
 
+/** One-tap views over the same list; the detailed filters stay below. */
+const QUICK_FILTERS = [
+  { label: 'الكل', params: {} },
+  { label: 'جديد', params: { deliveryStatus: 'new' } },
+  { label: 'من غير مندوب', params: { courier: 'unassigned' } },
+  { label: 'خرج للتوصيل', params: { deliveryStatus: 'out_for_delivery' } },
+  { label: 'تم التسليم', params: { deliveryStatus: 'delivered' } },
+];
+
 export function OrdersPage() {
   const [params, setParams] = useSearchParams();
   const filters = Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) || '']));
   const [search, setSearch] = useState(filters.q);
+  // The dashboard-wide search can change ?q= while this page is already open.
+  const [urlQ, setUrlQ] = useState(filters.q);
+  if (filters.q !== urlQ) {
+    setUrlQ(filters.q);
+    if (filters.q !== search) setSearch(filters.q);
+  }
   const debouncedSearch = useDebouncedValue(search);
 
   const query = {
@@ -123,6 +138,12 @@ export function OrdersPage() {
   const bulkNeedsReason = bulk && ['cancel', 'reopen'].includes(bulk.action);
   const bulkReady = bulk && (bulk.action !== 'assign' || bulk.courierId) && (!bulkNeedsReason || (bulk.reason || '').trim().length >= 3);
 
+  // A quick view is lit only when the filters are exactly its own (search and paging aside).
+  const set = FILTER_KEYS.filter((k) => !['q', 'page'].includes(k) && filters[k]);
+  const activeQuick = QUICK_FILTERS.find(
+    (f) => set.length === Object.keys(f.params).length && set.every((k) => f.params[k] === filters[k]),
+  );
+
   const update = (k, v) => {
     const next = new URLSearchParams(params);
     if (v) next.set(k, v);
@@ -166,9 +187,15 @@ export function OrdersPage() {
         <p><strong>لن يتم حذف أي طلب من قاعدة البيانات</strong>، ويمكنك عرضها أو استرجاعها في أي وقت. الطلبات الجديدة من EasyOrders ستظهر بشكل طبيعي، وصفحات المندوبين والنقدية لا تتأثر.</p>
       </ConfirmWordModal>
       <div className="tabs" role="tablist">
-        <Button variant={!filters.unconfirmed && !filters.couponFlagged ? 'primary' : 'secondary'} onClick={() => setParams({}, { replace: true })}>
-          كل الطلبات
-        </Button>
+        {QUICK_FILTERS.map((f) => (
+          <Button
+            key={f.label}
+            variant={activeQuick === f ? 'primary' : 'secondary'}
+            onClick={() => setParams(f.params, { replace: true })}
+          >
+            {f.label}
+          </Button>
+        ))}
         <Button variant={filters.unconfirmed ? 'primary' : 'secondary'} onClick={() => setParams({ unconfirmed: 'true' }, { replace: true })}>
           غير مؤكدة (قيد المراجعة){unconfirmedCount.data ? ` · ${unconfirmedCount.data.pagination?.total ?? 0}` : ''}
         </Button>
