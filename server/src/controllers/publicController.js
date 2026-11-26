@@ -1,10 +1,18 @@
 import { ingestEvents } from '../services/storefrontService.js';
 import { getPublicSiteConfig } from '../services/siteSettingsService.js';
+import { getSizeGuide } from '../services/sizeGuideService.js';
 
 // POST /api/public/events
 export async function postEvents(req, res) {
   const result = await ingestEvents(req.valid.body);
   res.status(202).json({ ok: true, ...result });
+}
+
+// GET /api/public/size-guide
+export async function getPublicSizeGuide(_req, res) {
+  const { guide, revision } = await getSizeGuide();
+  res.set('Cache-Control', 'public, max-age=60, s-maxage=60');
+  res.json({ revision, guide });
 }
 
 // GET /api/public/site-config

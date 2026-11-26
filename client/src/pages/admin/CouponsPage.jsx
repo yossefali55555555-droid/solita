@@ -1,3 +1,4 @@
+import { PageTabs } from '../../components/PageTabs.jsx';
 import { useState } from 'react';
 import { usePermissions } from '../../features/auth/permissions.js';
 import { Link } from 'react-router-dom';
@@ -163,99 +164,10 @@ export function CouponsPage() {
         </Card>
       ) : null}
 
-      <Card title="محاولات استخدام غير ناجحة">
-        {attempts.data?.items?.length ? (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>الوقت</th>
-                  <th>الكود</th>
-                  <th>الرقم اللي كتبه</th>
-                  <th>صاحب الكود</th>
-                  <th>السبب</th>
-                  <th>بيانات الزائر</th>
-                </tr>
-              </thead>
-              <tbody>
-                {attempts.data.items.map((a) => (
-                  <tr key={a._id}>
-                    <td className="nowrap muted">{formatDateTime(a.createdAt)}</td>
-                    <td className="mono" dir="ltr">
-                      {a.code.toUpperCase()}
-                    </td>
-                    <td dir="ltr" className="mono">
-                      {a.phoneTyped || '—'}
-                      {a.name ? <div className="muted small">{a.name}</div> : null}
-                    </td>
-                    <td>
-                      {a.ownerName || '—'}
-                      {a.ownerPhone ? (
-                        <div className="muted small mono" dir="ltr">
-                          {a.ownerPhone}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td>
-                      <Badge tone="danger">{REASONS[a.reason] || a.reason}</Badge>
-                      <div className="muted small">{a.stage === 'submit' ? 'عند تأكيد الطلب' : 'عند تطبيق الكود'}</div>
-                    </td>
-                    <td>
-                      {a.visitorContact ? (
-                        <>
-                          {a.visitorContact.name || '—'}
-                          <div className="muted small mono" dir="ltr">
-                            {a.visitorContact.phone || ''}
-                          </div>
-                        </>
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="muted small">لسه محدش حاول يستخدم كود مش بتاعه. أي محاولة هتظهر هنا وهتجيلك إشعار.</p>
-        )}
-      </Card>
-
-      {data?.flagged?.length ? (
-        <Card title="طلبات وصلت بكود غير مطابق">
-          <ul className="simple-list">
-            {data.flagged.map((o) => (
-              <li key={o._id}>
-                <Link to={`/admin/orders/${o._id}`} className="link mono">
-                  {orderNumber(o)}
-                </Link>{' '}
-                · {o.customer?.name || '—'} · <span dir="ltr">{String(o.couponCode).toUpperCase()}</span>{' '}
-                <Badge tone="danger">{REASONS[o.couponFlag?.reason] || 'غير مطابق'}</Badge>
-              </li>
-            ))}
-          </ul>
-          <p className="muted small">الطلب اتسجل في EasyOrders بالخصم. راجعه قبل التجهيز، وعدّل المبلغ أو ألغِ الطلب لو لزم.</p>
-        </Card>
-      ) : null}
-
-      <Card title="استيراد كوبونات EasyOrders">
-        <p className="muted small">
-          الصق قايمة الكوبونات (JSON) اللي طلعت من زرار المزامنة أو من الملف الجاهز. بيستورد كل الإعدادات كاملة، والأكواد اللي بتبدأ بـ ST30- بتتربط بالعملاء تلقائيًا، والباقي (زي كود داخلي أو تجريبي) بيفضل لـ EasyOrders لحد ما تربطه.
-        </p>
-        <textarea className="input" rows={3} dir="ltr" placeholder='[{"code":"ST30-A7K2", ...}]' value={importText} onChange={(e) => setImportText(e.target.value)} />
-        <Button loading={busy} disabled={!importText.trim()} onClick={importCoupons}>
-          استيراد
-        </Button>
-      </Card>
-
-      <Card title="إضافة أكواد (بالاسم بس)">
-        <textarea className="input" rows={2} dir="ltr" placeholder="ST30-A7K2, ST30-B6R5 ... (افصل بمسافة أو فاصلة)" value={codes} onChange={(e) => setCodes(e.target.value)} />
-        <Button loading={busy} disabled={!codes.trim()} onClick={add}>
-          إضافة
-        </Button>
-      </Card>
-
+      <PageTabs
+        label="الكوبونات"
+        tabs={[
+          { key: 'codes', label: 'الأكواد', content: <>
       <Card padded={false}>
         {loading && !data ? (
           <LoadingState />
@@ -447,6 +359,106 @@ export function CouponsPage() {
           </div>
         )}
       </Card>
+</> },
+          { key: 'add', label: 'إضافة واستيراد', content: <>
+      <Card title="استيراد كوبونات EasyOrders">
+        <p className="muted small">
+          الصق قايمة الكوبونات (JSON) اللي طلعت من زرار المزامنة أو من الملف الجاهز. بيستورد كل الإعدادات كاملة، والأكواد اللي بتبدأ بـ ST30- بتتربط بالعملاء تلقائيًا، والباقي (زي كود داخلي أو تجريبي) بيفضل لـ EasyOrders لحد ما تربطه.
+        </p>
+        <textarea className="input" rows={3} dir="ltr" placeholder='[{"code":"ST30-A7K2", ...}]' value={importText} onChange={(e) => setImportText(e.target.value)} />
+        <Button loading={busy} disabled={!importText.trim()} onClick={importCoupons}>
+          استيراد
+        </Button>
+      </Card>
+
+      <Card title="إضافة أكواد (بالاسم بس)">
+        <textarea className="input" rows={2} dir="ltr" placeholder="ST30-A7K2, ST30-B6R5 ... (افصل بمسافة أو فاصلة)" value={codes} onChange={(e) => setCodes(e.target.value)} />
+        <Button loading={busy} disabled={!codes.trim()} onClick={add}>
+          إضافة
+        </Button>
+      </Card>
+
+</> },
+          { key: 'problems', label: 'المشاكل', content: <>
+      <Card title="محاولات استخدام غير ناجحة">
+        {attempts.data?.items?.length ? (
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>الوقت</th>
+                  <th>الكود</th>
+                  <th>الرقم اللي كتبه</th>
+                  <th>صاحب الكود</th>
+                  <th>السبب</th>
+                  <th>بيانات الزائر</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attempts.data.items.map((a) => (
+                  <tr key={a._id}>
+                    <td className="nowrap muted">{formatDateTime(a.createdAt)}</td>
+                    <td className="mono" dir="ltr">
+                      {a.code.toUpperCase()}
+                    </td>
+                    <td dir="ltr" className="mono">
+                      {a.phoneTyped || '—'}
+                      {a.name ? <div className="muted small">{a.name}</div> : null}
+                    </td>
+                    <td>
+                      {a.ownerName || '—'}
+                      {a.ownerPhone ? (
+                        <div className="muted small mono" dir="ltr">
+                          {a.ownerPhone}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td>
+                      <Badge tone="danger">{REASONS[a.reason] || a.reason}</Badge>
+                      <div className="muted small">{a.stage === 'submit' ? 'عند تأكيد الطلب' : 'عند تطبيق الكود'}</div>
+                    </td>
+                    <td>
+                      {a.visitorContact ? (
+                        <>
+                          {a.visitorContact.name || '—'}
+                          <div className="muted small mono" dir="ltr">
+                            {a.visitorContact.phone || ''}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="muted small">لسه محدش حاول يستخدم كود مش بتاعه. أي محاولة هتظهر هنا وهتجيلك إشعار.</p>
+        )}
+      </Card>
+
+      {data?.flagged?.length ? (
+        <Card title="طلبات وصلت بكود غير مطابق">
+          <ul className="simple-list">
+            {data.flagged.map((o) => (
+              <li key={o._id}>
+                <Link to={`/admin/orders/${o._id}`} className="link mono">
+                  {orderNumber(o)}
+                </Link>{' '}
+                · {o.customer?.name || '—'} · <span dir="ltr">{String(o.couponCode).toUpperCase()}</span>{' '}
+                <Badge tone="danger">{REASONS[o.couponFlag?.reason] || 'غير مطابق'}</Badge>
+              </li>
+            ))}
+          </ul>
+          <p className="muted small">الطلب اتسجل في EasyOrders بالخصم. راجعه قبل التجهيز، وعدّل المبلغ أو ألغِ الطلب لو لزم.</p>
+        </Card>
+      ) : null}
+
+</> },
+        ]}
+      />
     </>
   );
 }

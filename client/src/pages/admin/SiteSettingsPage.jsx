@@ -1,3 +1,4 @@
+import { PageTabs } from '../../components/PageTabs.jsx';
 import { useState } from 'react';
 import { Button, Card, Field, PageHeader } from '../../components/ui.jsx';
 import { ErrorState, LoadingState } from '../../components/States.jsx';
@@ -162,6 +163,10 @@ export function SiteSettingsPage() {
         </div>
       )}
 
+      <PageTabs
+        label="أقسام إعدادات الموقع"
+        tabs={[
+          { key: 'general', label: 'عام', content: <>
       <Card title="تشغيل وإيقاف">
         {TOGGLES.map(([key, label]) => (
           <Toggle key={key} checked={form.toggles[key]} onChange={set(['toggles', key])}>
@@ -169,7 +174,14 @@ export function SiteSettingsPage() {
           </Toggle>
         ))}
       </Card>
-
+</> },
+          { key: 'products', label: 'المنتجات', content: (
+          <PageTabs
+            label="المنتجات"
+            param="products"
+            level={2}
+            tabs={[
+              { key: 'shelf', label: 'الرفوف', content: <>
       <Card title="الرفوف">
         <p className="muted small">
           لكل رف حذاء أساسي، وبعده البدائل بالترتيب. إذا نفد الأساسي يظهر أول بديل متوفر. اكتب رمز المنتج (SKU) كما هو في EasyOrders، وافصل البدائل بفاصلة.
@@ -207,7 +219,8 @@ export function SiteSettingsPage() {
           </div>
         ))}
       </Card>
-
+</> },
+              { key: 'cards', label: 'الكروت والمقترحات', content: <>
       <Card title="الكروت والمقترحات">
         <div className="inline-form">
           <Field label="سرعة الكروت">
@@ -252,44 +265,36 @@ export function SiteSettingsPage() {
           </Field>
         </div>
       </Card>
-
-      <Card title="أوائل سوليتا">
-        <p className="muted small">
-          عدد المؤسسين الأقصى، ومتى يظهر عداد «باقي X من {form.founders.cap}» على الموقع (لا يظهر قبل هذا العدد حتى لا يبدو واقفًا). الأرقام الفعلية في صفحة «أوائل سوليتا».
-        </p>
-        <Toggle checked={form.founders.enabled} onChange={set(['founders', 'enabled'])}>
-          تفعيل ترقيم المؤسسين
+</> },
+            ]}
+          />
+        ) },
+          { key: 'offers', label: 'العروض والسلة', content: (
+          <PageTabs
+            label="العروض والسلة"
+            param="offers"
+            level={2}
+            tabs={[
+              { key: 'bar', label: 'شريط العروض', content: <>
+      <Card title="شريط العروض أعلى الموقع">
+        <Toggle checked={form.announcement.enabled} onChange={set(['announcement', 'enabled'])}>
+          إظهار الشريط
         </Toggle>
-        <div className="inline-form">
-          <Field label="الحد الأقصى للمؤسسين">
-            {(id) => (
-              <input
-                id={id}
-                className="input"
-                type="number"
-                min={1}
-                max={500}
-                value={form.founders.cap}
-                onChange={(e) => set(['founders', 'cap'])(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
-              />
-            )}
-          </Field>
-          <Field label="إظهار العداد بعد كم مؤسس">
-            {(id) => (
-              <input
-                id={id}
-                className="input"
-                type="number"
-                min={0}
-                max={500}
-                value={form.founders.showCounterAfter}
-                onChange={(e) => set(['founders', 'showCounterAfter'])(Math.max(0, Math.min(500, Number(e.target.value) || 0)))}
-              />
-            )}
-          </Field>
-        </div>
+        <LocalizedInput label="النص" value={form.announcement.text} onChange={set(['announcement', 'text'])} />
+        <Field label="الرابط (اختياري)" hint="مثال: /collections/sneakers-for-men أو رابط يبدأ بـ https://">
+          {(id) => (
+            <input
+              id={id}
+              className="input mono"
+              dir="ltr"
+              value={form.announcement.link}
+              onChange={(e) => set(['announcement', 'link'])(e.target.value)}
+            />
+          )}
+        </Field>
       </Card>
-
+</> },
+              { key: 'cart', label: 'رسائل السلة', content: <>
       <Card title="رسائل السلة">
         <p className="muted small">
           عندما يعود زائر وفي سلته منتجات، تظهر له رسالة واحدة في كل زيارة بالترتيب: الزيارة الأولى الرسالة الأولى، ثم الثانية، وهكذا.
@@ -333,25 +338,17 @@ export function SiteSettingsPage() {
           </Button>
         )}
       </Card>
-
-      <Card title="شريط العروض أعلى الموقع">
-        <Toggle checked={form.announcement.enabled} onChange={set(['announcement', 'enabled'])}>
-          إظهار الشريط
-        </Toggle>
-        <LocalizedInput label="النص" value={form.announcement.text} onChange={set(['announcement', 'text'])} />
-        <Field label="الرابط (اختياري)" hint="مثال: /collections/sneakers-for-men أو رابط يبدأ بـ https://">
-          {(id) => (
-            <input
-              id={id}
-              className="input mono"
-              dir="ltr"
-              value={form.announcement.link}
-              onChange={(e) => set(['announcement', 'link'])(e.target.value)}
-            />
-          )}
-        </Field>
-      </Card>
-
+</> },
+            ]}
+          />
+        ) },
+          { key: 'texts', label: 'نصوص الموقع', content: (
+          <PageTabs
+            label="نصوص الموقع"
+            param="texts"
+            level={2}
+            tabs={[
+              { key: 'features', label: 'المميزات', content: <>
       <Card title="نصوص المميزات">
         {FEATURES.map(([key, label]) => (
           <fieldset className="checklist" key={key}>
@@ -361,12 +358,28 @@ export function SiteSettingsPage() {
           </fieldset>
         ))}
       </Card>
-
+</> },
+              { key: 'gift', label: 'الهدية', content: <>
       <Card title="الهدية مع الحذاء">
         <LocalizedInput label="العنوان" value={form.gift.title} onChange={set(['gift', 'title'])} />
         <LocalizedInput label="الوصف" value={form.gift.text} onChange={set(['gift', 'text'])} />
       </Card>
-
+</> },
+              { key: 'delivery', label: 'مدة التوصيل', content: <>
+      <Card title="مدة التوصيل">
+        <LocalizedInput label="النص المكتوب على الموقع" multiline value={form.delivery.text} onChange={set(['delivery', 'text'])} />
+      </Card>
+</> },
+            ]}
+          />
+        ) },
+          { key: 'whatsapp', label: 'واتساب', content: (
+          <PageTabs
+            label="واتساب"
+            param="wa"
+            level={2}
+            tabs={[
+              { key: 'site', label: 'على الموقع', content: <>
       <Card title="واتساب">
         <Field label="حساب أو رقم واتساب الظاهر على الموقع">
           {(id) => (
@@ -393,11 +406,8 @@ export function SiteSettingsPage() {
           onChange={set(['whatsapp', 'generalMessage'])}
         />
       </Card>
-
-      <Card title="مدة التوصيل">
-        <LocalizedInput label="النص المكتوب على الموقع" multiline value={form.delivery.text} onChange={set(['delivery', 'text'])} />
-      </Card>
-
+</> },
+              { key: 'carts', label: 'السلات المتروكة', content: <>
       <Card title="رسالة واتساب للسلات المتروكة (داخل اللوحة فقط)">
         {!perms.isAdmin && <p className="muted small">نصوص واتساب الجاهزة يعدّلها الأدمن فقط.</p>}
         <Field label="نص الرسالة" hint="{name} الاسم الأول، {items} المنتجات والمقاسات، {total} الإجمالي. لا تظهر على الموقع.">
@@ -413,7 +423,8 @@ export function SiteSettingsPage() {
           )}
         </Field>
       </Card>
-
+</> },
+              { key: 'orders', label: 'رسائل الطلبات', content: <>
       <Card title="رسائل واتساب الطلبات">
         <p className="muted small">
           النصوص اللي بتتبعت من صفحة «الطلبات». المتغيرات: {'{name}'} الاسم الأول، {'{code}'} كود الخصم، {'{store}'} رابط المتجر، {'{num}'} رقم الطلب، {'{items}'} المنتجات والمقاسات، {'{total}'} الإجمالي، {'{payment}'} طريقة الدفع (بتتغير حسب الدفع الفعلي)، {'{address}'} العنوان. سطر القياس اكتبه في الرسالة نفسها.
@@ -443,6 +454,50 @@ export function SiteSettingsPage() {
           )}
         </Field>
       </Card>
+</> },
+            ]}
+          />
+        ) },
+          { key: 'founders', label: 'أوائل سوليتا', content: <>
+      <Card title="أوائل سوليتا">
+        <p className="muted small">
+          عدد المؤسسين الأقصى، ومتى يظهر عداد «باقي X من {form.founders.cap}» على الموقع (لا يظهر قبل هذا العدد حتى لا يبدو واقفًا). الأرقام الفعلية في صفحة «أوائل سوليتا».
+        </p>
+        <Toggle checked={form.founders.enabled} onChange={set(['founders', 'enabled'])}>
+          تفعيل ترقيم المؤسسين
+        </Toggle>
+        <div className="inline-form">
+          <Field label="الحد الأقصى للمؤسسين">
+            {(id) => (
+              <input
+                id={id}
+                className="input"
+                type="number"
+                min={1}
+                max={500}
+                value={form.founders.cap}
+                onChange={(e) => set(['founders', 'cap'])(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
+              />
+            )}
+          </Field>
+          <Field label="إظهار العداد بعد كم مؤسس">
+            {(id) => (
+              <input
+                id={id}
+                className="input"
+                type="number"
+                min={0}
+                max={500}
+                value={form.founders.showCounterAfter}
+                onChange={(e) => set(['founders', 'showCounterAfter'])(Math.max(0, Math.min(500, Number(e.target.value) || 0)))}
+              />
+            )}
+          </Field>
+        </div>
+      </Card>
+</> },
+        ]}
+      />
 
       <div className="sticky-actions">
         <Button onClick={save} loading={saving} disabled={!dirty} size="lg">

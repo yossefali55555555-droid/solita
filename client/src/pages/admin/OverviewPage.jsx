@@ -1,3 +1,6 @@
+import { usePermissions } from '../../features/auth/permissions.js';
+import { PageTabs } from '../../components/PageTabs.jsx';
+import { NeedsYou } from '../../features/home/NeedsYou.jsx';
 import { Badge, Card, PageHeader, StatCard } from '../../components/ui.jsx';
 import { ErrorState, LoadingState } from '../../components/States.jsx';
 import { useAsync } from '../../hooks/useAsync.js';
@@ -16,6 +19,7 @@ function ReadinessRow({ ok, label, hint }) {
 }
 
 export function OverviewPage() {
+  const perms = usePermissions();
   const { data, error, loading, reload } = useAsync(() => api.get('/admin/overview'), []);
 
   if (loading && !data) return <LoadingState />;
@@ -26,10 +30,12 @@ export function OverviewPage() {
 
   return (
     <>
-      <PageHeader title="نظرة عامة" subtitle="أرقام فعلية من قاعدة البيانات" />
-      <VisitorBehaviourCard showLink />
-
-      {(o || sync || stats.pendingReviews !== undefined) && <h2 className="section-title">الطلبات والمراجعات</h2>}
+      <PageHeader title="الرئيسية" subtitle="الشغل المستنيك الأول، وبعده الأرقام" />
+      <NeedsYou stats={stats} />
+      <PageTabs
+        label="الأرقام"
+        tabs={[
+          (o || sync || stats.pendingReviews !== undefined) && { key: 'orders', label: 'الطلبات والمراجعات', content: <>
       {(o || sync || stats.pendingReviews !== undefined) && <div className="stats-grid">
         {o && <StatCard label="إجمالي الطلبات" value={formatNumber(o.total)} to="/admin/orders" />}
         {o && <StatCard label="طلبات جديدة" value={formatNumber(o.new)} to="/admin/orders?deliveryStatus=new" />}
@@ -50,15 +56,17 @@ export function OverviewPage() {
           />
         )}
       </div>}
-
-      {stats.cash && <h2 className="section-title">النقدية (الدفع عند الاستلام)</h2>}
+          </> },
+          stats.cash && { key: 'cash', label: 'النقدية', content: <>
       {stats.cash && <div className="stats-grid">
         <StatCard label="النقدية المتوقعة من التسليمات المعتمدة" value={formatMoney(stats.cash.expected)} to="/admin/cash" />
         <StatCard label="النقدية المُسلّمة للإدارة" value={formatMoney(stats.cash.handedOver)} tone="info" to="/admin/cash" />
         <StatCard label="المبالغ المتحقق منها" value={formatMoney(stats.cash.verified)} tone="success" to="/admin/cash" />
         <StatCard label="المتبقي دون تسوية" value={formatMoney(stats.cash.outstanding)} tone="warning" to="/admin/cash" />
       </div>}
-
+          </> },
+          perms.can('storefront') && { key: 'visitors', label: 'سلوك الزوار', content: <VisitorBehaviourCard showLink /> },
+          system && { key: 'system', label: 'جاهزية التكامل', content: <>
       {system && <Card title="جاهزية التكامل">
         <ul className="readiness">
           <ReadinessRow ok={!system.mockMode} label="قاعدة البيانات الحقيقية (MongoDB Atlas)" hint="الوضع التجريبي مفعل" />
@@ -68,6 +76,9 @@ export function OverviewPage() {
           <ReadinessRow ok={!system.sessionSecretEphemeral} label="SESSION_SECRET ثابت" hint="أضف SESSION_SECRET" />
         </ul>
       </Card>}
+          </> },
+        ]}
+      />
     </>
   );
 }
