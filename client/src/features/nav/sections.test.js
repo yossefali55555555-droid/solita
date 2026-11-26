@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { permissionsOf, ADMIN_PAGES } from '../auth/permissions.js';
-import { locate, NAV_SECTIONS, phoneNav, visibleNav } from './sections.js';
+import { locate, NAV_SECTIONS, phoneNav, sectionCount, tabCount, visibleNav } from './sections.js';
 
 const admin = permissionsOf({ role: 'admin' });
 const moderator = (sections) => permissionsOf({ role: 'moderator', permissions: { sections } });
@@ -47,5 +47,20 @@ describe('admin navigation', () => {
     const { bar, more } = phoneNav(visibleNav(admin));
     expect(keys(bar)).toEqual(['home', 'orders', 'couriers', 'money']);
     expect(keys(more)).toEqual(['customers', 'site', 'system']);
+  });
+
+  it('counts «لم تكتمل» from its pages and the print tab by itself', () => {
+    const counts = { missedOrders: 3, abandonedCarts: 2, labels: 5, reviews: 1, returns: 4 };
+    const orders = visibleNav(admin).find((s) => s.key === 'orders');
+    const tab = (label) => orders.tabs.find((t) => t.label === label);
+    expect(tabCount(tab('لم تكتمل'), counts)).toBe(5);
+    expect(tabCount(tab('الطباعة'), counts)).toBe(5);
+    expect(tabCount(tab('كل الطلبات'), counts)).toBe(0);
+    expect(sectionCount(orders, counts)).toBe(15);
+
+    // A moderator who sees only abandoned carts gets only that number.
+    const carts = visibleNav(moderator({ storefront: 'view' })).find((s) => s.key === 'orders');
+    expect(tabCount(carts.tabs[0], { abandonedCarts: 2 })).toBe(2);
+    expect(tabCount(carts.tabs[0], {})).toBe(0);
   });
 });
