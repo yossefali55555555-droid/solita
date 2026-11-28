@@ -39,14 +39,13 @@ describe('keyboard stays open while typing', () => {
 
   it('a silent reload does not unmount an input that lives next to the data', async () => {
     let calls = 0;
-    const handle = {};
     function Page() {
       const { data, loading, reload } = useAsync(async () => ({ n: ++calls }), []);
-      handle.reload = reload;
       const [q, setQ] = useState('');
       return (
         <div>
           <input aria-label="بحث" value={q} onChange={(e) => setQ(e.target.value)} />
+          <button onClick={() => reload({ silent: true })}>تحديث</button>
           {loading && !data ? <p>جاري التحميل</p> : <p>n={data?.n}</p>}
         </div>
       );
@@ -60,7 +59,7 @@ describe('keyboard stays open while typing', () => {
     input.focus();
     type(input, 'ab');
     await act(async () => {
-      await handle.reload({ silent: true });
+      fireEvent.click(screen.getByText('تحديث'));
     });
     type(input, 'abc');
     expect(input.isConnected).toBe(true);
