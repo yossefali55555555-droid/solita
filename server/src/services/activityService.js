@@ -18,8 +18,9 @@ const MAX_SENTENCE = 600;
 const DIGIT = '[0-9٠-٩]';
 // Egyptian mobile numbers in any common spelling (01x…, 201x…, +201x…, with spaces or dashes).
 const EG_MOBILE = new RegExp(`(?<!${DIGIT})(?:\\+?(?:00)?20[\\s-]?|0)?1[0125][\\s-]?${DIGIT}{4}[\\s-]?${DIGIT}{4}(?!${DIGIT})`, 'g');
-// Any other run of 9 or more digits (international numbers, ids typed by hand).
-const LONG_DIGITS = new RegExp(`\\+?${DIGIT}(?:[\\s-]?${DIGIT}){8,}`, 'g');
+// Any other run of 9 or more digits in a row (international numbers, ids typed by hand), or a number
+// written in groups of 3-4 digits (010 1234 5678). Dates and times (2026-11-28 04:36) are not touched.
+const LONG_DIGITS = new RegExp(`(?<!${DIGIT})\\+?${DIGIT}{9,}(?!${DIGIT})|(?<!${DIGIT})\\+?${DIGIT}{3,4}[\\s-]${DIGIT}{3,4}[\\s-]${DIGIT}{3,4}(?!${DIGIT})`, 'g');
 
 /** Replace phone-like numbers with a placeholder, then cut to a safe length. */
 export function scrubSentence(text, max = MAX_SENTENCE) {
@@ -52,6 +53,15 @@ export function clampState(value) {
   if (JSON.stringify(safe).length <= MAX_STATE_JSON) return safe;
   return { _truncated: true, keys: Object.keys(safe || {}).slice(0, 20) };
 }
+
+const CAIRO = { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' };
+/** Date and time in Cairo time as "2026-11-28 04:36" (what the owner sees on screen). */
+export function cairoDateTime(value) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', CAIRO).formatToParts(new Date(value)).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+}
+/** Date only in Cairo time as "2026-11-28". */
+export const cairoDate = (value) => cairoDateTime(value).slice(0, 10);
 
 export function groupOf(action) {
   const group = String(action).split('.')[0];

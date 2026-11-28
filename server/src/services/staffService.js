@@ -10,7 +10,7 @@ import { sha256 } from '../utils/sanitize.js';
 import { logger } from '../utils/logger.js';
 import { hashPassword } from './passwordService.js';
 import { raiseAlert } from './alertService.js';
-import { recordActivity } from './activityService.js';
+import { cairoDateTime, recordActivity } from './activityService.js';
 import { finishLogin } from './authService.js';
 import { deviceLabel } from '../utils/device.js';
 import { PermissionTemplate } from '../models/index.js';
@@ -24,7 +24,6 @@ import { diffPermissions, grantUntil, normalizePermissions, plainPermissions, su
  * accounts are managed here: the administrator and couriers are never touched.
  */
 
-const day = (d) => new Date(d).toISOString().slice(0, 16).replace('T', ' ');
 
 /** Run `fn(session)` in a transaction; falls back to plain writes where transactions do not exist (a local standalone mongod). */
 async function inTransaction(fn) {
@@ -36,7 +35,7 @@ async function inTransaction(fn) {
     });
     return result;
   } catch (err) {
-    if (err?.codeName === 'IllegalOperation' || /replica set|Transaction numbers/i.test(err?.message || '')) {
+    if (err?.codeName === 'IllegalOperation' || /replica set|Transaction numbers|retryable writes/i.test(err?.message || '')) {
       logger.warn('Transactions are not available; writing without one');
       return fn(null);
     }
@@ -258,7 +257,7 @@ export async function grantField(admin, id, key, { duration, until }) {
       actor: admin,
       action: 'account.field_granted',
       severity: 'security',
-      sentence: `منح ${FIELDS[key].label} مؤقتًا لـ«${user.name}» حتى ${day(end)}`,
+      sentence: `منح ${FIELDS[key].label} مؤقتًا لـ«${user.name}» حتى ${cairoDateTime(end)}`,
       targets: [{ type: 'user', id: user._id, label: user.name }],
       after: { field: key, until: end.toISOString() },
       session,

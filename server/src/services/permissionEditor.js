@@ -10,6 +10,7 @@ import {
   TEMPORARY_GRANT_PRESETS,
 } from '../constants/permissions.js';
 import { badRequest } from '../utils/errors.js';
+import { cairoDateTime } from './activityService.js';
 
 /**
  * Helpers for editing a moderator's permission set (phase 4): normalize what
@@ -90,7 +91,7 @@ export function permissionsFromTemplate(template, current, now = new Date()) {
   return normalizePermissions(base, { now });
 }
 
-const fieldText = (g) => `${FIELDS[g.key].label}${g.until ? ` (حتى ${new Date(g.until).toISOString().slice(0, 16).replace('T', ' ')})` : ''}`;
+const fieldText = (g) => `${FIELDS[g.key].label}${g.until ? ` (حتى ${cairoDateTime(g.until)})` : ''}`;
 
 /** Differences between two permission sets as Arabic lines (empty = no change). */
 export function diffPermissions(before, after) {

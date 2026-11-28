@@ -5,7 +5,7 @@ import { SiteSettings } from '../models/index.js';
 import { mergeWithDefaults } from '../validators/siteSettings.js';
 import { parseParcelCode } from './labelService.js';
 import { raiseAlert } from './alertService.js';
-import { recordActivity } from './activityService.js';
+import { cairoDate, recordActivity } from './activityService.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -24,7 +24,7 @@ import { logger } from '../utils/logger.js';
 
 const q = (x) => `«${x}»`;
 const egp = (minor) => `${(Number(minor || 0) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 })} ج.م`;
-const day = (d) => (d ? new Date(d).toISOString().slice(0, 10) : 'بلا تاريخ');
+const day = (d) => (d ? cairoDate(d) : 'بلا تاريخ');
 const st = (v) => DELIVERY_STATUS_AR[v] || v || '—';
 const num = (o) => (o ? String(o.easyOrdersShortId ?? o.easyOrdersId ?? '؟') : '؟');
 const oid = (v) => (v && mongoose.isValidObjectId(v) ? String(v) : null);
