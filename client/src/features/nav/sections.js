@@ -38,7 +38,7 @@ export const NAV_SECTIONS = [
     key: 'money',
     label: 'الفلوس',
     tabs: [
-      { label: 'نقدية المناديب', pages: [{ to: '/admin/cash', section: 'cash' }] },
+      { label: 'نقدية المناديب', pages: [{ to: '/admin/cash', section: 'cash', count: 'cashDeclared' }] },
       { label: 'الأرباح والمصروفات', pages: [{ to: '/admin/finance', section: 'finance' }] },
     ],
   },
@@ -107,7 +107,11 @@ export function sectionCount(section, counts = {}) {
 }
 
 /** The sections whose counts the user may see (the server checks the same). */
-export const COUNTED_SECTIONS = ['missedOrders', 'storefront', 'warehouse', 'reviews'];
+export const COUNTED_SECTIONS = ['missedOrders', 'storefront', 'warehouse', 'reviews', 'cash'];
+
+/** A page that changes what waits on someone asks the layout to re-read the tab numbers (one request, no polling). */
+export const NAV_COUNTS_STALE = 'solita:nav-counts-stale';
+export const refreshNavCounts = () => window.dispatchEvent(new Event(NAV_COUNTS_STALE));
 
 const PHONE_BAR = ['home', 'orders', 'couriers', 'money', 'customers', 'site'];
 

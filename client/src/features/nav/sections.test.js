@@ -65,4 +65,12 @@ describe('admin navigation', () => {
     expect(tabCount(carts.tabs[0], { abandonedCarts: 2 })).toBe(2);
     expect(tabCount(carts.tabs[0], {})).toBe(0);
   });
+
+  it('shows the declared cash settlements on the cash tab and on its section', () => {
+    const money = visibleNav(admin).find((s) => s.key === 'money');
+    const cash = money.tabs.find((t) => t.to === '/admin/cash');
+    expect(tabCount(cash, { cashDeclared: 3 })).toBe(3);
+    expect(sectionCount(money, { cashDeclared: 3 })).toBe(3);
+    expect(tabCount(cash, {})).toBe(0);
+  });
 });

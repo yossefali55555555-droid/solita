@@ -249,6 +249,16 @@ export const listCustomersQuery = z.object({
   ...pageQuery,
 });
 
+// Meta Ads file (customer list or offline purchases). Dates are ISO strings from the page.
+export const metaExportQuery = z.object({
+  mode: z.enum(['customers', 'orders']).default('customers'),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+  minOrders: z.coerce.number().int().min(1).max(100).default(1),
+  includeReturned: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  hash: z.enum(['none', 'sha256']).default('none'),
+});
+
 // Opaque key (c_…) from the customer list; a raw key (the phone) is accepted only for viewers who may see numbers.
 export const customerKeyParams = z.object({ key: z.string().trim().min(1).max(700) });
 

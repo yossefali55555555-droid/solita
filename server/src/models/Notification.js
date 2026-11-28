@@ -8,7 +8,7 @@ const notificationSchema = new mongoose.Schema(
     user: { type: ObjectId, ref: 'User', required: true },
     type: {
       type: String,
-      enum: ['order_assigned', 'order_unassigned', 'review_rejected', 'review_approved', 'order_cancelled', 'return_confirmed', 'coupon_attempt'],
+      enum: ['order_assigned', 'order_unassigned', 'review_rejected', 'review_approved', 'order_cancelled', 'return_confirmed', 'coupon_attempt', 'remittance_received', 'remittance_verified', 'remittance_cancelled'],
       required: true,
     },
     order: { type: ObjectId, ref: 'Order', default: null },

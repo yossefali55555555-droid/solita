@@ -1,7 +1,7 @@
-import { DeliveryReview, MissedOrder, Order, StorefrontCart, SyncOperation, WebhookEvent } from '../models/index.js';
+import { CashRemittance, DeliveryReview, MissedOrder, Order, StorefrontCart, SyncOperation, WebhookEvent } from '../models/index.js';
 import { NOT_TEST } from '../models/Order.js';
 import { getConfig } from '../config/env.js';
-import { cashOverview } from './cashService.js';
+import { cashOverview, getCashResetAt } from './cashService.js';
 import { printQueueCounts } from './labelService.js';
 import { PENDING_RETURNS } from './returnService.js';
 import { cairoDayStart } from './storefrontService.js';
@@ -60,9 +60,14 @@ export async function getOverview(viewer = FULL_VIEWER) {
  * Each one is only counted for a viewer who may open its page, and matches
  * what that page (or «محتاجك» on the home page) shows.
  */
+async function countDeclaredRemittances() {
+  const resetAt = await getCashResetAt();
+  return CashRemittance.countDocuments({ status: 'declared', ...(resetAt ? { createdAt: { $gt: resetAt } } : {}) });
+}
+
 export async function getNavCounts(viewer = FULL_VIEWER, { now = new Date() } = {}) {
   const none = Promise.resolve(null);
-  const [missedOrders, abandonedCarts, labels, reviews, returns] = await Promise.all([
+  const [missedOrders, abandonedCarts, labels, reviews, returns, cashDeclared] = await Promise.all([
     // Missed orders nobody has contacted or dismissed yet.
     viewer.can('missedOrders') ? MissedOrder.countDocuments({ isTest: false, contactedAt: null, dismissedAt: null }) : none,
     // Abandoned carts of the last 7 days not contacted yet.
@@ -72,6 +77,8 @@ export async function getNavCounts(viewer = FULL_VIEWER, { now = new Date() } = 
     viewer.can('warehouse') ? printQueueCounts() : none,
     viewer.can('reviews') ? DeliveryReview.countDocuments({ status: 'pending' }) : none,
     viewer.can('warehouse') ? Order.countDocuments(PENDING_RETURNS) : none,
+    // Cash settlements a courier has declared and nobody has received yet (same window as the cash page list).
+    viewer.can('cash') ? countDeclaredRemittances() : none,
   ]);
   const counts = {};
   if (missedOrders !== null) counts.missedOrders = missedOrders;
@@ -79,6 +86,7 @@ export async function getNavCounts(viewer = FULL_VIEWER, { now = new Date() } = 
   if (labels) counts.labels = labels.pending + labels.reprint;
   if (reviews !== null) counts.reviews = reviews;
   if (returns !== null) counts.returns = returns;
+  if (cashDeclared !== null) counts.cashDeclared = cashDeclared;
   return counts;
 }
 

@@ -10,6 +10,9 @@ import * as poll from '../services/pollService.js';
 import { initDatabase } from '../db/initDatabase.js';
 import * as returns from '../services/returnService.js';
 import * as customers from '../services/customerService.js';
+import { exportForMeta } from '../services/metaExportService.js';
+import { recordActivity } from '../services/activityService.js';
+import { actorLabel, raiseAlert } from '../services/alertService.js';
 import * as finance from '../services/financeService.js';
 import * as labels from '../services/labelService.js';
 import { getNavCounts, getOverview, getSystemStatus } from '../services/statsService.js';
@@ -23,6 +26,39 @@ import { OrderEvent } from '../models/index.js';
 // ---------- Overview ----------
 export async function overview(req, res) {
   res.json(serializeFor(req.viewer, 'overview', { stats: await getOverview(req.viewer), system: getSystemStatus() }));
+}
+
+const META_FILES = { customers: 'ملف عملاء لميتا (قائمة عملاء مع قيمة العميل)', orders: 'ملف مشتريات لميتا (أحداث شراء)' };
+
+/** Meta Ads file built on the server. Needs the export + customerPhone grants (route); logged as a danger line. */
+export async function exportMetaFile(req, res) {
+  const q = req.valid.query;
+  const { count, csv, filename } = await exportForMeta(q);
+  const label = META_FILES[q.mode];
+  await recordActivity({
+    actor: req.user,
+    action: 'export.meta_ads',
+    severity: 'danger',
+    sentence: `تصدير ${label} (${count} صفًا${q.hash === 'sha256' ? '، مجزّأ' : ''})`,
+    targets: [{ type: 'other', label: 'ملف إعلانات ميتا' }],
+    after: { rows: count, mode: q.mode, encoding: q.hash === 'sha256' ? 'sha256' : 'plain', minOrders: q.minOrders, includeReturned: q.includeReturned, from: q.from || null, to: q.to || null },
+    sessionId: req.authSession?._id || null,
+  });
+  if (req.user.role !== 'admin') {
+    await raiseAlert({
+      type: 'staff_export',
+      key: `staff_export:${req.user._id}:${Date.now()}`,
+      actor: req.user,
+      message: `${actorLabel(req.user)} صدّر ${label} (${count} صفًا) ومعه أرقام العملاء.`,
+    });
+  }
+  res.set({
+    'Content-Type': 'text/csv; charset=utf-8',
+    'Content-Disposition': `attachment; filename="${filename}"`,
+    'Cache-Control': 'no-store',
+    'X-Row-Count': String(count),
+  });
+  res.send(csv);
 }
 
 export async function navCounts(req, res) {
