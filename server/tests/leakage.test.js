@@ -6,6 +6,7 @@ import {
   MissedOrder,
   Order,
   OrderEvent,
+  StaffActivity,
   StorefrontCart,
 } from '../src/models/index.js';
 import { addToPool, ensureCouponForOrder } from '../src/services/couponService.js';
@@ -363,9 +364,11 @@ describe('server-side export of missed orders', () => {
     expect(res.text).toContain("'=HYPERLINK");
     const lines = res.text.trim().split('\r\n');
     expect(lines).toHaveLength(3); // header + 2 rows
-    const event = await OrderEvent.findOne({ type: 'missed_orders_exported' }).lean();
-    expect(event.next.rows).toBe(2);
-    expect(String(event.actor.user)).toBe(String(moderator._id));
+    const event = await StaffActivity.findOne({ action: 'export.missed_orders' }).lean();
+    expect(event.after.rows).toBe(2);
+    expect(String(event.actorId)).toBe(String(moderator._id));
+    expect(event.severity).toBe('danger');
+    expect(await OrderEvent.countDocuments({ type: 'missed_orders_exported' })).toBe(0);
   });
 
   it('without the export grant a page holds at most 50 rows', async () => {

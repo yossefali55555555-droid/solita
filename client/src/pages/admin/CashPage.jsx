@@ -158,6 +158,7 @@ function RemittanceModal({ remittanceId, onClose, onChanged }) {
     }
   };
   const [run, running] = useAction(act);
+  const canEdit = usePermissions().can('cash', 'edit');
 
   return (
     <Modal open={Boolean(remittanceId)} title="تفاصيل التسوية النقدية" size="lg" onClose={onClose}>
@@ -187,7 +188,7 @@ function RemittanceModal({ remittanceId, onClose, onChanged }) {
             ))}
           </ul>
 
-          {r.status === 'declared' && (
+          {canEdit && r.status === 'declared' && (
             <div className="inline-form">
               <Field label="المبلغ المستلم فعلياً (ج.م)">
                 {(id) => <MoneyInput id={id} value={amount} onChange={setAmount} />}
@@ -195,7 +196,7 @@ function RemittanceModal({ remittanceId, onClose, onChanged }) {
               <Button loading={running} onClick={() => run('receive', { handedOverAmount: amount }, 'تم تسجيل الاستلام')}>تسجيل الاستلام</Button>
             </div>
           )}
-          {['received', 'discrepancy'].includes(r.status) && (
+          {canEdit && ['received', 'discrepancy'].includes(r.status) && (
             <div className="inline-form">
               <Field label="المبلغ المتحقق منه (ج.م)" hint={r.handedOverAmount !== null ? `المستلم: ${minorToInput(r.handedOverAmount)}` : undefined}>
                 {(id) => <MoneyInput id={id} value={amount} onChange={setAmount} />}
@@ -205,7 +206,7 @@ function RemittanceModal({ remittanceId, onClose, onChanged }) {
               </Button>
             </div>
           )}
-          {['declared', 'received'].includes(r.status) && (
+          {canEdit && ['declared', 'received'].includes(r.status) && (
             <div className="inline-form">
               <Field label="سبب إلغاء التسوية">
                 {(id) => <input id={id} className="input" value={reason} onChange={(e) => setReason(e.target.value)} />}
@@ -277,7 +278,7 @@ export function CashPage() {
         subtitle="تسليم الطلب لا يعني استلام النقدية؛ يتم تسجيل الاستلام والتحقق منه هنا"
         actions={
           <>
-            <Button onClick={() => setCreateOpen(true)}>تسجيل استلام نقدية</Button>
+            {perms.can('cash', 'edit') && <Button onClick={() => setCreateOpen(true)}>تسجيل استلام نقدية</Button>}
             {perms.danger('resetCash') && <Button variant="danger" onClick={() => setResetOpen(true)}>تصفير النقدية</Button>}
           </>
         }

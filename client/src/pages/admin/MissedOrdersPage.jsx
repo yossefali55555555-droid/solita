@@ -7,7 +7,7 @@ import { useAction, useAsync, useDebouncedValue } from '../../hooks/useAsync.js'
 import { api, downloadFile } from '../../services/api.js';
 import { usePermissions } from '../../features/auth/permissions.js';
 import { formatDateTime } from '../../utils/format.js';
-import { whatsappLink } from '../../features/whatsapp/whatsapp.js';
+import { logWhatsAppClick, whatsappLink } from '../../features/whatsapp/whatsapp.js';
 import { fileToImportText } from '../../utils/spreadsheet.js';
 
 const FILTER_KEYS = ['status', 'priority', 'reason', 'test', 'q', 'page'];
@@ -185,6 +185,7 @@ export function MissedOrdersPage() {
   });
   const perms = usePermissions();
   const canExport = perms.field('export') && perms.field('customerPhone');
+  const canEdit = perms.can('missedOrders', 'edit');
   // The file is built on the server (export + phone grants) from the same filters as the list.
   const [exportFile, exporting] = useAction(async () => {
     try {
@@ -211,7 +212,7 @@ export function MissedOrdersPage() {
         actions={
           <>
             {canExport && <Button variant="secondary" loading={exporting} onClick={exportFile}>تصدير إلى إكسل</Button>}
-            <Button onClick={() => setImportOpen(true)}>استيراد ملف التصدير</Button>
+            {canEdit && <Button onClick={() => setImportOpen(true)}>استيراد ملف التصدير</Button>}
           </>
         }
       />
@@ -253,7 +254,7 @@ export function MissedOrdersPage() {
         </div>
       </Card>
 
-      {selected.size > 0 && (
+      {canEdit && selected.size > 0 && (
         <div className="alert alert--info row-between" role="region" aria-label="إجراءات جماعية">
           <span><strong>{selected.size}</strong> محدد</span>
           <span className="page-header__actions">
@@ -318,17 +319,21 @@ export function MissedOrdersPage() {
                       <td>
                         <span className="page-header__actions">
                           {wa && (
-                            <a className="btn btn--secondary btn--sm" href={wa} target="_blank" rel="noopener noreferrer" onClick={() => !i.contactedAt && patch(i._id, { contacted: true })}>
+                            <a className="btn btn--secondary btn--sm" href={wa} target="_blank" rel="noopener noreferrer" onClick={() => { logWhatsAppClick({ kind: 'missed', id: i._id, text: missedMessage(i.name) }); if (!i.contactedAt) patch(i._id, { contacted: true }); }}>
                               واتساب
                             </a>
                           )}
-                          <Button size="sm" variant="secondary" onClick={() => patch(i._id, { contacted: !i.contactedAt })}>
-                            {i.contactedAt ? 'إلغاء التواصل' : 'تم التواصل'}
-                          </Button>
-                          <Button size="sm" variant="secondary" onClick={() => editNote(i)}>ملاحظة</Button>
-                          <Button size="sm" variant="secondary" onClick={() => patch(i._id, { dismissed: !i.dismissedAt })}>
-                            {i.dismissedAt ? 'استرجاع' : 'تجاهل'}
-                          </Button>
+                          {canEdit && (
+                            <>
+                              <Button size="sm" variant="secondary" onClick={() => patch(i._id, { contacted: !i.contactedAt })}>
+                                {i.contactedAt ? 'إلغاء التواصل' : 'تم التواصل'}
+                              </Button>
+                              <Button size="sm" variant="secondary" onClick={() => editNote(i)}>ملاحظة</Button>
+                              <Button size="sm" variant="secondary" onClick={() => patch(i._id, { dismissed: !i.dismissedAt })}>
+                                {i.dismissedAt ? 'استرجاع' : 'تجاهل'}
+                              </Button>
+                            </>
+                          )}
                         </span>
                       </td>
                     </tr>

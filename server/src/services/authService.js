@@ -7,6 +7,7 @@ import { sha256 } from '../utils/sanitize.js';
 import { hashPassword, verifyAgainstDummy, verifyPassword } from './passwordService.js';
 import { recordEvent, SYSTEM_ACTOR, userActor } from './auditService.js';
 import { actorLabel, raiseAlert } from './alertService.js';
+import { recordActivitySafely } from './activityService.js';
 import { bumpCounter, clearCounter, readCounter } from './counterService.js';
 import { createPreAuth, getSecurity, isMfaEnabled, verifyPreAuth } from './mfaService.js';
 
@@ -136,7 +137,7 @@ export async function login({ identifier, password, userAgent, ip }) {
   return finishLogin(user, { userAgent, ip });
 }
 
-async function finishLogin(user, { userAgent, ip, mfaVerifiedAt = null }) {
+export async function finishLogin(user, { userAgent, ip, mfaVerifiedAt = null }) {
   await User.updateOne(
     { _id: user._id },
     { $set: { failedLoginCount: 0, lastLoginAt: new Date() }, $unset: { lockedUntil: 1 } },
@@ -222,4 +223,5 @@ export async function changeOwnPassword(user, { currentPassword, newPassword }) 
   );
   await revokeAllSessions(user._id);
   await recordEvent({ subjectUser: user._id, type: 'password_changed', actor: userActor(user) });
+  await recordActivitySafely({ actor: user, action: 'auth.password_changed', severity: 'security', sentence: 'تغيير كلمة المرور', targets: [{ type: 'user', id: user._id, label: user.name }] });
 }

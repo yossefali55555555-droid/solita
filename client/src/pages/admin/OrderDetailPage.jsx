@@ -52,6 +52,7 @@ function parcelState(p) {
 /** Parcels of the order with their QR scan history, and a print button. */
 function ParcelsCard({ order, onPrinted }) {
   const toast = useToast();
+  const canPrint = usePermissions().can('warehouse', 'edit');
   const [labels, setLabels] = useState(null);
   const printable = ['new', 'assigned', 'out_for_delivery', 'failed'].includes(order.deliveryStatus);
   const [print, printing] = useAction(async () => {
@@ -71,7 +72,7 @@ function ParcelsCard({ order, onPrinted }) {
     <Card
       title="الطرود والبوليصة"
       actions={
-        printable && (
+        printable && canPrint && (
           <Button size="sm" variant={printed ? 'secondary' : 'primary'} loading={printing} onClick={print}>
             {printed ? 'إعادة طباعة البوليصة' : 'طباعة البوليصة'}
           </Button>
@@ -119,14 +120,15 @@ const CANCELLABLE = ['new', 'assigned', 'out_for_delivery', 'failed'];
 
 export function OrderDetailPage() {
   const perms = usePermissions();
+  const canEdit = perms.can('orders', 'edit'); // «مشاهدة» only: no action buttons
   const { id } = useParams();
   const toast = useToast();
   const detail = useAsync(() => api.get(`/admin/orders/${id}`), [id]);
   const events = useAsync(() => api.get(`/admin/orders/${id}/events`), [id]);
   const couriers = useAsync(() => api.get('/admin/couriers-brief'), []);
-  const settings = useAsync(() => api.get('/admin/site-settings'), []);
-  const waTemplates = settings.data?.settings?.admin
-    ? { coupon: settings.data.settings.admin.couponWhatsappTemplate, confirm: settings.data.settings.admin.confirmWhatsappTemplate }
+  const settings = useAsync(() => api.get('/admin/wa-templates'), []);
+  const waTemplates = settings.data?.templates
+    ? { coupon: settings.data.templates.couponWhatsappTemplate, confirm: settings.data.templates.confirmWhatsappTemplate }
     : null;
 
   const [courierId, setCourierId] = useState('');
@@ -254,9 +256,11 @@ export function OrderDetailPage() {
           <div>
             <strong>تعارض مع EasyOrders:</strong> {order.sourceConflict.message}
           </div>
-          <Button size="sm" variant="secondary" onClick={ackConflict}>
-            تم الاطلاع
-          </Button>
+          {canEdit && (
+            <Button size="sm" variant="secondary" onClick={ackConflict}>
+              تم الاطلاع
+            </Button>
+          )}
         </div>
       )}
       {order.sourceStatusNeedsVerification && (
@@ -275,7 +279,7 @@ export function OrderDetailPage() {
               ['وقت التعيين', formatDateTime(order.assignedAt)],
             ]}
           />
-          {ASSIGNABLE.includes(order.deliveryStatus) ? (
+          {!canEdit ? null : ASSIGNABLE.includes(order.deliveryStatus) ? (
             <div className="inline-form">
               <select className="input" aria-label="اختر مندوب" value={courierId} onChange={(e) => setCourierId(e.target.value)}>
                 <option value="">اختر مندوب...</option>
@@ -302,7 +306,7 @@ export function OrderDetailPage() {
           ) : (
             <p className="muted">لا يمكن تغيير المندوب في حالة الطلب الحالية.</p>
           )}
-          <p className="muted small">التعيين لا يغيّر حالة الطلب في EasyOrders.</p>
+          {canEdit && <p className="muted small">التعيين لا يغيّر حالة الطلب في EasyOrders.</p>}
         </Card>
 
         <Card title="إجراءات الطلب">
@@ -312,7 +316,7 @@ export function OrderDetailPage() {
                 إلغاء الطلب
               </Button>
             )}
-            {order.deliveryStatus === 'failed' && (
+            {perms.can('warehouse', 'edit') && order.deliveryStatus === 'failed' && (
               <Button variant="danger" onClick={() => setReturnOpen(true)}>
                 تأكيد المرتجع (وتحديث EasyOrders)
               </Button>
@@ -507,7 +511,7 @@ export function OrderDetailPage() {
                     <td className="small">{op.lastError || '—'}</td>
                     <td className="nowrap muted">{formatDateTime(op.updatedAt)}</td>
                     <td>
-                      {op.state !== 'succeeded' && op.state !== 'in_progress' && (
+                      {perms.can('sync', 'edit') && op.state !== 'succeeded' && op.state !== 'in_progress' && (
                         <Button size="sm" variant="secondary" loading={retrying} onClick={() => retry(op._id)}>
                           إعادة المحاولة
                         </Button>

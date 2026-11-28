@@ -46,6 +46,9 @@ const userSchema = new mongoose.Schema(
     permissions: { type: permissionsSchema, default: undefined },
     templateName: { type: String, trim: true, maxlength: 80 },
     createdBy: { type: ObjectId, ref: 'User' },
+    // True from the moment an invite link is issued until it is accepted (a disabled
+    // account that never accepted goes back to «invited», not «active», when enabled).
+    invitePending: { type: Boolean, default: false },
   },
   {
     timestamps: true,

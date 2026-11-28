@@ -24,6 +24,7 @@ export function SecurityPage() {
 
   const reloadAll = () => {
     status.reload({ silent: true });
+    alerts.reload({ silent: true });
     refresh();
   };
 

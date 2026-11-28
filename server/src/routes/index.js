@@ -15,6 +15,9 @@ import { siteSettingsSchema } from '../validators/siteSettings.js';
 import { sizeGuideSchema } from '../validators/sizeGuide.js';
 import { adminOnly, requirePermission, staffRouter, tagRouter } from '../middleware/permissions.js';
 import { STAFF_ROLES } from '../constants/statuses.js';
+import * as staffCtl from '../controllers/staffController.js';
+import * as st from '../validators/staff.js';
+import { courierActivityLog } from '../services/activityRoutes.js';
 
 export function buildRouter() {
   const api = tagRouter(Router(), 'api');
@@ -26,6 +29,8 @@ export function buildRouter() {
   authRoutes.post('/logout', auth.postLogout);
   authRoutes.get('/me', requireAuth, auth.getMe);
   authRoutes.post('/change-password', requireAuth, validate({ body: s.changePasswordBody }), auth.postChangePassword);
+  // Phase 4: an invited moderator sets a password with the one-time link token.
+  authRoutes.post('/invite/accept', loginRateLimiter(), validate({ body: st.inviteAcceptBody }), staffCtl.acceptInvite);
   authRoutes.get('/notifications', requireAuth, auth.getNotifications);
   authRoutes.post('/notifications/read', requireAuth, auth.postNotificationsRead);
   // Phase 3: second stage of the admin sign-in, step-up, and the admin's
@@ -166,18 +171,51 @@ export function buildRouter() {
   a.patch('/size-guide', requirePermission('siteSettings', 'edit'), validate({ body: sizeGuideSchema }), storefront.updateSizeGuide);
   a.get('/site-settings', requirePermission('siteSettings', 'view'), storefront.getSiteSettings);
   a.patch('/site-settings', requirePermission('siteSettings', 'edit'), validate({ body: siteSettingsSchema }), storefront.updateSiteSettings);
+  // Phase 4/5: ready-made WhatsApp texts (everyone who may message customers reads them)
+  // and the log of a WhatsApp button press.
+  const waSections = ['orders', 'storefront', 'missedOrders', 'coupons', 'founders'];
+  a.get('/wa-templates', requirePermission(waSections, 'view', { fields: ['customerPhone'] }), staffCtl.getWaTemplates);
+  a.post('/wa/click', requirePermission(waSections, 'view', { fields: ['customerPhone'] }), validate({ body: st.waClickBody }), staffCtl.waClick);
   api.use('/admin', a);
+
+  // ---------------- Administrator only: staff accounts, templates, activity ----------------
+  // Separate router (scope "adminOnly"): none of these is ever grantable to a moderator.
+  const adm = tagRouter(staffRouter(), 'adminOnly');
+  adm.use(requireRole(...STAFF_ROLES), requirePasswordUpToDate);
+  const recentId = requireRecentReauth();
+  adm.get('/staff/catalog', adminOnly(), staffCtl.catalog);
+  adm.get('/staff', adminOnly(), staffCtl.listStaff);
+  adm.post('/staff', adminOnly(), recentId, validate({ body: st.createStaffBody }), staffCtl.createStaff);
+  adm.get('/staff/:id', adminOnly(), id, staffCtl.getStaff);
+  adm.patch('/staff/:id', adminOnly(), recentId, validate({ params: idParams, body: st.updateStaffBody }), staffCtl.updateStaff);
+  adm.post('/staff/:id/status', adminOnly(), validate({ params: idParams, body: st.staffStatusBody }), staffCtl.setStaffStatus);
+  adm.post('/staff/:id/password', adminOnly(), recentId, validate({ params: idParams, body: st.staffPasswordBody }), staffCtl.resetStaffPassword);
+  adm.post('/staff/:id/invite', adminOnly(), recentId, id, staffCtl.regenerateStaffInvite);
+  adm.post('/staff/:id/sessions/revoke', adminOnly(), id, staffCtl.revokeStaffSessions);
+  adm.post('/staff/:id/sessions/:sessionId/revoke', adminOnly(), validate({ params: st.staffSessionParams }), staffCtl.revokeStaffSession);
+  adm.post('/staff/:id/fields/:key/grant', adminOnly(), validate({ params: st.staffFieldParams, body: st.grantFieldBody }), staffCtl.grantStaffField);
+  adm.post('/staff/:id/fields/:key/revoke', adminOnly(), validate({ params: st.staffFieldParams }), staffCtl.revokeStaffField);
+  adm.get('/templates', adminOnly(), staffCtl.listTemplates);
+  adm.post('/templates', adminOnly(), validate({ body: st.templateBody }), staffCtl.createTemplate);
+  adm.patch('/templates/:id', adminOnly(), validate({ params: idParams, body: st.templateBody }), staffCtl.updateTemplate);
+  adm.post('/templates/:id/delete', adminOnly(), id, staffCtl.deleteTemplate);
+  adm.get('/templates/:id/apply-preview', adminOnly(), id, staffCtl.previewTemplate);
+  adm.post('/templates/:id/apply', adminOnly(), recentId, validate({ params: idParams, body: st.applyTemplateBody }), staffCtl.applyTemplate);
+  adm.get('/activity', adminOnly(), validate({ query: st.activityQuery }), staffCtl.listActivity);
+  adm.get('/activity/actors', adminOnly(), staffCtl.activityActors);
+  adm.patch('/wa-templates', adminOnly(), validate({ body: st.waTemplatesBody }), staffCtl.updateWaTemplates);
+  api.use('/admin', adm);
 
   // ---------------- Courier ----------------
   const c = tagRouter(Router(), 'courier');
   c.use(requireRole('courier'), requirePasswordUpToDate);
   c.get('/orders', validate({ query: s.courierOrdersQuery }), courier.listOrders);
   c.get('/orders/:id', validate({ params: idParams }), courier.getOrder);
-  c.patch('/orders/:id/status', validate({ params: idParams, body: s.courierStatusBody }), courier.updateStatus);
-  c.post('/orders/:id/delivery-report', validate({ params: idParams, body: s.deliveryReportBody }), courier.deliveryReport);
-  c.post('/scan', validate({ body: s.scanBody }), courier.scanParcel);
+  c.patch('/orders/:id/status', courierActivityLog, validate({ params: idParams, body: s.courierStatusBody }), courier.updateStatus);
+  c.post('/orders/:id/delivery-report', courierActivityLog, validate({ params: idParams, body: s.deliveryReportBody }), courier.deliveryReport);
+  c.post('/scan', courierActivityLog, validate({ body: s.scanBody }), courier.scanParcel);
   c.get('/cash', courier.cashSummary);
-  c.post('/cash/remittances', validate({ body: s.courierDeclareRemittanceBody }), courier.declareRemittance);
+  c.post('/cash/remittances', courierActivityLog, validate({ body: s.courierDeclareRemittanceBody }), courier.declareRemittance);
   c.get('/cash/remittances/:id', validate({ params: idParams }), courier.getRemittance);
   api.use('/courier', c);
 

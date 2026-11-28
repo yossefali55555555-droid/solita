@@ -5,7 +5,7 @@ import * as siteSettings from '../services/siteSettingsService.js';
 import * as sizeGuide from '../services/sizeGuideService.js';
 import * as pageStats from '../services/pageStatService.js';
 import * as missed from '../services/missedOrderService.js';
-import { recordEvent, userActor } from '../services/auditService.js';
+import { recordActivity } from '../services/activityService.js';
 import { actorLabel, raiseAlert } from '../services/alertService.js';
 
 // ---------- Abandoned carts ----------
@@ -81,11 +81,15 @@ export async function updateMissed(req, res) {
 // The row count is written to the audit trail before the file is sent.
 export async function exportMissed(req, res) {
   const { count, csv } = await missed.exportMissedOrders(req.valid.query, req.viewer);
-  await recordEvent({
-    type: 'missed_orders_exported',
-    actor: userActor(req.user),
-    next: { rows: count },
-    metadata: { filters: req.valid.query },
+  // Every export is a line in the staff activity log (phase 5; was an OrderEvent in phase 2).
+  await recordActivity({
+    actor: req.user,
+    action: 'export.missed_orders',
+    severity: 'danger',
+    sentence: `تصدير ملف الطلبات الفائتة إلى إكسل (${count} صفًا)`,
+    targets: [{ type: 'other', label: 'الطلبات الفائتة' }],
+    after: { rows: count, filters: req.valid.query },
+    sessionId: req.authSession?._id || null,
   });
   if (req.user.role !== 'admin') {
     await raiseAlert({

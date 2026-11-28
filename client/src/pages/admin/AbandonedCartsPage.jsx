@@ -6,7 +6,8 @@ import { useToast } from '../../components/Toast.jsx';
 import { useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
 import { formatDateTime, formatMoney, formatNumber, orderNumber } from '../../utils/format.js';
-import { whatsappLink } from '../../features/whatsapp/whatsapp.js';
+import { usePermissions } from '../../features/auth/permissions.js';
+import { logWhatsAppClick, whatsappLink } from '../../features/whatsapp/whatsapp.js';
 import { cartWhatsappMessage } from '../../features/storefront/cartMessage.js';
 import { VisitorBehaviourCard } from '../../features/storefront/VisitorBehaviourCard.jsx';
 
@@ -52,8 +53,9 @@ export function AbandonedCartsPage() {
       }),
     [range, status, hasPhone, notContacted, page],
   );
-  const settings = useAsync(() => api.get('/admin/site-settings'), []);
-  const template = settings.data?.settings?.admin?.cartWhatsappTemplate;
+  const settings = useAsync(() => api.get('/admin/wa-templates'), []);
+  const template = settings.data?.templates?.cartWhatsappTemplate;
+  const canEdit = usePermissions().can('storefront', 'edit');
 
   const update = (next) => {
     const merged = {
@@ -194,11 +196,11 @@ export function AbandonedCartsPage() {
                       <td>
                         <div className="badge-row">
                           {wa && active ? (
-                            <a className="btn btn--whatsapp btn--sm" href={wa} target="_blank" rel="noopener noreferrer">
+                            <a className="btn btn--whatsapp btn--sm" href={wa} target="_blank" rel="noopener noreferrer" onClick={() => logWhatsAppClick({ kind: 'cart', id: cart._id, text: cartWhatsappMessage(cart, template) })}>
                               واتساب
                             </a>
                           ) : null}
-                          {active ? (
+                          {active && canEdit ? (
                             <>
                               <Button
                                 size="sm"

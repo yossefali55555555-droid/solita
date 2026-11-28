@@ -253,7 +253,7 @@ export function CouponsPage() {
                         {c.uses > 0 ? <div className="muted small">استُخدم {formatNumber(c.uses)} مرة</div> : null}
                       </td>
                       <td>
-                        <div className="badge-stack">
+                        <div className="badge-stack" hidden={!perms.can('coupons', 'edit')}>
                           {editing !== c._id ? (
                             <Button size="sm" variant="ghost" onClick={() => setEditing(c._id)}>
                               تعديل
@@ -360,7 +360,7 @@ export function CouponsPage() {
         )}
       </Card>
 </> },
-          { key: 'add', label: 'إضافة واستيراد', content: <>
+          perms.can('coupons', 'edit') && { key: 'add', label: 'إضافة واستيراد', content: <>
       <Card title="استيراد كوبونات EasyOrders">
         <p className="muted small">
           الصق قايمة الكوبونات (JSON) اللي طلعت من زرار المزامنة أو من الملف الجاهز. بيستورد كل الإعدادات كاملة، والأكواد اللي بتبدأ بـ ST30- بتتربط بالعملاء تلقائيًا، والباقي (زي كود داخلي أو تجريبي) بيفضل لـ EasyOrders لحد ما تربطه.

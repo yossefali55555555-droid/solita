@@ -7,6 +7,7 @@ import * as mfa from '../services/mfaService.js';
 import { listAlerts, markAlertsRead, unreadAlertCount } from '../services/alertService.js';
 import { listNotifications, markAllRead } from '../services/notificationService.js';
 import { effectivePermissions } from '../services/permissionService.js';
+import { recordLogin } from '../services/activityService.js';
 
 /** The signed-in user + effective permissions (null for couriers). */
 function sessionUser(user) {
@@ -50,6 +51,7 @@ export async function postLogin(req, res) {
     return res.json({ mfaRequired: true, expiresAt: result.preauthExpiresAt });
   }
   const csrfToken = setSession(res, result.token, result.expiresAt);
+  await recordLogin(result.user, { userAgent: req.get('user-agent') });
   res.json({ user: await withSecurity(result.user), csrfToken, mockMode: getConfig().mockMode });
 }
 
@@ -61,6 +63,7 @@ export async function postMfaVerify(req, res) {
     ip: req.ip,
   });
   const csrfToken = setSession(res, result.token, result.expiresAt);
+  await recordLogin(result.user, { userAgent: req.get('user-agent') });
   res.json({
     user: await withSecurity(result.user),
     csrfToken,

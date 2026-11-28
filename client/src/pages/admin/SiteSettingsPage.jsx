@@ -134,14 +134,16 @@ export function SiteSettingsPage() {
         title="إعدادات الموقع"
         subtitle="كل ما يظهر على الموقع ولا يمكن التحكم فيه من EasyOrders. المنتجات والأسعار والمخزون وسعر الشحن المجاني تبقى في EasyOrders."
         actions={
-          <>
-            <Button variant="ghost" onClick={() => setForm(() => clone(data.defaults))}>
-              استعادة الإعدادات الافتراضية
-            </Button>
-            <Button onClick={save} loading={saving} disabled={!dirty}>
-              حفظ التغييرات
-            </Button>
-          </>
+          perms.can('siteSettings', 'edit') && (
+            <>
+              <Button variant="ghost" onClick={() => setForm(() => clone(data.defaults))}>
+                استعادة الإعدادات الافتراضية
+              </Button>
+              <Button onClick={save} loading={saving} disabled={!dirty}>
+                حفظ التغييرات
+              </Button>
+            </>
+          )
         }
       />
       <p className="muted small">
@@ -499,11 +501,13 @@ export function SiteSettingsPage() {
         ]}
       />
 
-      <div className="sticky-actions">
-        <Button onClick={save} loading={saving} disabled={!dirty} size="lg">
-          حفظ التغييرات
-        </Button>
-      </div>
+      {perms.can('siteSettings', 'edit') && (
+        <div className="sticky-actions">
+          <Button onClick={save} loading={saving} disabled={!dirty} size="lg">
+            حفظ التغييرات
+          </Button>
+        </div>
+      )}
     </>
   );
 }

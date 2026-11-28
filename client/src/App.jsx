@@ -31,6 +31,10 @@ import { CouponsPage } from './pages/admin/CouponsPage.jsx';
 import { SiteSettingsPage } from './pages/admin/SiteSettingsPage.jsx';
 import { SizeGuidePage } from './pages/admin/SizeGuidePage.jsx';
 import { SecurityPage } from './pages/admin/SecurityPage.jsx';
+import { StaffPage } from './pages/admin/StaffPage.jsx';
+import { StaffDetailPage } from './pages/admin/StaffDetailPage.jsx';
+import { ActivityPage } from './pages/admin/ActivityPage.jsx';
+import { InvitePage } from './pages/InvitePage.jsx';
 import { StepUpPrompt } from './features/auth/StepUpPrompt.jsx';
 import { CourierOrdersPage } from './pages/courier/CourierOrdersPage.jsx';
 import { CourierOrderPage } from './pages/courier/CourierOrderPage.jsx';
@@ -61,6 +65,7 @@ export function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/invite" element={<InvitePage />} />
       <Route
         path="/change-password"
         element={
@@ -99,6 +104,9 @@ export function App() {
         <Route path="site-settings" element={guard('siteSettings', <SiteSettingsPage />)} />
         <Route path="size-guide" element={guard('siteSettings', <SizeGuidePage />)} />
         <Route path="security" element={<SecurityPage />} />
+        <Route path="staff" element={<StaffPage />} />
+        <Route path="staff/:id" element={<StaffDetailPage />} />
+        <Route path="activity" element={<ActivityPage />} />
       </Route>
       <Route
         path="/courier"

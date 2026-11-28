@@ -46,8 +46,8 @@ export async function client() {
   const api = {
     agent,
     get: (url) => agent.get(url),
-    post: (url, body) => withCsrf(agent.post(url)).send(body ?? {}),
-    patch: (url, body) => withCsrf(agent.patch(url)).send(body ?? {}),
+    post: (url, body, headers = {}) => withCsrf(agent.post(url)).set(headers).send(body ?? {}),
+    patch: (url, body, headers = {}) => withCsrf(agent.patch(url)).set(headers).send(body ?? {}),
     setToken: (t) => {
       token = t;
     },
