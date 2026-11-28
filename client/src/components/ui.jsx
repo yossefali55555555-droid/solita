@@ -129,6 +129,13 @@ export function DefinitionList({ items }) {
 export function Modal({ open, title, onClose, children, footer, size = 'md' }) {
   const ref = useRef(null);
   const titleId = useId();
+  // Pages pass a fresh `onClose` arrow on every render. If the effect below depended on it,
+  // each keystroke would re-run it: focus jumps back to the opener button (the phone keyboard
+  // closes) and then to the first field. So keep the latest callback in a ref instead.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
   useEffect(() => {
     if (!open) return undefined;
     const previous = document.activeElement;
@@ -136,7 +143,7 @@ export function Modal({ open, title, onClose, children, footer, size = 'md' }) {
     const focusable = node?.querySelector('input, select, textarea, button:not(.modal__close)');
     (focusable || node)?.focus();
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose?.();
+      if (e.key === 'Escape') onCloseRef.current?.();
     };
     document.addEventListener('keydown', onKey);
     document.body.classList.add('no-scroll');
@@ -145,7 +152,7 @@ export function Modal({ open, title, onClose, children, footer, size = 'md' }) {
       document.body.classList.remove('no-scroll');
       previous?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
