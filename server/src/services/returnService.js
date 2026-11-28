@@ -22,8 +22,11 @@ import { FULL_VIEWER } from './visibilityService.js';
 const ORDER_FIELDS =
   'easyOrdersId easyOrdersShortId customer.name customer.government customer.area customer.address customer.notes totalAmount currency paymentMethod sourceStatus deliveryStatus deliveryAttempts assignedTo returnInfo sync cod labels.printedAt parcels isDemo updatedAt createdAt';
 
+/** Failed attempts waiting for a decision (the «المرتجعات» page, pending tab). */
+export const PENDING_RETURNS = { deliveryStatus: 'failed' };
+
 export async function listReturns({ status = 'pending' }, { skip, limit }, viewer = FULL_VIEWER) {
-  const query = status === 'returned' ? { deliveryStatus: 'returned' } : { deliveryStatus: 'failed' };
+  const query = status === 'returned' ? { deliveryStatus: 'returned' } : PENDING_RETURNS;
   const sort = status === 'returned' ? { 'returnInfo.at': -1, _id: -1 } : { updatedAt: 1, _id: 1 };
   const [items, total] = await Promise.all([
     Order.find(query)

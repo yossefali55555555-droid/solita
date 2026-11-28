@@ -12,7 +12,7 @@ import * as returns from '../services/returnService.js';
 import * as customers from '../services/customerService.js';
 import * as finance from '../services/financeService.js';
 import * as labels from '../services/labelService.js';
-import { getOverview, getSystemStatus } from '../services/statsService.js';
+import { getNavCounts, getOverview, getSystemStatus } from '../services/statsService.js';
 import { processBackgroundWork } from '../jobs/processBackgroundWork.js';
 import { forbidden, notFound } from '../utils/errors.js';
 import { hasDangerous, isAdmin } from '../services/permissionService.js';
@@ -23,6 +23,10 @@ import { OrderEvent } from '../models/index.js';
 // ---------- Overview ----------
 export async function overview(req, res) {
   res.json(serializeFor(req.viewer, 'overview', { stats: await getOverview(req.viewer), system: getSystemStatus() }));
+}
+
+export async function navCounts(req, res) {
+  res.json({ counts: await getNavCounts(req.viewer) });
 }
 
 // ---------- Couriers ----------

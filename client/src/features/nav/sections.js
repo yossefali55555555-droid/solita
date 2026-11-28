@@ -14,12 +14,12 @@ export const NAV_SECTIONS = [
       {
         label: 'لم تكتمل',
         pages: [
-          { to: '/admin/missed-orders', label: 'مشكلة وقت الطلب', section: 'missedOrders' },
-          { to: '/admin/abandoned-carts', label: 'سلة متروكة', section: 'storefront' },
+          { to: '/admin/missed-orders', label: 'مشكلة وقت الطلب', section: 'missedOrders', count: 'missedOrders' },
+          { to: '/admin/abandoned-carts', label: 'سلة متروكة', section: 'storefront', count: 'abandonedCarts' },
         ],
       },
       { label: 'كل الطلبات', pages: [{ to: '/admin/orders', section: 'orders' }] },
-      { label: 'الطباعة', pages: [{ to: '/admin/labels', section: 'warehouse' }] },
+      { label: 'الطباعة', count: 'labels', pages: [{ to: '/admin/labels', section: 'warehouse' }] },
       { label: 'مراجعة التسليم', count: 'reviews', pages: [{ to: '/admin/reviews', section: 'reviews' }] },
       { label: 'المرتجعات', count: 'returns', pages: [{ to: '/admin/returns', section: 'warehouse' }] },
     ],
@@ -91,6 +91,23 @@ export function locate(nav, pathname) {
   }
   return {};
 }
+
+/**
+ * The number next to a tab: its own `count`, or the sum of its visible pages'
+ * counts (a tab holding several pages). `counts` holds only what the user may see.
+ */
+export function tabCount(tab, counts = {}) {
+  if (tab.count) return counts[tab.count] || 0;
+  return tab.pages.reduce((sum, page) => sum + (counts[page.count] || 0), 0);
+}
+
+/** The number next to a section: everything waiting in its tabs. */
+export function sectionCount(section, counts = {}) {
+  return section.tabs.reduce((sum, tab) => sum + tabCount(tab, counts), 0);
+}
+
+/** The sections whose counts the user may see (the server checks the same). */
+export const COUNTED_SECTIONS = ['missedOrders', 'storefront', 'warehouse', 'reviews'];
 
 const PHONE_BAR = ['home', 'orders', 'couriers', 'money', 'customers', 'site'];
 

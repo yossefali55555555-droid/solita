@@ -155,20 +155,30 @@ export function parcelsAfterAssignment(order, nextCourierId) {
 const QUEUE_FIELDS =
   'easyOrdersId easyOrdersShortId customer.name customer.government items totalAmount cod paymentStatus sourceStatus deliveryStatus assignedTo labels parcels isDemo createdAt';
 
+const notCancelled = { sourceStatus: { $ne: 'canceled' }, ...NOT_TEST };
+const QUEUE_QUERIES = {
+  pending: { 'labels.printedAt': null, deliveryStatus: { $in: ['new', 'assigned'] }, dashboardHiddenAt: null, ...notCancelled },
+  reprint: { 'labels.needsReprint': true, deliveryStatus: { $in: PRINTABLE_STATUSES }, ...notCancelled },
+  printed: { 'labels.printedAt': { $ne: null }, ...NOT_TEST },
+};
+
+/** Labels waiting to be printed: new ones and ones that need a reprint (same numbers as the print page tabs). */
+export async function printQueueCounts() {
+  const [pending, reprint] = await Promise.all([
+    Order.countDocuments(QUEUE_QUERIES.pending),
+    Order.countDocuments(QUEUE_QUERIES.reprint),
+  ]);
+  return { pending, reprint };
+}
+
 export async function listPrintQueue({ tab = 'pending' }, { skip, limit }, viewer = FULL_VIEWER) {
-  const notCancelled = { sourceStatus: { $ne: 'canceled' }, ...NOT_TEST };
-  const queries = {
-    pending: { 'labels.printedAt': null, deliveryStatus: { $in: ['new', 'assigned'] }, dashboardHiddenAt: null, ...notCancelled },
-    reprint: { 'labels.needsReprint': true, deliveryStatus: { $in: PRINTABLE_STATUSES }, ...notCancelled },
-    printed: { 'labels.printedAt': { $ne: null }, ...NOT_TEST },
-  };
+  const queries = QUEUE_QUERIES;
   const query = queries[tab] || queries.pending;
   const sort = tab === 'printed' ? { 'labels.printedAt': -1, _id: -1 } : { createdAt: 1, _id: 1 };
-  const [items, total, pending, reprint] = await Promise.all([
+  const [items, total, { pending, reprint }] = await Promise.all([
     Order.find(query).sort(sort).skip(skip).limit(limit).select(viewer.phone ? `${QUEUE_FIELDS} customer.phone` : QUEUE_FIELDS).populate('assignedTo', 'name').lean(),
     Order.countDocuments(query),
-    Order.countDocuments(queries.pending),
-    Order.countDocuments(queries.reprint),
+    printQueueCounts(),
   ]);
   return {
     items: items.map((o) => ({ ...o, parcelCount: buildParcelPlan(o).length, items: undefined })),
