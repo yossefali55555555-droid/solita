@@ -94,6 +94,9 @@ describe('activity log: sentences', () => {
       expect(scrubSentence(`اتصال بـ ${t} الآن`), t).not.toMatch(/[0-9٠-٩]{8,}|1[0125][ -]?\d{4}/);
     }
     expect(scrubSentence('طلب 1042 بمبلغ 150 ج.م')).toBe('طلب 1042 بمبلغ 150 ج.م');
+    // Dates and times are not phone numbers.
+    expect(scrubSentence('حتى 2026-11-28 04:36')).toBe('حتى 2026-11-28 04:36');
+    expect(scrubSentence('الانتهاء من 2027-05-01 إلى 2027-06-15')).toBe('الانتهاء من 2027-05-01 إلى 2027-06-15');
   });
 
   it('logs a moderator order status change with before and after, and shows the last editor to the admin only', async () => {
