@@ -317,7 +317,7 @@ const COURIER = {
 export const STAFF_ACTIVITY = Object.freeze(D);
 export const COURIER_ACTIVITY = Object.freeze(COURIER);
 /** Routes that write their own line inside the handler (the descriptor is not used). */
-export const MANUAL_ACTIVITY = Object.freeze(new Set(['GET /missed-orders/export', 'POST /wa/click']));
+export const MANUAL_ACTIVITY = Object.freeze(new Set(['GET /missed-orders/export', 'GET /customers/export-meta', 'POST /wa/click']));
 
 // ---------------------------------------------------------------- runtime
 

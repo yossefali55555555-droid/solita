@@ -135,6 +135,7 @@ export function buildRouter() {
   a.post('/orders/:id/return', requirePermission('warehouse', 'edit'), validate({ params: idParams, body: s.confirmReturnBody }), admin.confirmReturn);
 
   a.get('/customers', requirePermission('customers', 'view'), validate({ query: s.listCustomersQuery }), admin.listCustomers);
+  a.get('/customers/export-meta', requirePermission('customers', 'view', { fields: ['export', 'customerPhone'] }), validate({ query: s.metaExportQuery }), admin.exportMetaFile);
   a.get('/customers/:key', requirePermission('customers', 'view'), validate({ params: s.customerKeyParams }), admin.getCustomer);
 
   a.get('/finance/summary', requirePermission('finance', 'view'), validate({ query: s.profitQuery }), admin.profitSummary);

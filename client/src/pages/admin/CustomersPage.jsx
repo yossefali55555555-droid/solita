@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Badge, Card, PageHeader, Pagination } from '../../components/ui.jsx';
+import { Badge, Button, Card, PageHeader, Pagination } from '../../components/ui.jsx';
+import { usePermissions } from '../../features/auth/permissions.js';
+import { MetaExportModal } from '../../features/customers/MetaExportModal.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/States.jsx';
 import { useAsync, useDebouncedValue } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
@@ -24,11 +26,20 @@ export function CustomersPage() {
     [q, sort, page],
   );
 
+  const perms = usePermissions();
+  const canExport = perms.field('export') && perms.field('customerPhone');
+  const [exportOpen, setExportOpen] = useState(false);
+
   const update = (next) => setParams({ ...(q ? { q } : {}), sort, ...next });
 
   return (
     <>
-      <PageHeader title="العملاء" subtitle="كل عملاء المتجر مجمّعين برقم الهاتف مع سجل طلباتهم" />
+      <PageHeader
+        title="العملاء"
+        subtitle="كل عملاء المتجر مجمّعين برقم الهاتف مع سجل طلباتهم"
+        actions={canExport && <Button variant="secondary" onClick={() => setExportOpen(true)}>تصدير لميتا</Button>}
+      />
+      {canExport && <MetaExportModal open={exportOpen} onClose={() => setExportOpen(false)} />}
       <Card>
         <div className="filters">
           <input
