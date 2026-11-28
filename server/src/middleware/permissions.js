@@ -6,6 +6,7 @@ import { forbidden, unauthorized } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { actorLabel, raiseAlert } from '../services/alertService.js';
 import { checkStepUp, consumeStepUp } from '../services/mfaService.js';
+import { attachActivityLog } from '../services/activityRoutes.js';
 
 /**
  * Per-route permission metadata + enforcement for /api/admin.
@@ -154,6 +155,8 @@ export function requirePermission(section, level, opts = {}) {
       }
       if (plan.stepUp === 'always') beforeSuccessReply(res, () => consumeStepUp(req.authSession, plan.dangerous));
     }
+    // Phase 5: every state-changing request writes one activity line before it replies.
+    await attachActivityLog(req, res, plan);
     if (isAdmin(user)) return next();
     guardResponse(res, req.viewer);
     const rule = alertRuleFor(plan);

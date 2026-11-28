@@ -6,6 +6,7 @@ import { ErrorState, LoadingState } from '../../components/States.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
+import { usePermissions } from '../../features/auth/permissions.js';
 
 /**
  * «صفحة المقاسات»: models, sizes, insole lengths and every text of the
@@ -36,6 +37,7 @@ const TEXTS = [
 const num = (v) => (v === '' ? '' : Number(v));
 
 export function SizeGuidePage() {
+  const canEdit = usePermissions().can('siteSettings', 'edit');
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const { data, error, loading, reload } = useAsync(() => api.get('/admin/size-guide'), []);
@@ -271,11 +273,13 @@ export function SizeGuidePage() {
         ]}
       />
 
-      <div className="sticky-actions">
-        <Button onClick={save} loading={saving} disabled={!dirty} size="lg">
-          حفظ التغييرات
-        </Button>
-      </div>
+      {canEdit && (
+        <div className="sticky-actions">
+          <Button onClick={save} loading={saving} disabled={!dirty} size="lg">
+            حفظ التغييرات
+          </Button>
+        </div>
+      )}
     </>
   );
 }

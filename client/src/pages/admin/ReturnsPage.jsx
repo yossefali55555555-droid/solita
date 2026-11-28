@@ -9,6 +9,7 @@ import { api } from '../../services/api.js';
 import { FAILURE_REASON_LABELS, label } from '../../utils/labels.js';
 import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
 import { useAction } from '../../hooks/useAsync.js';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { QrScanner } from '../../features/labels/QrScanner.jsx';
 
 const SCAN_TONE = { ok: 'success', mine: 'info', block: 'danger' };
@@ -60,6 +61,7 @@ const TABS = [
 ];
 
 export function ReturnsPage() {
+  const canEdit = usePermissions().can('warehouse', 'edit');
   const [params, setParams] = useSearchParams();
   const status = params.get('status') || 'pending';
   const page = params.get('page') || '1';
@@ -75,7 +77,7 @@ export function ReturnsPage() {
         title="مراجعة الرفض والمرتجعات"
         subtitle="الطلبات التي لم يتمكن المندوب من تسليمها (رفض الاستلام، لم يدفع، لم يرد...). عند اعتماد المرتجع تتحدث حالة EasyOrders تلقائياً."
       />
-      <WarehouseScan onScanned={() => reload({ silent: true })} />
+      {canEdit && <WarehouseScan onScanned={() => reload({ silent: true })} />}
       <div className="tabs" role="tablist">
         {TABS.map((t) => (
           <button
@@ -162,9 +164,11 @@ export function ReturnsPage() {
                     <td>
                       {status === 'pending' ? (
                         <div className="action-list">
-                          <Button size="sm" variant="danger" onClick={() => setSelected(o)}>
-                            تأكيد المرتجع
-                          </Button>
+                          {canEdit && (
+                            <Button size="sm" variant="danger" onClick={() => setSelected(o)}>
+                              تأكيد المرتجع
+                            </Button>
+                          )}
                           <Link className="btn btn--secondary btn--sm" to={`/admin/orders/${o._id}`}>
                             إعادة المحاولة
                           </Link>

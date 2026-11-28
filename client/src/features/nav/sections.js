@@ -59,6 +59,8 @@ export const NAV_SECTIONS = [
     tabs: [
       { label: 'الأمان والتنبيهات', pages: [{ to: '/admin/security', adminOnly: true }] },
       { label: 'المزامنة مع EasyOrders', pages: [{ to: '/admin/sync', section: 'sync' }] },
+      { label: 'المودريتورز', pages: [{ to: '/admin/staff', adminOnly: true }] },
+      { label: 'النشاطات', pages: [{ to: '/admin/activity', adminOnly: true }] },
     ],
   },
 ];

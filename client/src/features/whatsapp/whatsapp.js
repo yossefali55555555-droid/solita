@@ -1,3 +1,4 @@
+import { api } from '../../services/api.js';
 import { formatMoney, orderNumber, toAsciiDigits } from '../../utils/format.js';
 
 /** Egyptian mobile → international digits for wa.me (01xxxxxxxxx → 201xxxxxxxxx). */
@@ -33,6 +34,14 @@ export function orderStatusMessage(order, courierName) {
     default:
       return `${hello}\nبخصوص طلبك رقم ${num}.`;
   }
+}
+
+/**
+ * Tell the server a WhatsApp button was pressed, with the text that was prepared (phase 5 log).
+ * Fire and forget: a failure here never blocks opening the chat.
+ */
+export function logWhatsAppClick({ kind, id, text }) {
+  api.post('/admin/wa/click', { kind, id, text: String(text || '').slice(0, 3000) }).catch(() => {});
 }
 
 export function whatsappLink(phone, text) {

@@ -78,8 +78,9 @@ describe('route permission metadata (default deny)', () => {
     expect(missing).toEqual([]);
   });
 
-  it('maps all 89 admin routes: requirePermission everywhere, adminOnly only for init-db', () => {
-    expect(staffRoutes).toHaveLength(89);
+  it('maps all 91 admin routes: requirePermission everywhere, adminOnly only for init-db', () => {
+    // main's 89 (85 original + export + size-guide x2 + nav-counts) + WhatsApp texts read and click log (2, phase 5).
+    expect(staffRoutes).toHaveLength(91);
     for (const r of staffRoutes) {
       expect(r.meta?.unmapped, `${r.method} ${r.path}`).toBeFalsy();
       expect(r.meta?.adminOnly === true, `${r.method} ${r.path}`).toBe(r.path === '/system/init-db');

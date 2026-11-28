@@ -10,6 +10,7 @@ import {
   SourceStatusBadge,
   SyncOperationBadge,
 } from '../../components/StatusBadges.jsx';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { Timeline } from '../../components/Timeline.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
@@ -18,6 +19,7 @@ import { label, SOURCE_STATUS_LABELS, SYNC_OP_LABELS } from '../../utils/labels.
 import { formatDateTime, formatMoney, orderNumber } from '../../utils/format.js';
 
 export function ReviewDetailPage() {
+  const canEdit = usePermissions().can('reviews', 'edit');
   const { id } = useParams();
   const toast = useToast();
   const { data, error, loading, reload } = useAsync(() => api.get(`/admin/delivery-reviews/${id}`), [id]);
@@ -103,7 +105,7 @@ export function ReviewDetailPage() {
         <div className="alert alert--warning">تعارض مع EasyOrders: {order.sourceConflict.message}</div>
       )}
 
-      {review.status === 'pending' && (
+      {canEdit && review.status === 'pending' && (
         <Card className="decision">
           <p>تأكد من استلام العميل للطلب قبل الموافقة. عند الموافقة سيتم تحديث الطلب في EasyOrders إلى "تم التسليم".</p>
           <div className="action-list">
@@ -119,7 +121,7 @@ export function ReviewDetailPage() {
             تمت الموافقة داخلياً، لكن <strong>لم يتم تأكيد التحديث في EasyOrders بعد</strong>.
             {review.lastSyncError && <div className="small">آخر خطأ: {review.lastSyncError}</div>}
           </div>
-          {op && op.state !== 'succeeded' && op.state !== 'in_progress' && (
+          {canEdit && op && op.state !== 'succeeded' && op.state !== 'in_progress' && (
             <Button size="sm" variant="secondary" loading={retrying} onClick={retry}>إعادة محاولة المزامنة</Button>
           )}
         </div>

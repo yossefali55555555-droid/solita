@@ -15,7 +15,8 @@ import * as labels from '../services/labelService.js';
 import { getNavCounts, getOverview, getSystemStatus } from '../services/statsService.js';
 import { processBackgroundWork } from '../jobs/processBackgroundWork.js';
 import { forbidden, notFound } from '../utils/errors.js';
-import { hasDangerous } from '../services/permissionService.js';
+import { hasDangerous, isAdmin } from '../services/permissionService.js';
+import { lastEditors } from '../services/activityService.js';
 import { serializeFor } from '../services/visibilityService.js';
 import { OrderEvent } from '../models/index.js';
 
@@ -68,11 +69,18 @@ export async function courierEvents(req, res) {
 export async function listOrders(req, res) {
   const page = paginationParams(req.valid.query);
   const { items, total } = await orders.listOrders(req.valid.query, page, req.viewer);
+  // «آخر من عدّل» comes from the staff activity log and is shown to the administrator only.
+  if (isAdmin(req.user)) {
+    const editors = await lastEditors(items.map((o) => o._id));
+    for (const o of items) o.lastEditedBy = editors[String(o._id)] || null;
+  }
   res.json(paginated(items, total, page));
 }
 
 export async function getOrder(req, res) {
-  res.json(await orders.getOrderForAdmin(req.valid.params.id, req.viewer));
+  const detail = await orders.getOrderForAdmin(req.valid.params.id, req.viewer);
+  if (isAdmin(req.user)) detail.order.lastEditedBy = (await lastEditors([detail.order._id]))[String(detail.order._id)] || null;
+  res.json(detail);
 }
 
 export async function assignOrder(req, res) {

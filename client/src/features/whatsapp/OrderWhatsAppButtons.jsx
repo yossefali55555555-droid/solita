@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Badge, Button } from '../../components/ui.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { api } from '../../services/api.js';
-import { whatsappLink } from './whatsapp.js';
+import { logWhatsAppClick, whatsappLink } from './whatsapp.js';
 import { cairoDate, confirmationMessage, couponMessage } from './orderMessages.js';
 
 /**
@@ -28,7 +28,9 @@ export function OrderWhatsAppButtons({ order, templates, onChanged }) {
       const { coupon: row } = coupon ? { coupon } : await api.post(`/admin/orders/${order._id}/coupon`);
       // The 365 days start the day the code is sent, so mark it first and read the dates back.
       const { coupon: sent } = await api.post(`/admin/coupons/${row._id}/sent`);
-      const href = whatsappLink(phone, couponMessage(order, sent, templates.coupon));
+      const text = couponMessage(order, sent, templates.coupon);
+      const href = whatsappLink(phone, text);
+      logWhatsAppClick({ kind: 'coupon', id: row._id, text });
       if (tab) tab.location.href = href;
       else window.location.href = href;
       onChanged?.();
@@ -41,6 +43,7 @@ export function OrderWhatsAppButtons({ order, templates, onChanged }) {
   };
 
   const confirmSent = () => {
+    logWhatsAppClick({ kind: 'confirm', id: order._id, text: confirmationMessage(order, templates.confirm) });
     api.post(`/admin/orders/${order._id}/confirmation-sent`).then(() => onChanged?.(), () => {});
   };
 

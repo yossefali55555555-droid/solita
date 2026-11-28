@@ -47,14 +47,15 @@ export function OrdersPage() {
   const key = JSON.stringify(query);
   const { data, error, loading, reload } = useAsync(() => api.get('/admin/orders', query), [key]);
   const couriers = useAsync(() => api.get('/admin/couriers-brief'), []);
-  const settings = useAsync(() => api.get('/admin/site-settings'), []);
-  const templates = settings.data?.settings?.admin
-    ? { coupon: settings.data.settings.admin.couponWhatsappTemplate, confirm: settings.data.settings.admin.confirmWhatsappTemplate }
+  const settings = useAsync(() => api.get('/admin/wa-templates'), []);
+  const templates = settings.data?.templates
+    ? { coupon: settings.data.templates.couponWhatsappTemplate, confirm: settings.data.templates.confirmWhatsappTemplate }
     : null;
   const unconfirmedCount = useAsync(() => api.get('/admin/orders', { unconfirmed: 'true', limit: 1 }), []);
   const cleared = useAsync(() => api.get('/admin/orders/cleared/count'), []);
   const toast = useToast();
   const perms = usePermissions();
+  const canEdit = perms.can('orders', 'edit'); // view-only accounts get no selection or bulk actions
   const [clearOpen, setClearOpen] = useState(false);
 
 
@@ -262,7 +263,7 @@ export function OrdersPage() {
         </div>
       </Card>
 
-      {selected.size > 0 && (
+      {canEdit && selected.size > 0 && (
         <div className="alert alert--info row-between" role="region" aria-label="إجراءات جماعية">
           <span>
             <strong>{selected.size}</strong> طلب محدد
@@ -329,9 +330,11 @@ export function OrdersPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>
-                    <input type="checkbox" aria-label="تحديد كل الطلبات في الصفحة" checked={allOnPage} onChange={togglePage} />
-                  </th>
+                  {canEdit && (
+                    <th>
+                      <input type="checkbox" aria-label="تحديد كل الطلبات في الصفحة" checked={allOnPage} onChange={togglePage} />
+                    </th>
+                  )}
                   <th>رقم الطلب</th>
                   <th>العميل</th>
                   <th>المحافظة</th>
@@ -345,9 +348,11 @@ export function OrdersPage() {
               <tbody>
                 {data.items.map((o) => (
                   <tr key={o._id} className={selected.has(o._id) ? 'is-selected' : ''}>
-                    <td>
-                      <input type="checkbox" aria-label={`تحديد الطلب ${orderNumber(o)}`} checked={selected.has(o._id)} onChange={() => toggleOne(o._id)} />
-                    </td>
+                    {canEdit && (
+                      <td>
+                        <input type="checkbox" aria-label={`تحديد الطلب ${orderNumber(o)}`} checked={selected.has(o._id)} onChange={() => toggleOne(o._id)} />
+                      </td>
+                    )}
                     <td>
                       <Link to={`/admin/orders/${o._id}`} className="link mono">
                         {orderNumber(o)}

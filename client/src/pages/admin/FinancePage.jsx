@@ -205,7 +205,7 @@ export function FinancePage() {
         subtitle="صافي الربح = مبيعات الطلبات المُسلَّمة − المصروفات (الفواتير)"
         actions={
           <>
-            <Button onClick={() => setEditing({})}>+ إضافة مصروف</Button>
+            {perms.can('finance', 'edit') && <Button onClick={() => setEditing({})}>+ إضافة مصروف</Button>}
             {perms.danger('resetFinance') && <Button variant="danger" onClick={() => setResetOpen(true)}>تصفير الأرقام</Button>}
           </>
         }
@@ -346,9 +346,11 @@ export function FinancePage() {
                     <td className="muted">{e.createdBy?.name || '—'}</td>
                     <td>
                       <div className="action-list">
-                        <Button size="sm" variant="secondary" onClick={() => setEditing(e)}>
-                          تعديل
-                        </Button>
+                        {perms.can('finance', 'edit') && (
+                          <Button size="sm" variant="secondary" onClick={() => setEditing(e)}>
+                            تعديل
+                          </Button>
+                        )}
                         {perms.danger('deleteExpense') && (
                           <Button size="sm" variant="danger" onClick={() => setDeleting(e)}>
                             حذف

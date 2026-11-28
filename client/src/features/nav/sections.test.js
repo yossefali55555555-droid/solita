@@ -13,6 +13,8 @@ describe('admin navigation', () => {
     expect(new Set(all).size).toBe(all.length);
     for (const page of ADMIN_PAGES) expect(all).toContain(page.to);
     expect(all).toContain('/admin/security');
+    expect(all).toContain('/admin/staff');
+    expect(all).toContain('/admin/activity');
     expect(all).toContain('/admin/size-guide');
   });
 

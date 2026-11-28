@@ -23,6 +23,9 @@ import { PageStat } from './PageStat.js';
 import { AccountSecurity } from './AccountSecurity.js';
 import { PreAuth } from './PreAuth.js';
 import { SecurityAlert } from './SecurityAlert.js';
+import { StaffActivity } from './StaffActivity.js';
+import { PermissionTemplate } from './PermissionTemplate.js';
+import { AccountInvite } from './AccountInvite.js';
 
 export {
   publicUser,
@@ -51,6 +54,9 @@ export {
   AccountSecurity,
   PreAuth,
   SecurityAlert,
+  StaffActivity,
+  PermissionTemplate,
+  AccountInvite,
 };
 
 export const allModels = [
@@ -79,4 +85,7 @@ export const allModels = [
   AccountSecurity,
   PreAuth,
   SecurityAlert,
+  StaffActivity,
+  PermissionTemplate,
+  AccountInvite,
 ];

@@ -7,6 +7,7 @@ import { SyncOperationBadge } from '../../components/StatusBadges.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { SOURCE_STATUS_LABELS, label } from '../../utils/labels.js';
 import { formatDateTime, orderNumber } from '../../utils/format.js';
 
@@ -51,6 +52,8 @@ function InitDatabaseCard() {
 }
 
 export function SyncPage() {
+  const perms = usePermissions();
+  const canEdit = perms.can('sync', 'edit');
   const toast = useToast();
   const [page, setPage] = useState(1);
   const { data, error, loading, reload } = useAsync(() => api.get('/admin/sync/failures', { page, limit: 20 }), [page]);
@@ -99,7 +102,7 @@ export function SyncPage() {
       <PageHeader
         title="المزامنة مع EasyOrders"
         subtitle="العمليات التي لم يؤكدها EasyOrders بعد، وأحداث Webhook التي لم تتم معالجتها"
-        actions={<Button variant="secondary" loading={processing} onClick={processDue}>معالجة العمليات المستحقة الآن</Button>}
+        actions={canEdit && <Button variant="secondary" loading={processing} onClick={processDue}>معالجة العمليات المستحقة الآن</Button>}
       />
 
       <PageTabs
@@ -144,9 +147,11 @@ export function SyncPage() {
                     <td className="small">{op.lastError || '—'}</td>
                     <td className="nowrap muted">{op.state === 'failed' ? '—' : formatDateTime(op.nextAttemptAt)}</td>
                     <td>
-                      <Button size="sm" variant="secondary" loading={busyId === op._id} onClick={() => retry(op._id)}>
-                        إعادة المحاولة
-                      </Button>
+                      {canEdit && (
+                        <Button size="sm" variant="secondary" loading={busyId === op._id} onClick={() => retry(op._id)}>
+                          إعادة المحاولة
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -177,7 +182,7 @@ export function SyncPage() {
                     <td className="small">{w.lastError || '—'}</td>
                     <td className="nowrap muted">{formatDateTime(w.receivedAt)}</td>
                     <td>
-                      <Button size="sm" variant="secondary" loading={busyId === w._id} onClick={() => retryWebhook(w._id)}>إعادة المعالجة</Button>
+                      {canEdit && <Button size="sm" variant="secondary" loading={busyId === w._id} onClick={() => retryWebhook(w._id)}>إعادة المعالجة</Button>}
                     </td>
                   </tr>
                 ))}
@@ -187,7 +192,7 @@ export function SyncPage() {
         )}
       </Card>
 </> },
-          { key: 'db', label: 'قاعدة البيانات', content: <InitDatabaseCard /> },
+          perms.isAdmin && { key: 'db', label: 'قاعدة البيانات', content: <InitDatabaseCard /> },
         ]}
       />
 

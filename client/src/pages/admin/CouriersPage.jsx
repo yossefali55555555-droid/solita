@@ -5,12 +5,14 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/States.js
 import { useToast } from '../../components/Toast.jsx';
 import { useAction, useAsync, useDebouncedValue } from '../../hooks/useAsync.js';
 import { api } from '../../services/api.js';
+import { usePermissions } from '../../features/auth/permissions.js';
 import { toAsciiDigits } from '../../utils/format.js';
 
 const EMPTY = { name: '', phone: '', email: '', password: '' };
 
 export function CouriersPage() {
   const toast = useToast();
+  const canEdit = usePermissions().can('couriers', 'edit');
   const [q, setQ] = useState('');
   const [active, setActive] = useState('');
   const [page, setPage] = useState(1);
@@ -48,7 +50,7 @@ export function CouriersPage() {
     <>
       <PageHeader
         title="المندوبون"
-        actions={<Button onClick={() => { setErrors({}); setOpen(true); }}>إضافة مندوب</Button>}
+        actions={canEdit && <Button onClick={() => { setErrors({}); setOpen(true); }}>إضافة مندوب</Button>}
       />
       <Card>
         <div className="filters">

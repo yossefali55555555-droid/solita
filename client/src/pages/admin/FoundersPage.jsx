@@ -17,6 +17,7 @@ import { formatDate, formatNumber, orderNumber } from '../../utils/format.js';
  *    entry in the draw.
  */
 function FounderRow({ founder, onSaved }) {
+  const canEdit = usePermissions().can('founders', 'edit');
   const toast = useToast();
   const [form, setForm] = useState({ personalCode: founder.personalCode || '', friendCode: founder.friendCode || '', notes: founder.notes || '' });
   const [saving, setSaving] = useState(false);
@@ -81,9 +82,11 @@ function FounderRow({ founder, onSaved }) {
       </td>
       <td>{input('notes', 'ملاحظات')}</td>
       <td>
-        <Button size="sm" loading={saving} disabled={!dirty} onClick={save}>
-          حفظ
-        </Button>
+        {canEdit && (
+          <Button size="sm" loading={saving} disabled={!dirty} onClick={save}>
+            حفظ
+          </Button>
+        )}
       </td>
     </tr>
   );

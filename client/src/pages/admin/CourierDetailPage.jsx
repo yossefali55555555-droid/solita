@@ -13,6 +13,7 @@ import { formatDateTime, formatMoney, toAsciiDigits, orderNumber } from '../../u
 
 export function CourierDetailPage() {
   const perms = usePermissions();
+  const canEdit = perms.can('couriers', 'edit');
   const { id } = useParams();
   const toast = useToast();
   const { data, error, loading, reload } = useAsync(() => api.get(`/admin/couriers/${id}`), [id]);
@@ -81,13 +82,13 @@ export function CourierDetailPage() {
         title={courier.name}
         subtitle={courier.isActive ? 'حساب مفعل' : 'حساب موقوف'}
         actions={
-          <>
+          canEdit && (<>
             <Button variant="secondary" onClick={() => { setErrors({}); setForm({ name: courier.name, phone: courier.phone, email: courier.email || '' }); setEditOpen(true); }}>تعديل</Button>
             {perms.danger('resetCourierPassword') && <Button variant="secondary" onClick={() => { setErrors({}); setPwOpen(true); }}>إعادة تعيين كلمة المرور</Button>}
             <Button variant={courier.isActive ? 'danger' : 'primary'} onClick={() => setToggleOpen(true)}>
               {courier.isActive ? 'إيقاف الحساب' : 'تفعيل الحساب'}
             </Button>
-          </>
+          </>)
         }
       />
 
