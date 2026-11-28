@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthContext.jsx';
 import { usePermissions } from '../features/auth/permissions.js';
-import { COUNTED_SECTIONS, locate, phoneNav, sectionCount, tabCount, visibleNav } from '../features/nav/sections.js';
+import { COUNTED_SECTIONS, NAV_COUNTS_STALE, locate, phoneNav, sectionCount, tabCount, visibleNav } from '../features/nav/sections.js';
 import { DemoBanner, Logo } from '../components/ui.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { api } from '../services/api.js';
@@ -78,6 +78,12 @@ export function AdminLayout() {
     () => (COUNTED_SECTIONS.some((s) => perms.can(s)) ? api.get('/admin/nav-counts') : Promise.resolve(null)),
     [pathname],
   );
+  const reloadCounts = navCounts.reload;
+  useEffect(() => {
+    const again = () => reloadCounts({ silent: true });
+    window.addEventListener(NAV_COUNTS_STALE, again);
+    return () => window.removeEventListener(NAV_COUNTS_STALE, again);
+  }, [reloadCounts]);
   const counts = navCounts.data?.counts || {};
 
   const alerts = user?.role === 'admin' ? user?.security?.unreadAlerts || 0 : 0;

@@ -4,6 +4,7 @@ import { AppSetting, CashRemittance, Order, User } from '../models/index.js';
 import { conflict, notFound, unprocessable } from '../utils/errors.js';
 import { sumMinor } from '../utils/money.js';
 import { recordEvent, userActor } from './auditService.js';
+import { notify } from './notificationService.js';
 
 /**
  * Cash-on-delivery reconciliation.
@@ -136,8 +137,8 @@ async function transition(remittanceId, fromStates, set, { admin, type, reason }
   return after;
 }
 
-export function receiveRemittance(admin, id, { handedOverAmount, notes }) {
-  return transition(
+export async function receiveRemittance(admin, id, { handedOverAmount, notes }) {
+  const after = await transition(
     id,
     ['declared'],
     (r) => ({
@@ -150,11 +151,13 @@ export function receiveRemittance(admin, id, { handedOverAmount, notes }) {
     }),
     { admin, type: 'remittance_received', reason: notes },
   );
+  await notify(after.courier, 'remittance_received', 'استلمت الإدارة تسوية النقدية التي أعلنتها وهي الآن قيد المراجعة');
+  return after;
 }
 
 /** Verification (also used to correct a previous discrepancy; audited). */
-export function verifyRemittance(admin, id, { verifiedAmount, notes }) {
-  return transition(
+export async function verifyRemittance(admin, id, { verifiedAmount, notes }) {
+  const after = await transition(
     id,
     ['received', 'discrepancy'],
     (r) => ({
@@ -167,6 +170,12 @@ export function verifyRemittance(admin, id, { verifiedAmount, notes }) {
     }),
     { admin, type: 'remittance_verified', reason: notes },
   );
+  await notify(
+    after.courier,
+    'remittance_verified',
+    after.status === 'reconciled' ? 'تمت مراجعة تسوية النقدية وتطابق المبلغ' : 'تمت مراجعة تسوية النقدية وظهر فرق في المبلغ، تواصل مع الإدارة',
+  );
+  return after;
 }
 
 export async function cancelRemittance(admin, id, { reason }) {
@@ -177,6 +186,7 @@ export async function cancelRemittance(admin, id, { reason }) {
     { admin, type: 'remittance_cancelled', reason },
   );
   await Order.updateMany({ 'cod.remittance': after._id }, { $set: { 'cod.remittance': null } });
+  await notify(after.courier, 'remittance_cancelled', 'أُلغيت تسوية النقدية وعادت طلباتها إلى القائمة، يمكنك إعلان تسوية جديدة');
   await Promise.all(
     after.orders.map((orderId) =>
       recordEvent({ order: orderId, type: 'remittance_released', actor: userActor(admin), reason, metadata: { remittance: after._id } }),

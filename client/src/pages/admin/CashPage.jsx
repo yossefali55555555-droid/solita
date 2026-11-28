@@ -9,6 +9,7 @@ import { Timeline } from '../../components/Timeline.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { usePermissions } from '../../features/auth/permissions.js';
 import { useAction, useAsync } from '../../hooks/useAsync.js';
+import { refreshNavCounts } from '../../features/nav/sections.js';
 import { api } from '../../services/api.js';
 import { REMITTANCE_STATUS_LABELS } from '../../utils/labels.js';
 import { formatDateTime, formatMoney, isValidMoneyInput, minorToInput, toAsciiDigits, orderNumber } from '../../utils/format.js';
@@ -252,6 +253,7 @@ export function CashPage() {
   const refresh = () => {
     overview.reload({ silent: true });
     list.reload({ silent: true });
+    refreshNavCounts(); // the red number on the tab follows what was just received or cancelled
   };
   const resetCash = async (confirm) => {
     await api.post('/admin/cash/reset', { confirm });

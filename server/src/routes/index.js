@@ -75,7 +75,7 @@ export function buildRouter() {
 
   a.get('/overview', requirePermission('dashboard', 'view'), admin.overview);
   // Tab counts: each figure is only computed for the sections the viewer may open.
-  a.get('/nav-counts', requirePermission(['missedOrders', 'storefront', 'warehouse', 'reviews'], 'view'), admin.navCounts);
+  a.get('/nav-counts', requirePermission(['missedOrders', 'storefront', 'warehouse', 'reviews', 'cash'], 'view'), admin.navCounts);
 
   a.post('/couriers', requirePermission('couriers', 'edit'), validate({ body: s.createCourierBody }), admin.createCourier);
   a.get('/couriers', requirePermission('couriers', 'view'), validate({ query: s.listCouriersQuery }), admin.listCouriers);

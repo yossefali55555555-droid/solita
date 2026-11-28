@@ -112,4 +112,31 @@ describe('cash-on-delivery reconciliation', () => {
     expect((await courierApi.post('/api/courier/cash/remittances', { orderIds: ids, declaredAmount: '10.555' })).status).toBe(400);
     expect((await courierApi.post('/api/courier/cash/remittances', { orderIds: ids, declaredAmount: -5 })).status).toBe(400);
   });
+
+  it('shows a declared settlement as a count on the cash tab until it is received or cancelled, and tells the courier', async () => {
+    const { adminApi, courierApi, orders } = await deliveredOrders(2);
+    const cashMod = await loginAs(await createUser('moderator', { permissions: { sections: { cash: 'view' }, dangerous: [], fields: [] } }));
+    const otherMod = await loginAs(await createUser('moderator', { permissions: { sections: { warehouse: 'view' }, dangerous: [], fields: [] } }));
+    const count = async (api) => (await api.get('/api/admin/nav-counts')).body.counts.cashDeclared;
+
+    expect(await count(adminApi)).toBe(0);
+    const first = await courierApi.post('/api/courier/cash/remittances', { orderIds: [String(orders[0]._id)], declaredAmount: '1050.00' });
+    const second = await courierApi.post('/api/courier/cash/remittances', { orderIds: [String(orders[1]._id)], declaredAmount: '1050.00' });
+    expect(await count(adminApi)).toBe(2);
+    expect(await count(cashMod)).toBe(2);
+    // A moderator without the cash section never sees the figure.
+    expect((await otherMod.get('/api/admin/nav-counts')).body.counts).not.toHaveProperty('cashDeclared');
+
+    await adminApi.post(`/api/admin/cash/remittances/${first.body.remittance._id}/receive`, { handedOverAmount: 1050 });
+    expect(await count(adminApi)).toBe(1);
+    await adminApi.post(`/api/admin/cash/remittances/${second.body.remittance._id}/cancel`, { reason: 'خطأ في الإعلان' });
+    expect(await count(adminApi)).toBe(0);
+
+    const mine = await courierApi.get('/api/auth/notifications');
+    expect(mine.body.items.map((n) => n.type).sort()).toEqual(['remittance_cancelled', 'remittance_received']);
+
+    await adminApi.post(`/api/admin/cash/remittances/${first.body.remittance._id}/verify`, { verifiedAmount: 1000 });
+    const after = await courierApi.get('/api/auth/notifications');
+    expect(after.body.items.find((n) => n.type === 'remittance_verified').message).toContain('فرق');
+  });
 });
